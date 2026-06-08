@@ -1,0 +1,61 @@
+# brain-dock — local infrastructure (Phase 1 / Foundation).
+# Local-first: Postgres, Qdrant, Redis, Ollama. Start with `bun run infra:up`.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: brain-dock-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: brain_dock
+      POSTGRES_PASSWORD: brain_dock
+      POSTGRES_DB: brain_dock
+    ports:
+      - '15432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U brain_dock -d brain_dock']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: brain-dock-qdrant
+    restart: unless-stopped
+    ports:
+      - '16333:6333'
+      - '16334:6334'
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  redis:
+    image: redis:7-alpine
+    container_name: brain-dock-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '16379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: brain-dock-ollama
+    restart: unless-stopped
+    ports:
+      - '11434:11434'
+    volumes:
+      - ollama-data:/root/.ollama
+
+volumes:
+  postgres-data:
+  qdrant-data:
+  redis-data:
+  ollama-data:
