@@ -156,9 +156,10 @@ prisma/        # схема и миграции
 docs/          # вся документация (см. docs/README.md)
 ```
 
-> Phase 1: созданы `apps/{api,mcp,workers}` и `packages/{shared,core,db}` (api — рабочий;
-> mcp/workers — заглушки). `prisma/` содержит схему + миграции; клиент генерируется в
-> `packages/db/src/generated`. Особенности NestJS-на-Bun — [docs/backend/bun-nestjs-notes.md](docs/backend/bun-nestjs-notes.md).
+> Phase 1–2: созданы `apps/{api,mcp,workers}` и `packages/{shared,core,db,indexer}` (api и indexer —
+> рабочие; mcp/workers — заглушки). `prisma/` — схема + миграции; клиент в `packages/db/src/generated`.
+> AST-индексатор — [docs/architecture/indexer.md](docs/architecture/indexer.md).
+> Особенности NestJS-на-Bun — [docs/backend/bun-nestjs-notes.md](docs/backend/bun-nestjs-notes.md).
 
 ## 8. Правила работы с документацией
 
@@ -239,4 +240,7 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   Prisma 7 (миграция `init`), NestJS на Bun (`/health`), auth-скелет (JWT/refresh/RBAC/API-keys/audit).
   Runtime smoke-gate зелёный. Версии: NestJS 11.1, Prisma 7.8, zod 4, Biome 2.4. Тесты/typecheck/lint — зелёные.
 - ✅ ADR-0002 (`bun:test` вместо Vitest) — Accepted (подтверждено владельцем).
-- 🔄 Дальше: Phase 2 — AST-индексатор ([002-indexer](docs/plans/002-indexer.md)).
+- ✅ **Phase 2 (Indexer) завершена:** `@brain-dock/indexer` на ts-morph — извлечение символов,
+  NestJS-ролей, DI-связей, маршрутов, импортов, чанков; инкрементальность по хэшу; CLI.
+  Проверено на `apps/api`. ts-morph 28. Тесты/typecheck/Biome — зелёные.
+- 🔄 Дальше: Phase 3 — Embedding & Vector Storage + Hybrid Search ([003](docs/plans/003-rag-engine.md)).

@@ -24,12 +24,13 @@
 - ✅ Runtime smoke-gate зелёный (ADR-0001); находки — docs/backend/bun-nestjs-notes.md.
 - **План:** [001-foundation.md](../plans/001-foundation.md) (Done)
 
-## Phase 2 — Indexer ⬜
+## Phase 2 — Indexer ✅
 **Цель:** превратить репозиторий в граф символов.
-- AST-парсер TypeScript, извлечение символов (controllers/services/modules/DTO/...).
-- Repository → Files → AST → Symbols → Chunks.
-- Хэш-based инкрементальная индексация, change-coupling.
-- **План:** [002-indexer.md](../plans/002-indexer.md)
+- ✅ AST-движок ts-morph за интерфейсом `AstEngine`; пакет `@brain-dock/indexer`.
+- ✅ Repository → Files → AST → Symbols → Chunks; NestJS-роли, DI-связи, маршруты, импорты.
+- ✅ Хэш-based инкрементальная индексация; CLI; тесты + проверка на `apps/api`.
+- ⏭️ Отложено: запись в БД/эмбеддинги (Phase 3), полный граф/change-coupling.
+- **План:** [002-indexer.md](../plans/002-indexer.md) (Done)
 
 ## Phase 3 — Embedding & Vector Storage ⬜
 **Цель:** локальные эмбеддинги и векторное хранилище.

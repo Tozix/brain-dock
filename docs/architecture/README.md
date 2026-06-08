@@ -7,4 +7,7 @@
 - Контекст: `Query → Intent → Hybrid Search → ReRank → Compression → Context Builder → MCP`
 - Knowledge Graph: `Controller → Service → Repository → Prisma → Database` + связи документов/символов/API.
 
-_Заполняется в Phase 2+._
+## Подсистемы
+- **AST-индексатор** (Phase 2, готов): [indexer.md](indexer.md) — пакет `@brain-dock/indexer`.
+
+_Дополняется по мере роста системы._
