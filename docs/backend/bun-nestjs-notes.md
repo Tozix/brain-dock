@@ -39,3 +39,14 @@ Bun применяет настройки декораторов из **`tsconfi
 ## Итог smoke-gate
 NestJS boot, DI, декораторы, роутинг с `setGlobalPrefix` + `exclude`, Prisma 7 (pg-adapter),
 JWT, Zod, аудит — **подтверждены на Bun**. Воспроизведение: [`scripts/smoke.sh`](../../scripts/smoke.sh).
+
+## 6. BullMQ на Bun — нативный `msgpackr-extract` паникует
+BullMQ тянет `msgpackr`, у которого есть **опциональный нативный акселератор** `msgpackr-extract`.
+На Bun его загрузка падает паникой (`unsupported uv function: uv_version_string`) — не ловится try/catch.
+Сам акселератор не нужен: `msgpackr` имеет чистый JS-fallback.
+
+**Решение:** root `package.json` → `postinstall` удаляет нативный модуль после каждой установки:
+`rm -rf node_modules/.bun/msgpackr-extract* node_modules/msgpackr-extract`. После этого BullMQ
+работает на Bun (проверено: [`apps/workers/src/bullmq-smoke.ts`](../../apps/workers/src/bullmq-smoke.ts)).
+
+Прочее по BullMQ: имя очереди **не может содержать `:`** (Redis-разделитель ключей) — используем `-`.

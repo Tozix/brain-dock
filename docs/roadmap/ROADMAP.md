@@ -32,18 +32,21 @@
 - ⏭️ Отложено: запись в БД/эмбеддинги (Phase 3), полный граф/change-coupling.
 - **План:** [002-indexer.md](../plans/002-indexer.md) (Done)
 
-## Phase 3 — Embedding & Vector Storage ⬜
-**Цель:** локальные эмбеддинги и векторное хранилище.
-- `EmbeddingProvider` (Ollama, `nomic-embed-text`), batch + кэш + версия модели.
-- Qdrant-коллекции, схемы payload, фильтрация по проекту.
-- Воркеры BullMQ: Embedding/Index.
-- **План:** [003-rag-engine.md](../plans/003-rag-engine.md) (часть)
+## Phase 3 — Embedding & Vector Storage ✅
+**Цель:** локальные эмбеддинги, векторное хранилище, базовый поиск.
+- ✅ `EmbeddingProvider`: `OllamaEmbeddingProvider` (`nomic-embed-text`, 768d, батчи) +
+  `DeterministicEmbeddingProvider` (оффлайн/тесты). Версия модели в payload.
+- ✅ `QdrantStore` (`@brain-dock/storage`): коллекция `code`, Cosine, изоляция по `projectId`.
+- ✅ Ingestion-pipeline (`@brain-dock/search`): indexer → embed → Qdrant.
+- ✅ Гибрид (мост): vector + keyword-boost. Проверено вживую (deterministic + реальный Ollama).
+- ✅ BullMQ `IndexWorker` (`apps/workers`); риск BullMQ-на-Bun закрыт (postinstall-фикс).
+- **План:** [003-rag-engine.md](../plans/003-rag-engine.md) (Phase 3 — Done)
 
 ## Phase 4 — Hybrid Search & Context Engine ⬜
 **Цель:** качественный сбор контекста.
-- Keyword + vector + AST + knowledge + metadata; re-ranking; compression.
+- BM25/full-text + AST + knowledge + metadata fusion; re-ranking; compression.
 - Intent detection → Context Builder.
-- **План:** [003-rag-engine.md](../plans/003-rag-engine.md) (часть)
+- **План:** [003-rag-engine.md](../plans/003-rag-engine.md) (Phase 4 — далее)
 
 ## Phase 5 — MCP Server ⬜
 **Цель:** совместимый MCP-сервер для Claude Code/Cursor/VSCode.

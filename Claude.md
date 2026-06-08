@@ -156,10 +156,10 @@ prisma/        # схема и миграции
 docs/          # вся документация (см. docs/README.md)
 ```
 
-> Phase 1–2: созданы `apps/{api,mcp,workers}` и `packages/{shared,core,db,indexer}` (api и indexer —
-> рабочие; mcp/workers — заглушки). `prisma/` — схема + миграции; клиент в `packages/db/src/generated`.
-> AST-индексатор — [docs/architecture/indexer.md](docs/architecture/indexer.md).
-> Особенности NestJS-на-Bun — [docs/backend/bun-nestjs-notes.md](docs/backend/bun-nestjs-notes.md).
+> Phase 1–3: `apps/{api,mcp,workers}` и `packages/{shared,core,db,indexer,embedding,storage,search}`
+> (api/indexer/embedding/storage/search/workers — рабочие; mcp — заглушка). `prisma/` — схема + миграции.
+> AST-индексатор — [docs/architecture/indexer.md](docs/architecture/indexer.md); RAG — [docs/rag/](docs/rag/);
+> особенности Bun (NestJS, BullMQ) — [docs/backend/bun-nestjs-notes.md](docs/backend/bun-nestjs-notes.md).
 
 ## 8. Правила работы с документацией
 
@@ -243,4 +243,7 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Phase 2 (Indexer) завершена:** `@brain-dock/indexer` на ts-morph — извлечение символов,
   NestJS-ролей, DI-связей, маршрутов, импортов, чанков; инкрементальность по хэшу; CLI.
   Проверено на `apps/api`. ts-morph 28. Тесты/typecheck/Biome — зелёные.
-- 🔄 Дальше: Phase 3 — Embedding & Vector Storage + Hybrid Search ([003](docs/plans/003-rag-engine.md)).
+- ✅ **Phase 3 (Embedding & Vector Storage) завершена:** `@brain-dock/{embedding,storage,search}` —
+  Ollama (`nomic-embed-text`, 768d) + deterministic провайдеры, Qdrant-стор, ingestion-pipeline,
+  гибридный поиск (vector+keyword); BullMQ `IndexWorker` (риск BullMQ-на-Bun закрыт). Проверено вживую.
+- 🔄 Дальше: Phase 4 — Context Engine (intent/rerank/compression/builder) в рамках [003](docs/plans/003-rag-engine.md).
