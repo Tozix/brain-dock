@@ -22,6 +22,19 @@
 
 Демо: `bun apps/workers/src/rag-demo.ts ["query"]` (`EMBEDDER=ollama` — реальная модель).
 
-## Phase 4 (далее) — Context Engine
-Intent detection → AST/knowledge/metadata-слияние → re-ranking → context compression →
-Context Builder. Полноценный BM25/full-text вместо текущего keyword-boost.
+## Phase 4 (готово) — Context Engine
+`ContextEngine` (`@brain-dock/search`): `query → intent → retrieve → intent-aware re-rank →
+dedupe → compress → assemble`.
+
+- **Intent detection** (`detectIntent`): debug / modify / refactor / explore (эвристики), с
+  per-role бустами (например, debug → +service/+controller/+guard).
+- **Re-ranking**: `score · (1 + roleBoost[role])` — metadata-fusion по роли символа из индексатора.
+- **Compression**: дедуп по `path#symbol`, обрезка сниппета по строкам, бюджет по символам.
+- **Context Builder**: markdown-блок с заголовками `path:line — role symbol (score)` и сниппетами.
+
+Демо: `bun apps/workers/src/context-demo.ts ["query"]` (`EMBEDDER=ollama`). Проверено вживую:
+запрос «why does jwt authentication fail in the guard» → intent=debug, топ `AuthService` (буст), 5/15 включено, бюджет ~3.8k символов.
+
+### Далее (за рамками Phase 4)
+Полноценный BM25/full-text, графовое расширение (DI-соседи через `packages/graph`),
+knowledge-слияние, обучаемый re-ranker. Отдаётся клиентам через MCP — [план 004](../plans/004-mcp-server.md).

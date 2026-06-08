@@ -41,7 +41,7 @@
 - [x] Qdrant-адаптер (`packages/storage`): коллекция, upsert, фильтр по projectId, payload-схема, UUID-id.
 - [x] Pipeline индексации end-to-end (`@brain-dock/search` IngestionService); BullMQ `IndexWorker`.
 - [x] Keyword + vector поиск (гибрид-мост `0.7·vector + 0.3·keyword`).
-- [ ] **Phase 4:** AST/knowledge/metadata-слияние; re-ranking + compression; intent detection; Context Builder.
+- [x] **Phase 4:** intent detection; intent-aware re-ranking (metadata-fusion по роли); compression; Context Builder (`ContextEngine`). Графовое/knowledge-слияние и BM25 — за рамками.
 - [x] Тесты: unit (provider/ranker/uuid), live e2e (ingest→Qdrant→search на `apps/api`), BullMQ-smoke.
 - [x] Документация docs/embedding, docs/rag, docs/backend (BullMQ-заметка); ROADMAP, Claude.md.
 
@@ -53,4 +53,5 @@
 - **Phase 3 — ✅ выполнено:** индекс → Qdrant работает; гибридный поиск возвращает релевантный
   контекст (проверено вживую с deterministic и реальным Ollama `nomic-embed-text`); смена модели —
   через новую коллекцию; BullMQ-на-Bun закрыт; тесты/typecheck/Biome зелёные; документация обновлена.
-- **Phase 4 — далее:** Context Engine (intent/rerank/compression/builder), полноценный hybrid fusion.
+- **Phase 4 — ✅ выполнено:** Context Engine (intent → rerank → dedupe → compression → builder),
+  проверено вживую. Полноценный hybrid fusion (BM25/graph/knowledge) — за рамками плана 003.

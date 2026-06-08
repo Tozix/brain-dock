@@ -246,4 +246,6 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Phase 3 (Embedding & Vector Storage) завершена:** `@brain-dock/{embedding,storage,search}` —
   Ollama (`nomic-embed-text`, 768d) + deterministic провайдеры, Qdrant-стор, ingestion-pipeline,
   гибридный поиск (vector+keyword); BullMQ `IndexWorker` (риск BullMQ-на-Bun закрыт). Проверено вживую.
-- 🔄 Дальше: Phase 4 — Context Engine (intent/rerank/compression/builder) в рамках [003](docs/plans/003-rag-engine.md).
+- ✅ **Phase 4 (Context Engine) завершена:** `ContextEngine` — intent detection (debug/modify/refactor/explore),
+  intent-aware re-ranking, дедуп, compression, Context Builder. Проверено вживую.
+- 🔄 Дальше: Phase 5 — MCP-сервер ([004](docs/plans/004-mcp-server.md)), отдаёт поиск/контекст клиентам.

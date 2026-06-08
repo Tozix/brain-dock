@@ -42,11 +42,13 @@
 - ✅ BullMQ `IndexWorker` (`apps/workers`); риск BullMQ-на-Bun закрыт (postinstall-фикс).
 - **План:** [003-rag-engine.md](../plans/003-rag-engine.md) (Phase 3 — Done)
 
-## Phase 4 — Hybrid Search & Context Engine ⬜
+## Phase 4 — Context Engine ✅
 **Цель:** качественный сбор контекста.
-- BM25/full-text + AST + knowledge + metadata fusion; re-ranking; compression.
-- Intent detection → Context Builder.
-- **План:** [003-rag-engine.md](../plans/003-rag-engine.md) (Phase 4 — далее)
+- ✅ Intent detection (debug/modify/refactor/explore) + per-role бусты.
+- ✅ Intent-aware re-ranking (metadata-fusion по роли), дедуп, compression, Context Builder.
+- ✅ `ContextEngine` (`@brain-dock/search`); проверено вживую (intent=debug → топ AuthService).
+- ⏭️ Далее: BM25/full-text, графовое расширение (DI-соседи), knowledge-слияние, обучаемый re-ranker.
+- **План:** [003-rag-engine.md](../plans/003-rag-engine.md) (Phase 4 — Done)
 
 ## Phase 5 — MCP Server ⬜
 **Цель:** совместимый MCP-сервер для Claude Code/Cursor/VSCode.
