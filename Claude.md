@@ -322,4 +322,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   `@brain-dock/core` (`observability/tracing.ts` — `initTracing`/`getTracer`/`selectExporter`/
   `tracingOptionsFromEnv`); api использует её через тонкий re-export. Воркер пишет span `index_job`
   (project/repo/collection/files/chunks). Проверено вживую (console на реальном job). План [028](docs/plans/028-otel-workers.md).
+- ✅ **First-launch hardening:** (1) общая фабрика эмбеддера `@brain-dock/embedding` —
+  воркер больше не хардкодит Ollama, чтит `EMBEDDER` (фикс рассинхрона размерностей в Qdrant),
+  планы [029](docs/plans/029-embedder-factory.md); (2) `/health/ready` щупает Postgres+Qdrant+Redis
+  (503 при degraded) + корневой `README.md` с quickstart/тестированием, план [030](docs/plans/030-readiness-and-readme.md).
 - 🔄 Дальше (опционально): трейсинг MCP; context-propagation api→queue→worker; нагрузочное тестирование.

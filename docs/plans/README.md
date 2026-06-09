@@ -47,3 +47,5 @@
 | [026](026-otel-tracing.md) | OpenTelemetry-трейсинг (API, opt-in) | Backlog | Done |
 | [027](027-e2e-ci.md) | e2e-CI с реальными сервисами | Backlog | Done |
 | [028](028-otel-workers.md) | OpenTelemetry-трейсинг для workers (общий init в core) | Backlog | Done |
+| [029](029-embedder-factory.md) | Общая фабрика эмбеддера (+ фикс воркера) | First-launch | Done |
+| [030](030-readiness-and-readme.md) | Полноценный readiness + корневой README | First-launch | Done |
