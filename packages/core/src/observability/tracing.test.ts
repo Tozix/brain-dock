@@ -1,5 +1,5 @@
-import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
 import { afterEach, describe, expect, it } from 'bun:test';
+import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
 import { selectExporter, tracingOptionsFromEnv } from './tracing';
 
 describe('selectExporter', () => {
