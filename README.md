@@ -11,6 +11,8 @@ decisions) and serves it to AI clients over MCP and a REST API.
 - **Multi-repo** — index and search across several repositories per project.
 - **Local-first** — embeddings via Ollama; nothing leaves the machine.
 
+> **📘 Полное руководство (локальный + удалённый деплой, подключение Claude Code): [docs/GUIDE.md](docs/GUIDE.md).**
+>
 > Full source of truth: **[Claude.md](Claude.md)**. Roadmap: [docs/roadmap](docs/roadmap/ROADMAP.md).
 > Plans: [docs/plans](docs/plans/README.md). Architecture/RAG/MCP: [docs/](docs/README.md).
 

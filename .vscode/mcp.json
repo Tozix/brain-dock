@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "vexp": {
+      "type": "stdio",
+      "command": "/home/tozix/.nvm/versions/node/v22.20.0/bin/node",
+      "args": [
+        "/home/tozix/.vscode-server/extensions/vexp.vexp-vscode-1.3.11/dist/mcp-server.cjs"
+      ]
+    }
+  }
+}
