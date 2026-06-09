@@ -3,6 +3,7 @@ import { BrainDockClient } from './api/client';
 import { clearApiKey, getApiKey, readSettings, setProject, storeApiKey } from './config';
 import type { PanelState } from './panel/html';
 import { PanelProvider } from './panel/provider';
+import { type AgentTarget, applyTarget, type McpServerConfig } from './setup/agents';
 import type { Project, Repository } from './util';
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -139,6 +140,49 @@ export function activate(context: vscode.ExtensionContext): void {
       await refresh();
     } catch (err) {
       vscode.window.showErrorMessage(`brain-dock: ${errMsg(err)}`);
+    }
+  });
+
+  register('brainDock.setupAgents', async () => {
+    const s = readSettings();
+    const apiKey = await getApiKey(secrets);
+    if (!apiKey || !s.project) {
+      vscode.window.showWarningMessage('brain-dock: connect and select a project first.');
+      return;
+    }
+    const items: Array<vscode.QuickPickItem & { target: AgentTarget }> = [
+      { label: 'Claude Code — project (.mcp.json)', target: 'claude-project', picked: true },
+      { label: 'Claude Code — global (~/.claude.json)', target: 'claude-global' },
+      { label: 'Cursor — project (.cursor/mcp.json)', target: 'cursor-project' },
+      { label: 'Cursor — global (~/.cursor/mcp.json)', target: 'cursor-global' },
+    ];
+    const picks = await vscode.window.showQuickPick(items, {
+      title: 'Setup Agents — write the brain-dock MCP config',
+      canPickMany: true,
+    });
+    if (!picks || picks.length === 0) return;
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const cfg: McpServerConfig = {
+      serverName: 'brain-dock',
+      mcpUrl: s.mcpUrl,
+      apiKey,
+      project: s.project,
+    };
+    const written: string[] = [];
+    for (const pick of picks) {
+      try {
+        written.push(applyTarget(pick.target, cfg, workspaceRoot));
+      } catch (err) {
+        vscode.window.showErrorMessage(`brain-dock: ${errMsg(err)}`);
+      }
+    }
+    if (written.length === 0) return;
+    const choice = await vscode.window.showWarningMessage(
+      `brain-dock: wrote MCP config to ${written.length} file(s). They contain your API key — gitignore them if this repo is shared.`,
+      'Open file',
+    );
+    if (choice === 'Open file' && written[0]) {
+      void vscode.window.showTextDocument(vscode.Uri.file(written[0]));
     }
   });
 }

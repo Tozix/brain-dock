@@ -91,6 +91,7 @@ function renderConnected(state: PanelState): string {
 
     <div class="section">
       <div class="label">ACTIONS</div>
+      ${button({ cmd: 'brainDock.setupAgents', label: '⚙ Setup Agents', primary: true })}
       ${button({ cmd: 'brainDock.reindex', label: '↻ Force Re-index' })}
       ${button({ cmd: 'brainDock.selectProject', label: '⌗ Switch Project' })}
       ${button({ cmd: 'brainDock.openSettings', label: '⚙ Settings' })}
