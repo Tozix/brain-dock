@@ -49,3 +49,4 @@
 | [028](028-otel-workers.md) | OpenTelemetry-трейсинг для workers (общий init в core) | Backlog | Done |
 | [029](029-embedder-factory.md) | Общая фабрика эмбеддера (+ фикс воркера) | First-launch | Done |
 | [030](030-readiness-and-readme.md) | Полноценный readiness + корневой README | First-launch | Done |
+| [031](031-prod-first-launch-safety.md) | Безопасность первого прод-запуска | First-launch | Done |

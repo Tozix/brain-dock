@@ -14,8 +14,8 @@ export interface ReadinessReport {
   db: DependencyStatus;
   qdrant: DependencyStatus;
   redis: DependencyStatus;
-  /** Endpoint only — Ollama is not on the request path, so it is reported but not gated on. */
-  ollama: string;
+  /** Probed and gated only when EMBEDDER=ollama; otherwise reported as not-checked. */
+  ollama: DependencyStatus | { checked: false };
 }
 
 const PROBE_TIMEOUT_MS = 2000;
@@ -46,15 +46,19 @@ export class HealthService {
     private readonly config: ConfigService,
   ) {}
 
-  /** Readiness — probes the critical dependencies (Postgres, Qdrant, Redis) concurrently. */
+  /** Readiness — probes the critical dependencies concurrently. Ollama is gated only in ollama mode. */
   async readiness(): Promise<ReadinessReport> {
-    const [db, qdrant, redis] = await Promise.all([
+    const usesOllama = this.config.env.EMBEDDER === 'ollama';
+    const [db, qdrant, redis, ollamaProbe] = await Promise.all([
       timed(() => this.checkDb()),
       timed(() => this.checkQdrant()),
       timed(() => this.checkRedis()),
+      usesOllama ? timed(() => this.checkOllama()) : Promise.resolve(null),
     ]);
-    const status = db.up && qdrant.up && redis.up ? 'ok' : 'degraded';
-    return { status, db, qdrant, redis, ollama: this.config.env.OLLAMA_URL };
+    const ollama: DependencyStatus | { checked: false } = ollamaProbe ?? { checked: false };
+    const coreUp = db.up && qdrant.up && redis.up;
+    const status = coreUp && (!usesOllama || (ollama as DependencyStatus).up) ? 'ok' : 'degraded';
+    return { status, db, qdrant, redis, ollama };
   }
 
   private async checkDb(): Promise<void> {
@@ -75,5 +79,17 @@ export class HealthService {
     } finally {
       client.close();
     }
+  }
+
+  /** Ollama reachable AND the configured embedding model pulled. */
+  private async checkOllama(): Promise<void> {
+    const res = await fetch(`${this.config.env.OLLAMA_URL}/api/tags`, {
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`ollama /api/tags → ${res.status}`);
+    const body = (await res.json()) as { models?: Array<{ name?: string }> };
+    const model = this.config.env.EMBEDDING_MODEL;
+    const pulled = (body.models ?? []).some((m) => (m.name ?? '').startsWith(model));
+    if (!pulled) throw new Error(`embedding model "${model}" not pulled (ollama pull ${model})`);
   }
 }

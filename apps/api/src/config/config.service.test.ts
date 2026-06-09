@@ -32,4 +32,30 @@ describe('ConfigService.parse', () => {
       ConfigService.parse({ ...base, DATABASE_URL: 'not-a-url' } as NodeJS.ProcessEnv),
     ).toThrow();
   });
+
+  it('rejects shipped dev secrets in production', () => {
+    expect(() =>
+      ConfigService.parse({
+        ...base,
+        NODE_ENV: 'production',
+        JWT_ACCESS_SECRET: 'dev-access-secret-change-me',
+        JWT_REFRESH_SECRET: 'dev-refresh-secret-change-me',
+      } as NodeJS.ProcessEnv),
+    ).toThrow();
+  });
+
+  it('rejects short JWT secrets in production but accepts strong ones', () => {
+    expect(() =>
+      ConfigService.parse({ ...base, NODE_ENV: 'production' } as NodeJS.ProcessEnv),
+    ).toThrow(); // base secrets are short (< 32)
+
+    const strong = 'x'.repeat(40);
+    const env = ConfigService.parse({
+      ...base,
+      NODE_ENV: 'production',
+      JWT_ACCESS_SECRET: strong,
+      JWT_REFRESH_SECRET: `${strong}2`,
+    } as NodeJS.ProcessEnv);
+    expect(env.NODE_ENV).toBe('production');
+  });
 });

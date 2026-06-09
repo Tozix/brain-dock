@@ -58,6 +58,22 @@ services:
 
   # --- App services (profile `app`) — built on the host, not pulled from a registry. ---
   # `environment` overrides .env with in-network service DNS (the .env URLs point at host ports).
+
+  # One-shot: apply Prisma migrations before the API starts, then exit.
+  migrate:
+    profiles: ['app']
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: brain-dock-migrate
+    restart: 'no'
+    command: ['bun', 'run', 'db:deploy']
+    environment:
+      DATABASE_URL: postgresql://brain_dock:brain_dock@postgres:5432/brain_dock?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
     profiles: ['app']
     build:
@@ -76,8 +92,8 @@ services:
     ports:
       - '3000:3000'
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       qdrant:

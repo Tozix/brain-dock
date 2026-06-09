@@ -326,4 +326,9 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   воркер больше не хардкодит Ollama, чтит `EMBEDDER` (фикс рассинхрона размерностей в Qdrant),
   планы [029](docs/plans/029-embedder-factory.md); (2) `/health/ready` щупает Postgres+Qdrant+Redis
   (503 при degraded) + корневой `README.md` с quickstart/тестированием, план [030](docs/plans/030-readiness-and-readme.md).
-- 🔄 Дальше (опционально): трейсинг MCP; context-propagation api→queue→worker; нагрузочное тестирование.
+- ✅ **Prod first-launch safety:** guard дефолтных/слабых JWT-секретов при `NODE_ENV=production`
+  (`envSchema.superRefine`); авто-миграции в деплое (one-shot `migrate` в compose, `api depends_on`);
+  проба Ollama в `/health/ready` при `EMBEDDER=ollama` (доступность + скачана ли модель). Проверено
+  вживую. План [031](docs/plans/031-prod-first-launch-safety.md).
+- 🔄 Дальше: недостающие MCP `find_*` и API-key auth (пункт 2); e2e через HTTP и тесты воркеров
+  (пункт 3); опц. трейсинг MCP, context-propagation, нагрузочное тестирование.

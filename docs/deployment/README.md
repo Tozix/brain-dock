@@ -54,12 +54,16 @@ docker exec brain-dock-ollama ollama pull nomic-embed-text
 
 ```bash
 git pull
-cp .env.example .env          # один раз; заполнить секреты (JWT_*) для прод
+cp .env.example .env          # один раз; ОБЯЗАТЕЛЬНО заполнить секреты (JWT_*) для прод
 bun run deploy                # = docker compose --profile app up -d --build
-# применить миграции (одноразово / после изменений схемы):
-docker compose --profile app run --rm api bun run db:deploy
-docker exec brain-dock-ollama ollama pull nomic-embed-text   # модель эмбеддингов
+docker exec brain-dock-ollama ollama pull nomic-embed-text   # только при EMBEDDER=ollama
 ```
+Миграции применяет one-shot сервис `migrate` **автоматически** до старта API (`api depends_on
+migrate: service_completed_successfully`). Запускать `db:deploy` вручную не нужно.
+
+> **Прод-секреты обязательны.** `api` стартует с `NODE_ENV=production`, и конфиг **падает при
+> старте**, если `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` — дефолтные из `.env.example` или короче
+> 32 символов. Сгенерировать: `openssl rand -base64 48`.
 В compose `environment` перекрывает `.env` сетевыми DNS-адресами (`postgres`/`redis`/`qdrant`/
 `ollama`), т.к. URL в `.env` указывают на host-порты. API публикуется на `3000:3000`.
 
