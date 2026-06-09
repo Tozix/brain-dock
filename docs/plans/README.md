@@ -30,3 +30,4 @@
 | [009](009-unified-search.md) | Unified Search (search_everywhere) | Backlog | Done |
 | [010](010-mcp-resources-crud.md) | MCP resources & prompts + CRUD | Backlog | Done |
 | [011](011-dependency-graph.md) | Dependency Graph (@brain-dock/graph) | Backlog | Done |
+| [012](012-incremental-watch.md) | Incremental watch-reindex | Backlog | Done |

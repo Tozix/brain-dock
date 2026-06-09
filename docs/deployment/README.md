@@ -54,3 +54,8 @@ docker run --rm --network host --env-file .env -e API_PORT=3300 brain-dock-api
 ```
 Образы используют `bun install --omit=optional` (нативные optional-пакеты рантайму не нужны);
 workers стартуют с `--no-addons` (BullMQ-на-Bun). Подробности — [плана 007](../plans/007-production-readiness.md).
+
+## Воркеры
+- Index-worker (BullMQ): `bun --no-addons run apps/workers/src/index.ts`.
+- Инкрементальный watch-реиндекс: `PROJECT_ROOT=<dir> bun apps/workers/src/watch.ts` — следит за
+  `.ts/.tsx` и переэмбеддит только изменённые файлы (см. [план 012](../plans/012-incremental-watch.md)).

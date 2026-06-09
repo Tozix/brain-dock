@@ -265,5 +265,7 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   (26 MCP-tools). Транзитивный blast radius.
 - ✅ **Граф-обогащение Context Engine:** `generate_context` подмешивает DI-соседей (boost + `related:`)
   через `SymbolGraph.dependencies`. Проверено вживую.
+- ✅ **Инкрементальный реиндекс:** `IngestionService.ingestIncremental` (переэмбеддит только изменённые,
+  удаляет векторы изменённых/удалённых) + `apps/workers/src/watch.ts` (fs.watch + debounce). Проверено вживую.
 - 🔄 Дальше: публикация образов, метрики/трейсинг (OpenTelemetry), Redis rate limit, multi-repo,
-  инкрементальный watch-реиндекс, нормализация score, update_document, экспорт графа.
+  нормализация score, update_document, экспорт графа.
