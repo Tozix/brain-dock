@@ -13,6 +13,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { DocsModule } from './openapi/docs.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
+import { RepositoriesModule } from './repositories/repositories.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ProjectsModule } from './projects/projects.module';
     AuthModule,
     ApiKeysModule,
     ProjectsModule,
+    RepositoriesModule,
     KnowledgeApiModule,
     DocsModule,
     HealthModule,

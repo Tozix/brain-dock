@@ -1,10 +1,2 @@
-/** Queue names and job payloads shared by producers and workers. */
-export const INDEX_QUEUE = 'brain-dock-index';
-
-export interface IndexJob {
-  projectId: string;
-  rootDir: string;
-  collection: string;
-  /** Repository alias within the project (defaults to the ingestion default). */
-  repo?: string;
-}
+/** Queue names and job payloads shared by producers and workers. Defined in @brain-dock/core. */
+export { INDEX_QUEUE, type IndexJob } from '@brain-dock/core';

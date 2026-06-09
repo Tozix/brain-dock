@@ -26,6 +26,7 @@ export function createIndexWorker(options: IndexWorkerOptions): Worker<IndexJob,
         projectId: job.data.projectId,
         collection: job.data.collection,
         repo: job.data.repo,
+        repositoryId: job.data.repositoryId,
       }),
     { connection: redisConnection(options.redisUrl), concurrency: options.concurrency ?? 2 },
   );

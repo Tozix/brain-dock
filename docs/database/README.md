@@ -28,9 +28,12 @@ bun run db:deploy     # применить миграции (prod)
 | `MemoryItem` | `memory_items` | долговременная память проекта (DECISION/FACT/NOTE/TODO) |
 | `KnowledgeItem` | `knowledge_items` | база знаний (BUSINESS_RULE/ARCHITECTURE/ADR/FAQ/…) |
 | `Document` | `documents` | документы (MD/TXT/MDX/JSON/YAML/PDF/DOCX), чанкинг+эмбеддинги |
+| `Repository` | `repositories` | репозитории проекта (multi-repo): `alias`, `root`, `defaultBranch`; `@@unique([projectId, alias])` |
 
 Enums: `Role`, `ApiKeyStatus`, `MemoryType`, `KnowledgeType`, `DocFormat`.
-Миграции: `_init`, `_knowledge_memory`, `_documents`. Память/знания/документы изолированы по
-`projectId` (строка), семантический слой — Qdrant (см. [../knowledge/](../knowledge/README.md)).
+Миграции: `_init`, `_knowledge_memory`, `_documents`, `_add_repositories`. Память/знания/документы
+изолированы по `projectId` (строка), семантический слой — Qdrant (см. [../knowledge/](../knowledge/README.md)).
+`Repository` связан с `Project` (`onDelete: Cascade`); векторы кода несут `repo` (alias) и
+`repositoryId` (uuid) для изоляции (планы [015](../plans/015-multi-repo.md)/[016](../plans/016-multi-repo-rest.md)).
 
 > Сгенерированный клиент (`packages/db/src/generated`) — в `.gitignore`; восстанавливается `db:generate`.

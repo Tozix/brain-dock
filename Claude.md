@@ -276,5 +276,11 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   `list_repos` + `repos?`/`repo?`-параметры, структурные tools агрегируют по всем репо с префиксом
   alias. Исправлена изоляция `IngestionService.deletePath` (projectId+repo+path). `bun run ci` зелёный.
   План [015](docs/plans/015-multi-repo.md).
-- 🔄 Дальше: Prisma `Repository` + REST CRUD + индексация через очереди ([016](docs/plans/016-multi-repo-rest.md)),
-  публикация образов, OpenTelemetry-трейсинг, нормализация score, update_document, экспорт графа.
+- ✅ **Multi-Repo (БД + REST + очереди):** Prisma `Repository` (`@@unique([projectId, alias])`,
+  миграция `add_repositories`); `repositoryId` (uuid) в `ChunkPayload`; REST `RepositoriesController`
+  (owner-scoped CRUD + `POST …/reindex`) ставит `IndexJob` (`repo`+`repositoryId`) в BullMQ-очередь
+  через порт `IndexQueue` (`@brain-dock/core`); воркер пишет оба поля в payload. BullMQ-на-Bun:
+  DI-токен развязан от bullmq, скрипты API — `--no-addons`. Проверено вживую (409 на дубль alias,
+  CRUD, reindex → задача в Redis). План [016](docs/plans/016-multi-repo-rest.md).
+- 🔄 Дальше: мульти-репо watch-воркер, кросс-репо граф, repositories в OpenAPI; публикация образов,
+  OpenTelemetry-трейсинг, нормализация score, update_document, экспорт графа.

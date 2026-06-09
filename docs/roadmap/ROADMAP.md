@@ -88,6 +88,8 @@
   `UnifiedSearch`), пер-репо индексы/графы в `McpContext`, tool `list_repos`, `repos?`/`repo?` в
   tools, агрегация структурных tools с префиксом alias. Фикс изоляции `deletePath`
   (projectId+repo+path). Конфиг репо через env `REPOS` (JSON).
-- ⏭️ Далее: Prisma `Repository` + REST CRUD + индексация через BullMQ + `repositoryId` (uuid),
-  мульти-репо watch.
-- **Планы:** [015-multi-repo.md](../plans/015-multi-repo.md) (Done) · [016-multi-repo-rest.md](../plans/016-multi-repo-rest.md) (Draft)
+- ✅ Prisma `Repository` (`@@unique([projectId, alias])`) + миграция; `repositoryId` (uuid) в payload.
+- ✅ REST `RepositoriesController` (owner-scoped CRUD + `POST …/reindex`), индексация через BullMQ
+  (`IndexQueue`-порт в `@brain-dock/core`, продьюсер в API). Проверено вживую (409, CRUD, очередь в Redis).
+- ⏭️ Далее: мульти-репо watch-воркер, кросс-репо граф, repositories в OpenAPI.
+- **Планы:** [015-multi-repo.md](../plans/015-multi-repo.md) (Done) · [016-multi-repo-rest.md](../plans/016-multi-repo-rest.md) (Done)

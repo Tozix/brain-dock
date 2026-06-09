@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch src/main.ts",
-    "start": "bun run src/main.ts",
+    "dev": "bun --no-addons run --watch src/main.ts",
+    "start": "bun --no-addons run src/main.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
@@ -21,6 +21,7 @@
     "@nestjs/core": "^11.1.26",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.1.26",
+    "bullmq": "^5.78.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^4.4.3"

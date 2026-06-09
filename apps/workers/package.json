@@ -10,6 +10,7 @@
     "test": "echo 'no tests'"
   },
   "dependencies": {
+    "@brain-dock/core": "workspace:*",
     "@brain-dock/embedding": "workspace:*",
     "@brain-dock/indexer": "workspace:*",
     "@brain-dock/search": "workspace:*",

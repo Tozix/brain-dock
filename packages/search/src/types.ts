@@ -5,6 +5,8 @@ export interface ChunkPayload {
   projectId: string;
   /** Repository alias within the project — enables multi-repo isolation/filtering. */
   repo: string;
+  /** Stable repository id (uuid) when the repo is DB-managed; absent for env-configured repos. */
+  repositoryId?: string;
   path: string;
   symbol: string;
   kind: string;

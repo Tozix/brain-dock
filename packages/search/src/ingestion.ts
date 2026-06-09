@@ -8,6 +8,8 @@ export interface IngestOptions {
   collection: string;
   /** Repository alias within the project (defaults to `DEFAULT_REPO`). */
   repo?: string;
+  /** Stable repository id (uuid) when the repo is DB-managed. */
+  repositoryId?: string;
 }
 
 export interface IngestReport {
@@ -41,7 +43,7 @@ export class IngestionService {
     await this.store.ensureCollection(options.collection, this.embedder.dimensions);
     let chunks = 0;
     for (const file of index.files) {
-      const points = await this.embedFile(file, options.projectId, repo);
+      const points = await this.embedFile(file, options.projectId, repo, options.repositoryId);
       if (points.length > 0) {
         await this.store.upsert(options.collection, points);
         chunks += points.length;
@@ -69,7 +71,7 @@ export class IngestionService {
       if (previous && previous.hash === file.hash) continue; // unchanged — reuse vectors
       changedFiles++;
       await this.deletePath(options.collection, options.projectId, repo, file.path);
-      const points = await this.embedFile(file, options.projectId, repo);
+      const points = await this.embedFile(file, options.projectId, repo, options.repositoryId);
       if (points.length > 0) {
         await this.store.upsert(options.collection, points);
         chunks += points.length;
@@ -91,6 +93,7 @@ export class IngestionService {
     file: FileIndex,
     projectId: string,
     repo: string,
+    repositoryId?: string,
   ): Promise<VectorPoint[]> {
     if (file.chunks.length === 0) return [];
     const roleByKey = new Map(file.symbols.map((s) => [`${s.name}:${s.startLine}`, s.nestRole]));
@@ -104,6 +107,7 @@ export class IngestionService {
       const payload: ChunkPayload = {
         projectId,
         repo,
+        ...(repositoryId ? { repositoryId } : {}),
         path: file.path,
         symbol: chunk.symbol,
         kind: chunk.kind,
