@@ -1,17 +1,12 @@
 import type { PrismaClient } from '@brain-dock/db';
 
+// Only real, measured metrics: number of MCP tool calls and the tokens we actually served
+// (response chars ÷ 4). No fabricated "savings" — surface what we can truthfully measure.
 export interface UsageSummary {
   days: number;
   calls: number;
   tokensServed: number;
-  estTokensSaved: number;
-  avgSavingPct: number;
 }
-
-// Context capsules / structural results are far smaller than the raw file reads they replace. We
-// measure what we DID send (tokensServed, real) and estimate the saving conservatively at this
-// ratio (≈5× smaller ⇒ ~80% saved). Surfaced as "est." in the UI; tune as real baselines arrive.
-const SAVING_RATIO = 4;
 
 /** Start of a UTC day, `daysAgo` days back. Matches the `@db.Date` column granularity. */
 function startOfUtcDay(daysAgo = 0): Date {
@@ -40,9 +35,6 @@ export class UsageService {
     });
     const calls = rows.reduce((n, r) => n + r.calls, 0);
     const tokensServed = rows.reduce((n, r) => n + r.tokensServed, 0);
-    const estTokensSaved = tokensServed * SAVING_RATIO;
-    const total = tokensServed + estTokensSaved;
-    const avgSavingPct = total > 0 ? Math.round((estTokensSaved / total) * 100) : 0;
-    return { days, calls, tokensServed, estTokensSaved, avgSavingPct };
+    return { days, calls, tokensServed };
   }
 }

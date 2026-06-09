@@ -338,6 +338,7 @@ export function registerRemoteTools(
           `Repositories (${s.repos.length}): ${s.repos.join(', ') || '(none — reindex first)'}`,
           `Files: ${s.files}`,
           `Symbols: ${s.symbols}`,
+          `Edges: ${s.edges}`,
           'Roles:',
           ...roleLines,
         ].join('\n'),

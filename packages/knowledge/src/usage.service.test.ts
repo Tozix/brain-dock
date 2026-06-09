@@ -26,15 +26,13 @@ describe('UsageService.summary', () => {
     const s = await svc.summary('u1', 30);
     expect(s.calls).toBe(5);
     expect(s.tokensServed).toBe(1500);
-    expect(s.estTokensSaved).toBe(6000); // 1500 × 4
-    expect(s.avgSavingPct).toBe(80); // 6000 / 7500
     expect(s.days).toBe(30);
   });
 
-  it('reports zero savings with no usage', async () => {
+  it('reports zeros with no usage', async () => {
     const { prisma } = fakePrisma([]);
     const s = await new UsageService(prisma).summary('u1', 7);
-    expect(s).toEqual({ days: 7, calls: 0, tokensServed: 0, estTokensSaved: 0, avgSavingPct: 0 });
+    expect(s).toEqual({ days: 7, calls: 0, tokensServed: 0 });
   });
 });
 

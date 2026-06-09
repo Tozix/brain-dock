@@ -17,6 +17,7 @@ export interface Repository {
 export interface IndexStatus {
   files: number;
   symbols: number;
+  edges: number;
   repos: string[];
   roles: Record<string, number>;
 }
@@ -36,8 +37,6 @@ export interface UsageSummary {
   days: number;
   calls: number;
   tokensServed: number;
-  estTokensSaved: number;
-  avgSavingPct: number;
 }
 
 /** Strip trailing slashes from a base URL so path joins stay clean. */
@@ -87,7 +86,7 @@ export function toolText(raw: string): string {
 
 /** Parse the human-readable `summarize_project` text into structured counts. */
 export function parseSummary(text: string): IndexStatus {
-  const status: IndexStatus = { files: 0, symbols: 0, repos: [], roles: {} };
+  const status: IndexStatus = { files: 0, symbols: 0, edges: 0, repos: [], roles: {} };
   const repos = text.match(/^Repositories \(\d+\):\s*(.+)$/m);
   if (repos?.[1]) {
     status.repos = repos[1]
@@ -99,6 +98,8 @@ export function parseSummary(text: string): IndexStatus {
   if (files?.[1]) status.files = Number(files[1]);
   const symbols = text.match(/^Symbols:\s*(\d+)/m);
   if (symbols?.[1]) status.symbols = Number(symbols[1]);
+  const edges = text.match(/^Edges:\s*(\d+)/m);
+  if (edges?.[1]) status.edges = Number(edges[1]);
   for (const m of text.matchAll(/^\s{2}([a-zA-Z]+):\s*(\d+)$/gm)) {
     if (m[1] && m[2]) status.roles[m[1]] = Number(m[2]);
   }

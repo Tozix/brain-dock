@@ -51,6 +51,14 @@ export type MessageKey =
   | 'metric.estSaved'
   | 'metric.avgSaving'
   | 'metric.calls'
+  | 'metric.edges'
+  | 'idx.symbols'
+  | 'idx.edges'
+  | 'idx.files'
+  | 'usage.calls'
+  | 'usage.tokens'
+  | 'label.usage'
+  | 'status.server'
   | 'msg.apiKeySaved'
   | 'msg.signedOut'
   | 'msg.connectFirst'
@@ -123,6 +131,14 @@ const en: Record<MessageKey, string> = {
   'metric.estSaved': 'est. saved',
   'metric.avgSaving': 'avg saving',
   'metric.calls': 'calls',
+  'metric.edges': 'edges',
+  'idx.symbols': 'Symbols',
+  'idx.edges': 'Edges',
+  'idx.files': 'Files',
+  'usage.calls': 'Calls',
+  'usage.tokens': 'Tokens served',
+  'label.usage': 'USAGE',
+  'status.server': 'brain-dock',
   'msg.apiKeySaved': 'API key saved.',
   'msg.signedOut': 'Signed out.',
   'msg.connectFirst': 'Connect and select a project first.',
@@ -197,6 +213,14 @@ const ru: Record<MessageKey, string> = {
   'metric.estSaved': 'сэкономлено≈',
   'metric.avgSaving': 'ср. экономия',
   'metric.calls': 'вызовов',
+  'metric.edges': 'рёбер',
+  'idx.symbols': 'Символы',
+  'idx.edges': 'Рёбра',
+  'idx.files': 'Файлы',
+  'usage.calls': 'Вызовов',
+  'usage.tokens': 'Токенов отдано',
+  'label.usage': 'ИСПОЛЬЗОВАНИЕ',
+  'status.server': 'brain-dock',
   'msg.apiKeySaved': 'API-ключ сохранён.',
   'msg.signedOut': 'Вы вышли.',
   'msg.connectFirst': 'Сначала подключитесь и выберите проект.',

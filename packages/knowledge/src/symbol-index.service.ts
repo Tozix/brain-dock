@@ -29,6 +29,7 @@ export interface EndpointRow {
 export interface ProjectSummary {
   files: number;
   symbols: number;
+  edges: number;
   roles: Record<string, number>;
   repos: string[];
 }
@@ -135,10 +136,13 @@ export class SymbolIndexService {
   }
 
   async summary(projectId: string, repos?: string[]): Promise<ProjectSummary> {
-    const rows = await this.prisma.codeSymbol.findMany({
-      where: { projectId, repo: this.repoFilter(repos) },
-      select: { role: true, file: true, repo: true },
-    });
+    const [rows, edges] = await Promise.all([
+      this.prisma.codeSymbol.findMany({
+        where: { projectId, repo: this.repoFilter(repos) },
+        select: { role: true, file: true, repo: true },
+      }),
+      this.prisma.codeEdge.count({ where: { projectId, repo: this.repoFilter(repos) } }),
+    ]);
     const roles: Record<string, number> = {};
     const files = new Set<string>();
     const repoSet = new Set<string>();
@@ -147,7 +151,7 @@ export class SymbolIndexService {
       files.add(`${r.repo}/${r.file}`);
       repoSet.add(r.repo);
     }
-    return { files: files.size, symbols: rows.length, roles, repos: [...repoSet].sort() };
+    return { files: files.size, symbols: rows.length, edges, roles, repos: [...repoSet].sort() };
   }
 
   /** Build a dependency graph for the project from the stored symbols + edges. */

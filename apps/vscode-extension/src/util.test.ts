@@ -64,6 +64,10 @@ describe('parseSummary', () => {
   });
 
   it('is lenient with missing sections', () => {
-    expect(parseSummary('')).toEqual({ files: 0, symbols: 0, repos: [], roles: {} });
+    expect(parseSummary('')).toEqual({ files: 0, symbols: 0, edges: 0, repos: [], roles: {} });
+  });
+
+  it('parses edges', () => {
+    expect(parseSummary('Edges: 86').edges).toBe(86);
   });
 });
