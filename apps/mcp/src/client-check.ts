@@ -49,5 +49,11 @@ console.log(
 console.log(
   `\n# search_knowledge "role based access"\n${await call('search_knowledge', { query: 'role based access control', limit: 3 })}`,
 );
+console.log(
+  `\n# save_document\n${await call('save_document', { title: 'Ops runbook', format: 'MD', content: '# Ops\n\nStart infra with docker compose. Postgres, Qdrant, Redis and Ollama must be healthy before reindexing.' })}`,
+);
+console.log(
+  `\n# search_everywhere "how to run the project and auth"\n${await call('search_everywhere', { query: 'how to run the project and authentication', limit: 6 })}`,
+);
 
 await client.close();

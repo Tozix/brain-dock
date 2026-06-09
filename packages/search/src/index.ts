@@ -8,3 +8,10 @@ export { IngestionService, type IngestOptions, type IngestReport } from './inges
 export { detectIntent, type Intent, type IntentAnalysis } from './intent';
 export { type QueryOptions, SearchService } from './search';
 export { type ChunkPayload, CODE_COLLECTION, type SearchResult } from './types';
+export {
+  type UnifiedQuery,
+  type UnifiedResult,
+  UnifiedSearchService,
+  type UnifiedSource,
+  type UnifiedSources,
+} from './unified-search';

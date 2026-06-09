@@ -6,7 +6,12 @@ import {
 } from '@brain-dock/embedding';
 import { type RepositoryIndex, RepositoryIndexer } from '@brain-dock/indexer';
 import { DocumentService, KnowledgeService, MemoryService } from '@brain-dock/knowledge';
-import { ContextEngine, IngestionService, SearchService } from '@brain-dock/search';
+import {
+  ContextEngine,
+  IngestionService,
+  SearchService,
+  UnifiedSearchService,
+} from '@brain-dock/search';
 import { QdrantStore } from '@brain-dock/storage';
 
 export interface McpConfig {
@@ -55,6 +60,8 @@ export class McpContext {
   readonly memory?: MemoryService;
   readonly knowledge?: KnowledgeService;
   readonly documents?: DocumentService;
+  /** Unified search across code + memory + knowledge + documents. */
+  readonly unified: UnifiedSearchService;
   private readonly indexer = new RepositoryIndexer();
   private cachedIndex: RepositoryIndex | null = null;
 
@@ -71,6 +78,14 @@ export class McpContext {
       this.knowledge = new KnowledgeService(prisma, embedder, store);
       this.documents = new DocumentService(prisma, embedder, store);
     }
+
+    const empty = { search: async () => [] };
+    this.unified = new UnifiedSearchService({
+      code: this.search,
+      memory: this.memory ?? empty,
+      knowledge: this.knowledge ?? empty,
+      documents: this.documents ?? empty,
+    });
   }
 
   /** Build (and cache) the structural index — used by symbol/architecture tools (no Qdrant needed). */

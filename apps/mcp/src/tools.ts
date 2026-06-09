@@ -364,4 +364,30 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
       return text(docs.map((d) => `[${d.format}] ${d.title}`).join('\n'));
     },
   );
+
+  // --- Unified search across all sources ---
+
+  server.registerTool(
+    'search_everywhere',
+    {
+      title: 'Search everywhere',
+      description: 'One query across code + memory + knowledge + documents, ranked together.',
+      inputSchema: { query: z.string(), limit: z.number().int().positive().max(50).optional() },
+    },
+    async ({ query, limit }) => {
+      const results = await ctx.unified.search(query, {
+        projectId,
+        codeCollection: collection,
+        limit: limit ?? 10,
+      });
+      if (results.length === 0) return text('No results across any source.');
+      return text(
+        results
+          .map(
+            (r) => `${r.score.toFixed(3)}  [${r.source}] ${r.title} — ${r.ref}\n    ${r.snippet}`,
+          )
+          .join('\n'),
+      );
+    },
+  );
 }

@@ -26,4 +26,5 @@
 | [005](005-knowledge-memory.md) | Knowledge Base & Project Memory | Phase 6 | Done |
 | [006](006-multiproject-rest-hardening.md) | Multi-Project, REST API, Hardening | Phase 7 | Done |
 | [007](007-production-readiness.md) | Production readiness: CI & Docker | Backlog | Done |
-| [008](008-documents.md) | Document Ingestion (md/txt/mdx/json/yaml) | Backlog | Done |
+| [008](008-documents.md) | Document Ingestion (md/txt/mdx/json/yaml + PDF/DOCX) | Backlog | Done |
+| [009](009-unified-search.md) | Unified Search (search_everywhere) | Backlog | Done |

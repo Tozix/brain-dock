@@ -244,6 +244,17 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           responses: { '200': { description: 'Scored document hits' } },
         },
       },
+      '/api/v1/projects/{projectId}/search': {
+        get: {
+          tags: ['search'],
+          summary: 'Unified search (code + memory + knowledge + documents)',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'q', in: 'query', required: true, schema: { type: 'string' } },
+          ],
+          responses: { '200': { description: 'Ranked unified results with a source tag' } },
+        },
+      },
     },
   };
 }

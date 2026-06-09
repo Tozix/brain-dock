@@ -16,6 +16,7 @@ MCP-сервер `apps/mcp` (`@modelcontextprotocol/sdk` v1, stdio) отдаёт
 | `remember` / `search_memory` / `list_memory` | Project Memory (DECISION/FACT/NOTE/TODO) | Postgres + Qdrant |
 | `save_knowledge` / `search_knowledge` | Knowledge Base (ADR/architecture/FAQ/…) | Postgres + Qdrant |
 | `save_document` / `search_docs` / `list_documents` | Документы (md/txt/mdx/json/yaml + PDF/DOCX как base64): чанкинг + эмбеддинги | Postgres + Qdrant |
+| `search_everywhere` | Объединённый поиск: code + memory + knowledge + documents, общий ранжированный список | Qdrant (+Postgres для не-кода) |
 
 Memory/knowledge tools требуют `DATABASE_URL` (иначе возвращают подсказку). См. [../knowledge/](../knowledge/README.md).
 

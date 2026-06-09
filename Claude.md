@@ -258,5 +258,7 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Документы:** `DocumentService` (чанкинг + эмбеддинги, Qdrant `documents`), MCP-tools
   `save_document`/`search_docs`/`list_documents` (17 MCP-tools) + REST `/projects/:id/documents`.
   Форматы: md/txt/mdx/json/yaml + **PDF** (`unpdf`) + **DOCX** (`mammoth`, base64). Проверено вживую.
+- ✅ **Объединённый поиск:** `UnifiedSearchService` — `search_everywhere` (MCP, 18 tools всего) +
+  REST `/projects/:id/search`: code+memory+knowledge+documents в одном ранжированном списке. Проверено вживую.
 - 🔄 Дальше: публикация образов, метрики/трейсинг, Redis rate limit, multi-repo,
-  объединённый поиск code+knowledge+memory+docs, MCP resources/prompts.
+  MCP resources/prompts, графовое расширение (DI-соседи), нормализация score.
