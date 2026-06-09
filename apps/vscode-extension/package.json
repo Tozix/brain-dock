@@ -63,6 +63,18 @@
         "title": "brain-dock: Setup Agents (write MCP config)"
       },
       {
+        "command": "brainDock.generateContext",
+        "title": "brain-dock: Generate context capsule"
+      },
+      {
+        "command": "brainDock.addRepository",
+        "title": "brain-dock: Add / connect repository"
+      },
+      {
+        "command": "brainDock.viewLogs",
+        "title": "brain-dock: View logs"
+      },
+      {
         "command": "brainDock.openSettings",
         "title": "brain-dock: Open settings"
       }

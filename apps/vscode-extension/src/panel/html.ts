@@ -93,7 +93,10 @@ function renderConnected(state: PanelState): string {
       <div class="label">ACTIONS</div>
       ${button({ cmd: 'brainDock.setupAgents', label: '⚙ Setup Agents', primary: true })}
       ${button({ cmd: 'brainDock.reindex', label: '↻ Force Re-index' })}
+      ${button({ cmd: 'brainDock.generateContext', label: '⬡ Generate Context Capsule' })}
+      ${button({ cmd: 'brainDock.addRepository', label: '+ Add / Connect Repository' })}
       ${button({ cmd: 'brainDock.selectProject', label: '⌗ Switch Project' })}
+      ${button({ cmd: 'brainDock.viewLogs', label: '≡ View Logs' })}
       ${button({ cmd: 'brainDock.openSettings', label: '⚙ Settings' })}
     </div>
 

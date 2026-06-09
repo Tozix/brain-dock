@@ -10,6 +10,15 @@ const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(
 
 export function activate(context: vscode.ExtensionContext): void {
   const secrets = context.secrets;
+  const output = vscode.window.createOutputChannel('brain-dock');
+  context.subscriptions.push(output);
+  output.appendLine('[brain-dock] extension activated');
+
+  const fail = (err: unknown): void => {
+    const m = errMsg(err);
+    output.appendLine(`[error] ${m}`);
+    vscode.window.showErrorMessage(`brain-dock: ${m}`);
+  };
 
   const buildClient = async (): Promise<BrainDockClient | undefined> => {
     const apiKey = await getApiKey(secrets);
@@ -102,7 +111,7 @@ export function activate(context: vscode.ExtensionContext): void {
       await setProject(pick.label);
       await refresh();
     } catch (err) {
-      vscode.window.showErrorMessage(`brain-dock: ${errMsg(err)}`);
+      fail(err);
     }
   });
 
@@ -139,7 +148,7 @@ export function activate(context: vscode.ExtensionContext): void {
       vscode.window.showInformationMessage(`brain-dock: re-index queued for ${pick.alias}.`);
       await refresh();
     } catch (err) {
-      vscode.window.showErrorMessage(`brain-dock: ${errMsg(err)}`);
+      fail(err);
     }
   });
 
@@ -173,7 +182,7 @@ export function activate(context: vscode.ExtensionContext): void {
       try {
         written.push(applyTarget(pick.target, cfg, workspaceRoot));
       } catch (err) {
-        vscode.window.showErrorMessage(`brain-dock: ${errMsg(err)}`);
+        fail(err);
       }
     }
     if (written.length === 0) return;
@@ -185,6 +194,76 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.window.showTextDocument(vscode.Uri.file(written[0]));
     }
   });
+
+  register('brainDock.generateContext', async () => {
+    const s = readSettings();
+    const client = await buildClient();
+    if (!client || !s.project) {
+      vscode.window.showWarningMessage('brain-dock: connect and select a project first.');
+      return;
+    }
+    const query = await vscode.window.showInputBox({
+      title: 'Generate context',
+      prompt: 'Describe the task or question to assemble context for',
+      ignoreFocusOut: true,
+    });
+    if (!query) return;
+    try {
+      const text = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: 'brain-dock: generating context…',
+        },
+        () => client.generateContext(query),
+      );
+      const doc = await vscode.workspace.openTextDocument({ content: text, language: 'markdown' });
+      await vscode.window.showTextDocument(doc, { preview: true });
+      output.appendLine(`[context] "${query}" → ${text.length} chars`);
+    } catch (err) {
+      fail(err);
+    }
+  });
+
+  register('brainDock.addRepository', async () => {
+    const s = readSettings();
+    const client = await buildClient();
+    if (!client || !s.project) {
+      vscode.window.showWarningMessage('brain-dock: connect and select a project first.');
+      return;
+    }
+    try {
+      const proj = findProject(await client.listProjects(), s.project);
+      if (!proj) {
+        vscode.window.showErrorMessage('brain-dock: active project not found.');
+        return;
+      }
+      const alias = await vscode.window.showInputBox({
+        title: 'Add repository — alias',
+        prompt: 'Short unique alias (e.g. api)',
+        ignoreFocusOut: true,
+      });
+      if (!alias) return;
+      const root = await vscode.window.showInputBox({
+        title: 'Add repository — root path',
+        prompt: 'Filesystem path the server/worker can read',
+        value: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '',
+        ignoreFocusOut: true,
+      });
+      if (!root) return;
+      const repo = await client.createRepository(proj.id, { name: alias, alias, root });
+      output.appendLine(`[repo] created ${repo.alias} (${repo.root})`);
+      const choice = await vscode.window.showInformationMessage(
+        `brain-dock: added repository ${repo.alias}.`,
+        'Re-index now',
+      );
+      if (choice === 'Re-index now') await client.reindex(proj.id, repo.id);
+      await refresh();
+    } catch (err) {
+      fail(err);
+    }
+  });
+
+  register('brainDock.viewLogs', () => output.show());
 }
 
 export function deactivate(): void {
