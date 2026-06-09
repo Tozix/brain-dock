@@ -45,3 +45,4 @@
 | [024](024-watch-resubscribe.md) | Горячее переподнятие watcher'ов | Backlog | Done |
 | [025](025-deploy-build-on-server.md) | Деплой сборкой на сервере (без registry) | Backlog | Done |
 | [026](026-otel-tracing.md) | OpenTelemetry-трейсинг (API, opt-in) | Backlog | Done |
+| [027](027-e2e-ci.md) | e2e-CI с реальными сервисами | Backlog | Done |

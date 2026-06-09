@@ -38,8 +38,13 @@ docker exec brain-dock-ollama ollama pull nomic-embed-text
 Проверка: `bash scripts/smoke.sh` (или `PORT=3100 bash scripts/smoke.sh`).
 
 ## CI
-[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) на push/PR: `bun install` → `bun run ci`
-(db:generate → Biome → turbo typecheck → bun test). Локально: `bun run ci`.
+[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) на push/PR:
+- **`ci`** job: `bun install` → `bun run ci` (db:generate → Biome → turbo typecheck → bun test). Локально: `bun run ci`.
+- **`e2e`** job: поднимает Postgres/Qdrant/Redis (service-контейнеры), `db:deploy`, ждёт Qdrant и
+  гоняет интеграционные тесты против реальных сервисов: `RUN_E2E=1 bun test apps/api/src/e2e`
+  (ingestion→search через Qdrant; memory roundtrip через Postgres+Qdrant; deterministic embedder).
+  Локально (инфра поднята): `set -a; source .env; set +a; RUN_E2E=1 bun test apps/api/src/e2e`.
+  Без `RUN_E2E` обычный `bun test` эти тесты пропускает. См. [план 027](../plans/027-e2e-ci.md).
 
 ## Деплой: сборка на сервере (без registry)
 Образы **не публикуются** в registry. Для self-hosted (один сервер, docker compose) образы

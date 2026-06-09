@@ -314,4 +314,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   `TracingInterceptor` (span на HTTP-запрос). `OTEL_TRACES_EXPORTER` = `none` (по умолчанию,
   нулевой оверхед) | `console` | `otlp` (`OTEL_EXPORTER_OTLP_ENDPOINT`). Ручная инициализация
   (auto-instrumentation несовместима с Bun). Проверено вживую (console). План [026](docs/plans/026-otel-tracing.md).
-- 🔄 Дальше (опционально): e2e-CI с сервисами; трейсинг workers/MCP.
+- ✅ **e2e-CI с реальными сервисами:** job `e2e` в CI поднимает Postgres/Qdrant/Redis, применяет
+  миграции и гоняет `RUN_E2E=1 bun test apps/api/src/e2e` (ingestion→search через Qdrant + memory
+  roundtrip через Postgres+Qdrant; deterministic embedder). Без `RUN_E2E` тесты пропускаются.
+  Проверено локально. План [027](docs/plans/027-e2e-ci.md).
+- 🔄 Дальше (опционально): трейсинг workers/MCP; нагрузочное тестирование.
