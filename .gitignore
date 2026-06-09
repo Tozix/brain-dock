@@ -149,3 +149,7 @@ packages/db/src/generated/
 
 # VSCode extension package artifact
 *.vsix
+
+# MCP client configs contain API keys — never commit
+.mcp.json
+.cursor/mcp.json
