@@ -21,6 +21,10 @@
   (сервисы + контроллеры + guard).
 - Unit-тесты: direct deps/dependents, transitive impact/closure, метаданные узлов.
 
+## Граф-обогащение Context Engine (добавлено)
+- `ContextEngine.buildContext` принимает опциональный `neighbors`-хук: DI-соседи топ-хитов
+  получают boost (+0.15), а каждый элемент аннотируется `related:` (его зависимости).
+  В MCP `generate_context` хук = `SymbolGraph.dependencies`. Проверено вживую.
+
 ## Далее
-- Графовое расширение результатов поиска (подмешивать DI-соседей в Context Engine);
-  пути между символами (`path`); экспорт графа (DOT/JSON); связи документов/API/бизнес-правил.
+- Пути между символами (`path`); экспорт графа (DOT/JSON); связи документов/API/бизнес-правил.

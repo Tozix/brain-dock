@@ -262,6 +262,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **MCP resources/prompts + CRUD:** resource `brain-dock://architecture`, prompts `onboard`/`explain_symbol`;
   update/delete для memory/knowledge/documents (MCP — 23 tools — и REST PATCH/DELETE) с очисткой векторов в Qdrant. Проверено вживую.
 - ✅ **Граф зависимостей:** `@brain-dock/graph` (`SymbolGraph`) — `find_dependencies`/`find_dependents`/`impact`
-  (26 MCP-tools). Транзитивный blast radius. Проверено вживую на `apps/api`.
+  (26 MCP-tools). Транзитивный blast radius.
+- ✅ **Граф-обогащение Context Engine:** `generate_context` подмешивает DI-соседей (boost + `related:`)
+  через `SymbolGraph.dependencies`. Проверено вживую.
 - 🔄 Дальше: публикация образов, метрики/трейсинг (OpenTelemetry), Redis rate limit, multi-repo,
-  графовое расширение результатов поиска, нормализация score, update_document.
+  инкрементальный watch-реиндекс, нормализация score, update_document, экспорт графа.

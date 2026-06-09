@@ -66,4 +66,24 @@ describe('ContextEngine', () => {
     const ctx = await engine.buildContext('explore', { ...opts, snippetLines: 10 });
     expect(ctx.items[0]?.snippet).toContain('more lines');
   });
+
+  it('boosts dependency-graph neighbours and annotates related symbols', async () => {
+    const engine = engineWith([
+      result('Controller', 'controller', 0.9),
+      result('ServiceX', 'service', 0.5),
+      result('Helper', 'service', 0.45),
+    ]);
+    const neighbors = (s: string) => (s === 'Controller' ? ['Helper'] : []);
+
+    const ctx = await engine.buildContext('explore the controller', {
+      ...opts,
+      limit: 2,
+      neighbors,
+    });
+
+    // Helper (0.45 + 0.15 graph boost) overtakes ServiceX (0.5) and gets included.
+    expect(ctx.items.map((i) => i.symbol)).toEqual(['Controller', 'Helper']);
+    expect(ctx.items[0]?.related).toContain('Helper');
+    expect(ctx.text).toContain('related: Helper');
+  });
 });

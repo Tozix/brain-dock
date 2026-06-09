@@ -10,6 +10,8 @@ export interface ContextItem {
   endLine: number;
   score: number;
   snippet: string;
+  /** Direct dependencies of this symbol (from the dependency graph), if available. */
+  related: string[];
 }
 
 export interface ContextResult {
@@ -30,9 +32,14 @@ export interface BuildContextOptions {
   maxChars?: number;
   /** Max lines kept per symbol snippet. */
   snippetLines?: number;
+  /** Dependency-graph hook: returns the direct dependencies of a symbol. When provided,
+   *  neighbours of the top hits are boosted and each item is annotated with `related`. */
+  neighbors?: (symbol: string) => string[];
 }
 
-/** Keep the first `maxLines` lines of a chunk; mark truncation. */
+const GRAPH_BOOST = 0.15;
+const MAX_RELATED = 6;
+
 function compress(text: string, maxLines: number): string {
   const lines = text.split('\n');
   if (lines.length <= maxLines) return text.trim();
@@ -43,14 +50,15 @@ function render(query: string, intent: Intent, items: ContextItem[]): string {
   const header = `# Context for: "${query}" (intent: ${intent})`;
   const blocks = items.map((it) => {
     const title = `## ${it.path}:${it.startLine} — ${it.role} ${it.symbol} (score ${it.score.toFixed(3)})`;
-    return `${title}\n\`\`\`ts\n${it.snippet}\n\`\`\``;
+    const related = it.related.length > 0 ? `\nrelated: ${it.related.join(', ')}` : '';
+    return `${title}${related}\n\`\`\`ts\n${it.snippet}\n\`\`\``;
   });
   return [header, ...blocks].join('\n\n');
 }
 
 /**
- * Phase 4 Context Engine: query → intent → retrieve → intent-aware re-rank →
- * dedupe → compress → assemble a budget-bounded context block.
+ * Context Engine: query → intent → retrieve → intent-aware re-rank → optional
+ * dependency-graph boost → dedupe → compress → assemble a budget-bounded block.
  */
 export class ContextEngine {
   constructor(private readonly search: Pick<SearchService, 'search'>) {}
@@ -59,6 +67,7 @@ export class ContextEngine {
     const limit = options.limit ?? 8;
     const maxChars = options.maxChars ?? 6000;
     const snippetLines = options.snippetLines ?? 24;
+    const neighbors = options.neighbors;
 
     const { intent, roleBoosts } = detectIntent(query);
 
@@ -68,15 +77,26 @@ export class ContextEngine {
       limit: limit * 3,
     });
 
-    const reranked = candidates
+    let ranked = candidates
       .map((c) => ({ ...c, score: c.score * (1 + (roleBoosts[c.role] ?? 0)) }))
       .sort((a, b) => b.score - a.score);
+
+    // Graph-aware boost: promote candidates that the top hits depend on.
+    if (neighbors) {
+      const neighborSet = new Set<string>();
+      for (const anchor of ranked.slice(0, 3)) {
+        for (const n of neighbors(anchor.symbol)) neighborSet.add(n);
+      }
+      ranked = ranked
+        .map((c) => ({ ...c, score: c.score + (neighborSet.has(c.symbol) ? GRAPH_BOOST : 0) }))
+        .sort((a, b) => b.score - a.score);
+    }
 
     const items: ContextItem[] = [];
     const seen = new Set<string>();
     let chars = 0;
 
-    for (const c of reranked) {
+    for (const c of ranked) {
       if (items.length >= limit) break;
       const key = `${c.path}#${c.symbol}`;
       if (seen.has(key)) continue;
@@ -94,6 +114,7 @@ export class ContextEngine {
         endLine: c.endLine,
         score: c.score,
         snippet,
+        related: neighbors ? neighbors(c.symbol).slice(0, MAX_RELATED) : [],
       });
       chars += snippet.length;
     }

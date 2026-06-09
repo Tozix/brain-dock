@@ -94,6 +94,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
           collection,
           limit: limit ?? 8,
           maxChars: maxChars ?? 6000,
+          neighbors: (symbol) => ctx.getGraph().dependencies(symbol),
         });
         return text(result.text);
       } catch (error) {

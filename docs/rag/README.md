@@ -31,6 +31,9 @@ dedupe → compress → assemble`.
 - **Re-ranking**: `score · (1 + roleBoost[role])` — metadata-fusion по роли символа из индексатора.
 - **Compression**: дедуп по `path#symbol`, обрезка сниппета по строкам, бюджет по символам.
 - **Context Builder**: markdown-блок с заголовками `path:line — role symbol (score)` и сниппетами.
+- **Graph-обогащение** (опц. `neighbors`-хук): DI-зависимости символа подмешиваются как boost
+  (соседи топ-хитов поднимаются) и аннотируются строкой `related:` в каждом блоке. В MCP
+  `generate_context` хук = `SymbolGraph.dependencies` (см. [../architecture/](../architecture/README.md)).
 
 Демо: `bun apps/workers/src/context-demo.ts ["query"]` (`EMBEDDER=ollama`). Проверено вживую:
 запрос «why does jwt authentication fail in the guard» → intent=debug, топ `AuthService` (буст), 5/15 включено, бюджет ~3.8k символов.
