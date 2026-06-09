@@ -27,6 +27,10 @@ export class BrainDockClient {
     return this.rest<Project[]>('GET', '/projects');
   }
 
+  createProject(name: string, slug: string): Promise<Project> {
+    return this.rest<Project>('POST', '/projects', { name: name.slice(0, 100), slug });
+  }
+
   listRepositories(projectId: string): Promise<Repository[]> {
     return this.rest<Repository[]>('GET', `/projects/${projectId}/repositories`);
   }

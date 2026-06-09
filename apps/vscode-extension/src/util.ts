@@ -34,6 +34,17 @@ export function normalizeBase(url: string): string {
   return url.trim().replace(/\/+$/, '');
 }
 
+/** Turn a folder name into a server-safe slug/alias (`^[a-z0-9-]+$`). Falls back to "workspace". */
+export function slugify(name: string): string {
+  const s = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+    .replace(/-+$/g, '');
+  return s || 'workspace';
+}
+
 interface JsonRpcReply {
   result?: { content?: Array<{ text?: string }> };
   error?: { message: string };

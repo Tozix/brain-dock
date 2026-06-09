@@ -2,7 +2,7 @@
   "name": "brain-dock-vscode",
   "displayName": "brain-dock",
   "description": "Connect your AI agents (Claude Code, Cursor) to the brain-dock hosted MCP, and watch your code index from the sidebar.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "publisher": "braindock",
   "license": "MIT",
@@ -61,6 +61,10 @@
       {
         "command": "brainDock.reindex",
         "title": "%cmd.reindex%"
+      },
+      {
+        "command": "brainDock.indexWorkspace",
+        "title": "%cmd.indexWorkspace%"
       },
       {
         "command": "brainDock.setupAgents",
@@ -124,6 +128,11 @@
           ],
           "default": "auto",
           "description": "Panel/dialog language. 'auto' follows the VS Code display language."
+        },
+        "brainDock.autoProject": {
+          "type": "boolean",
+          "default": true,
+          "description": "Treat the open workspace folder as the project (VEXP-style): on startup, auto-create the project + repository from the folder name and index it."
         }
       }
     }

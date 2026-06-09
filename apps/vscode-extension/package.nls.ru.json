@@ -4,6 +4,7 @@
   "cmd.refresh": "brain-dock: Обновить",
   "cmd.selectProject": "brain-dock: Выбрать проект",
   "cmd.reindex": "brain-dock: Переиндексировать",
+  "cmd.indexWorkspace": "brain-dock: Проиндексировать эту папку",
   "cmd.setupAgents": "brain-dock: Настроить агентов (записать MCP-конфиг)",
   "cmd.generateContext": "brain-dock: Собрать контекст",
   "cmd.addRepository": "brain-dock: Добавить / подключить репозиторий",

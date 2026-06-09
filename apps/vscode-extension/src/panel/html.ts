@@ -14,6 +14,7 @@ export interface PanelState {
   project: string;
   languageSetting: string;
   hasKey: boolean;
+  hasWorkspace: boolean;
   settingsOpen: boolean;
   status?: IndexStatus;
   repos?: Repository[];
@@ -104,8 +105,16 @@ function renderStatus(state: PanelState): string {
       ${button({ cmd: 'brainDock.signOut', label: t(L, 'btn.signOut') })}`;
   }
   if (!state.project) {
+    const primary = state.hasWorkspace
+      ? button({
+          cmd: 'brainDock.indexWorkspace',
+          label: `⊕ ${t(L, 'btn.indexWorkspace')}`,
+          primary: true,
+        })
+      : `<div class="hint">${escapeHtml(t(L, 'msg.noWorkspace'))}</div>`;
     return `<div class="hint">${escapeHtml(t(L, 'panel.pickProjectHint'))}</div>
-      ${button({ cmd: 'brainDock.selectProject', label: t(L, 'btn.selectProject'), primary: true })}
+      ${primary}
+      ${button({ cmd: 'brainDock.selectProject', label: t(L, 'btn.selectProject') })}
       ${button({ action: 'toggleSettings', label: t(L, 'btn.settings') })}`;
   }
   return renderConnected(state);
@@ -156,6 +165,7 @@ function renderConnected(state: PanelState): string {
       <div class="label">${t(L, 'label.actions')}</div>
       ${button({ cmd: 'brainDock.setupAgents', label: `⚙ ${t(L, 'btn.setupAgents')}`, primary: true })}
       ${button({ cmd: 'brainDock.reindex', label: `↻ ${t(L, 'btn.reindex')}` })}
+      ${button({ cmd: 'brainDock.indexWorkspace', label: `⊕ ${t(L, 'btn.indexWorkspace')}` })}
       ${button({ cmd: 'brainDock.generateContext', label: `⬡ ${t(L, 'btn.generateContext')}` })}
       ${button({ cmd: 'brainDock.addRepository', label: `+ ${t(L, 'btn.addRepository')}` })}
       ${button({ cmd: 'brainDock.selectProject', label: `⌗ ${t(L, 'btn.switchProject')}` })}

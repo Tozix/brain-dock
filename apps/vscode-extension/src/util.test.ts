@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'bun:test';
-import { normalizeBase, parseJsonRpc, parseSummary, toolText } from './util';
+import { normalizeBase, parseJsonRpc, parseSummary, slugify, toolText } from './util';
+
+describe('slugify', () => {
+  it('lowercases and dasherizes', () => {
+    expect(slugify('Brain Dock')).toBe('brain-dock');
+    expect(slugify('My_App.v2')).toBe('my-app-v2');
+  });
+  it('trims dashes and falls back for empty input', () => {
+    expect(slugify('  --Hello--  ')).toBe('hello');
+    expect(slugify('!!!')).toBe('workspace');
+  });
+});
 
 describe('normalizeBase', () => {
   it('strips trailing slashes and whitespace', () => {

@@ -24,6 +24,10 @@ export type MessageKey =
   | 'btn.addRepository'
   | 'btn.switchProject'
   | 'btn.viewLogs'
+  | 'btn.indexWorkspace'
+  | 'msg.noWorkspace'
+  | 'progress.provisioning'
+  | 'msg.workspaceReady'
   | 'btn.save'
   | 'btn.cancel'
   | 'field.serverUrl'
@@ -91,6 +95,10 @@ const en: Record<MessageKey, string> = {
   'btn.addRepository': 'Add / Connect Repository',
   'btn.switchProject': 'Switch Project',
   'btn.viewLogs': 'View Logs',
+  'btn.indexWorkspace': 'Index this workspace',
+  'msg.noWorkspace': 'Open a folder in VS Code first.',
+  'progress.provisioning': 'brain-dock: setting up the project…',
+  'msg.workspaceReady': 'Project {name} is indexing.',
   'btn.save': 'Save',
   'btn.cancel': 'Cancel',
   'field.serverUrl': 'Server URL (REST API)',
@@ -160,6 +168,10 @@ const ru: Record<MessageKey, string> = {
   'btn.addRepository': 'Добавить репозиторий',
   'btn.switchProject': 'Сменить проект',
   'btn.viewLogs': 'Показать логи',
+  'btn.indexWorkspace': 'Проиндексировать эту папку',
+  'msg.noWorkspace': 'Сначала откройте папку в VS Code.',
+  'progress.provisioning': 'brain-dock: настраиваю проект…',
+  'msg.workspaceReady': 'Проект {name} индексируется.',
   'btn.save': 'Сохранить',
   'btn.cancel': 'Отмена',
   'field.serverUrl': 'URL сервера (REST API)',

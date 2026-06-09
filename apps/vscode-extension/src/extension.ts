@@ -1,3 +1,4 @@
+import { basename } from 'node:path';
 import * as vscode from 'vscode';
 import { BrainDockClient } from './api/client';
 import {
@@ -13,7 +14,7 @@ import { t } from './i18n';
 import type { PanelState } from './panel/html';
 import { PanelProvider, type SettingsValues } from './panel/provider';
 import { type AgentTarget, applyTarget, type McpServerConfig } from './setup/agents';
-import type { Project, Repository } from './util';
+import { type Project, type Repository, slugify } from './util';
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
@@ -49,6 +50,7 @@ export function activate(context: vscode.ExtensionContext): void {
       project: s.project,
       languageSetting: vscode.workspace.getConfiguration(SECTION).get<string>('language') ?? 'auto',
       hasKey: Boolean(apiKey),
+      hasWorkspace: Boolean(vscode.workspace.workspaceFolders?.length),
       settingsOpen: false,
     };
     if (!apiKey) return state;
@@ -91,6 +93,64 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   register('brainDock.refresh', refresh);
+
+  // VEXP-style: the open folder IS the project. Find-or-create a project (by folder-name slug) and a
+  // repository (root = the folder path the local worker reads), set it active, and index.
+  const ensureWorkspaceProject = async (forceReindex: boolean, notify = true): Promise<void> => {
+    const lang = resolveLang();
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    if (!ws) {
+      if (notify) vscode.window.showInformationMessage(`brain-dock: ${t(lang, 'msg.noWorkspace')}`);
+      return;
+    }
+    const client = await buildClient();
+    if (!client) {
+      if (notify)
+        vscode.window.showWarningMessage(`brain-dock: ${t(lang, 'msg.selectProjectFirst')}`);
+      return;
+    }
+    const root = ws.uri.fsPath;
+    const folder = ws.name || basename(root) || 'workspace';
+    const slug = slugify(folder);
+    try {
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: t(lang, 'progress.provisioning') },
+        async () => {
+          const projects = await client.listProjects();
+          let proj = findProject(projects, slug);
+          if (!proj) {
+            try {
+              proj = await client.createProject(folder, slug);
+            } catch {
+              proj = await client.createProject(
+                folder,
+                `${slug}-${Math.random().toString(36).slice(2, 6)}`,
+              );
+            }
+          }
+          await setProject(proj.slug);
+          const repos = await client.listRepositories(proj.id);
+          let repo = repos.find((r) => r.root === root) ?? repos.find((r) => r.alias === slug);
+          let created = false;
+          if (!repo) {
+            repo = await client.createRepository(proj.id, { name: folder, alias: slug, root });
+            created = true;
+          }
+          if (created || forceReindex) await client.reindex(proj.id, repo.id);
+        },
+      );
+      if (notify) {
+        vscode.window.showInformationMessage(
+          `brain-dock: ${t(lang, 'msg.workspaceReady', { name: slug })}`,
+        );
+      }
+      await refresh();
+    } catch (err) {
+      fail(err);
+    }
+  };
+
+  register('brainDock.indexWorkspace', () => ensureWorkspaceProject(true));
 
   register('brainDock.connect', async () => {
     const lang = resolveLang();
@@ -293,6 +353,16 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   register('brainDock.viewLogs', () => output.show());
+
+  // On startup, adopt the open folder as the project (unless brainDock.autoProject = false).
+  void (async () => {
+    const autoProject =
+      vscode.workspace.getConfiguration(SECTION).get<boolean>('autoProject') ?? true;
+    if (!autoProject) return;
+    if (!vscode.workspace.workspaceFolders?.length) return;
+    if (!(await getApiKey(secrets))) return;
+    await ensureWorkspaceProject(false, false);
+  })();
 }
 
 export function deactivate(): void {
