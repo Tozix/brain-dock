@@ -1,8 +1,16 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { resolveProject, resolveUser } from './auth';
+import { FixedWindowLimiter } from './rate-limit';
 import type { RemoteServices } from './services';
 import { registerRemoteTools } from './tools';
+
+export interface RemoteMcpOptions {
+  /** Per-API-key request cap per window (default 600). */
+  rateLimitMax?: number;
+  /** Rate-limit window in ms (default 60000). */
+  rateLimitWindowMs?: number;
+}
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -22,7 +30,12 @@ function bearerKey(req: Request): string {
  * optional `X-Project` header to an owned project, then handle the MCP call over a stateless
  * Streamable-HTTP transport with only that user/project's tools registered.
  */
-export function createRemoteMcpHandler(services: RemoteServices) {
+export function createRemoteMcpHandler(services: RemoteServices, opts: RemoteMcpOptions = {}) {
+  const limiter = new FixedWindowLimiter(
+    opts.rateLimitMax ?? 600,
+    opts.rateLimitWindowMs ?? 60_000,
+  );
+
   return async function handle(req: Request): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === '/health') return new Response('ok');
@@ -30,6 +43,16 @@ export function createRemoteMcpHandler(services: RemoteServices) {
 
     const principal = await resolveUser(services.prisma, bearerKey(req));
     if (!principal) return json(401, { error: 'invalid or missing API key' });
+
+    // Per-key rate limit (after auth so we key by the owner, and unauthenticated calls are cheap).
+    const decision = limiter.hit(principal.userId, Date.now());
+    if (!decision.allowed) {
+      const retryAfter = Math.max(1, Math.ceil((decision.resetAt - Date.now()) / 1000));
+      return new Response(JSON.stringify({ error: 'rate limit exceeded' }), {
+        status: 429,
+        headers: { 'content-type': 'application/json', 'retry-after': String(retryAfter) },
+      });
+    }
 
     const ref = req.headers.get('x-project');
     let projectId: string | null = null;

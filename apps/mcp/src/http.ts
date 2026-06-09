@@ -11,7 +11,10 @@ if (initTracing(tracingOptionsFromEnv('brain-dock-mcp'))) {
 }
 
 const services = buildRemoteServices(loadRemoteConfig());
-const handle = createRemoteMcpHandler(services);
+const handle = createRemoteMcpHandler(services, {
+  rateLimitMax: Number(process.env.MCP_RATE_LIMIT_MAX ?? 600),
+  rateLimitWindowMs: Number(process.env.MCP_RATE_LIMIT_WINDOW_MS ?? 60_000),
+});
 const port = Number(process.env.MCP_HTTP_PORT ?? 8080);
 
 Bun.serve({

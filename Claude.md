@@ -358,6 +358,9 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Context-propagation api→queue→worker:** `injectTraceContext`/`runWithTraceContext` в core;
   `IndexJob.trace` едет через BullMQ; спан воркера `index_job` линкуется к трейсу запроса `reindex`
   (единый распределённый трейс). Проверено (child наследует traceId родителя). План [039](docs/plans/039-trace-propagation.md).
-- 🔄 Остаётся опционально: трейсинг самого MCP-HTTP, нагрузочное
+- ✅ **Rate limit remote MCP:** per-key fixed-window на `/mcp` (после auth, ключ = владелец),
+  `429`+`Retry-After`; конфиг `MCP_RATE_LIMIT_MAX`/`_WINDOW_MS`. Проверено вживую (`200×3 → 429×3`).
+  План [040](docs/plans/040-mcp-rate-limit.md).
+- 🔄 Остаётся опционально: Redis-backed общий лимит MCP, трейсинг самого MCP-HTTP, нагрузочное
   тестирование, nightly e2e с реальным Ollama; (пункт 2 хвост) `find_prisma_model`/`find_env`/
   `find_config` (нужен парс schema.prisma / скан process.env), доп. воркеры (Embedding/Document/Sync/Cleanup).

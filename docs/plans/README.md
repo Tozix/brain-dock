@@ -58,3 +58,4 @@
 | [037](037-server-symbol-index.md) | Серверный индекс символов (Postgres) | Hosted | Done |
 | [038](038-remote-structural-tools.md) | Remote структурные/граф-tools | Hosted | Done |
 | [039](039-trace-propagation.md) | Context-propagation api→queue→worker | Observability | Done |
+| [040](040-mcp-rate-limit.md) | Rate limit для remote MCP (hardening) | Hosted | Done |
