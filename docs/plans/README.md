@@ -64,3 +64,4 @@
 | [043](043-vscode-extension-polish.md) | VSCode-расширение: иконка мозга, i18n (ru/en), понятные ошибки | Client | Done |
 | [044](044-vscode-extension-inline-settings.md) | VSCode-расширение: настройки прямо в панели | Client | Done |
 | [045](045-vscode-auto-project-from-workspace.md) | VSCode-расширение: проект = открытая папка (auto-project) | Client | Done |
+| [046](046-index-uploaded-files-no-git.md) | Индексация из загруженных файлов (без git и пути на сервере) | Indexing | Done |

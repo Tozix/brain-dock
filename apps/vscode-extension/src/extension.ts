@@ -14,9 +14,34 @@ import { t } from './i18n';
 import type { PanelState } from './panel/html';
 import { PanelProvider, type SettingsValues } from './panel/provider';
 import { type AgentTarget, applyTarget, type McpServerConfig } from './setup/agents';
-import { type Project, type Repository, slugify } from './util';
+import { type FileContent, type Project, slugify } from './util';
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
+// Read the workspace's TypeScript sources (respecting common ignores + size cap) to upload for
+// server-side indexing — no git or server-side path required.
+async function collectWorkspaceFiles(folder: vscode.WorkspaceFolder): Promise<FileContent[]> {
+  const exclude = '**/{node_modules,dist,.turbo,.git,generated,coverage,.vexp,out}/**';
+  const uris = await vscode.workspace.findFiles(
+    new vscode.RelativePattern(folder, '**/*.{ts,tsx}'),
+    exclude,
+    5000,
+  );
+  const decoder = new TextDecoder();
+  const files: FileContent[] = [];
+  for (const uri of uris) {
+    const rel = vscode.workspace.asRelativePath(uri, false).split('\\').join('/');
+    if (rel.endsWith('.d.ts')) continue;
+    try {
+      const bytes = await vscode.workspace.fs.readFile(uri);
+      if (bytes.byteLength > 512 * 1024) continue;
+      files.push({ path: rel, content: decoder.decode(bytes) });
+    } catch {
+      // unreadable file — skip
+    }
+  }
+  return files;
+}
 
 export function activate(context: vscode.ExtensionContext): void {
   const secrets = context.secrets;
@@ -115,7 +140,7 @@ export function activate(context: vscode.ExtensionContext): void {
     try {
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: t(lang, 'progress.provisioning') },
-        async () => {
+        async (progress) => {
           const projects = await client.listProjects();
           let proj = findProject(projects, slug);
           if (!proj) {
@@ -136,7 +161,14 @@ export function activate(context: vscode.ExtensionContext): void {
             repo = await client.createRepository(proj.id, { name: folder, alias: slug, root });
             created = true;
           }
-          if (created || forceReindex) await client.reindex(proj.id, repo.id);
+          if (created || forceReindex) {
+            const files = await collectWorkspaceFiles(ws);
+            progress.report({ message: t(lang, 'progress.uploading', { n: files.length }) });
+            const report = await client.indexFiles(proj.id, repo.id, files);
+            output.appendLine(
+              `[index] uploaded ${files.length} files → ${report.symbols} symbols / ${report.chunks} chunks`,
+            );
+          }
         },
       );
       if (notify) {
@@ -201,45 +233,8 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   });
 
-  register('brainDock.reindex', async () => {
-    const lang = resolveLang();
-    const s = readSettings();
-    const client = await buildClient();
-    if (!client || !s.project) {
-      vscode.window.showWarningMessage(`brain-dock: ${t(lang, 'msg.connectFirst')}`);
-      return;
-    }
-    try {
-      const proj = findProject(await client.listProjects(), s.project);
-      if (!proj) {
-        vscode.window.showErrorMessage(`brain-dock: ${t(lang, 'msg.projectNotFound')}`);
-        return;
-      }
-      const repos = await client.listRepositories(proj.id);
-      if (repos.length === 0) {
-        vscode.window.showInformationMessage(`brain-dock: ${t(lang, 'msg.noRepos')}`);
-        return;
-      }
-      let pick: Repository | undefined;
-      if (repos.length === 1) {
-        pick = repos[0];
-      } else {
-        const chosen = await vscode.window.showQuickPick(
-          repos.map((r) => ({ label: r.alias, description: r.root, id: r.id })),
-          { title: t(lang, 'prompt.reindexWhich') },
-        );
-        pick = chosen ? repos.find((r) => r.id === chosen.id) : undefined;
-      }
-      if (!pick) return;
-      await client.reindex(proj.id, pick.id);
-      vscode.window.showInformationMessage(
-        `brain-dock: ${t(lang, 'msg.reindexQueued', { name: pick.alias })}`,
-      );
-      await refresh();
-    } catch (err) {
-      fail(err);
-    }
-  });
+  // Force Re-index = re-collect the open folder and re-upload it for server-side indexing.
+  register('brainDock.reindex', () => ensureWorkspaceProject(true));
 
   register('brainDock.setupAgents', async () => {
     const lang = resolveLang();

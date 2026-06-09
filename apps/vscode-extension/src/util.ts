@@ -21,6 +21,17 @@ export interface IndexStatus {
   roles: Record<string, number>;
 }
 
+export interface FileContent {
+  path: string;
+  content: string;
+}
+
+export interface IndexUploadReport {
+  files: number;
+  chunks: number;
+  symbols: number;
+}
+
 export interface UsageSummary {
   days: number;
   calls: number;

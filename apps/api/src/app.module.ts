@@ -8,6 +8,7 @@ import { RateLimitGuard } from './common/rate-limit.guard';
 import { ConfigModule } from './config/config.module';
 import { ConfigService } from './config/config.service';
 import { HealthModule } from './health/health.module';
+import { IndexingModule } from './indexing/indexing.module';
 import { KnowledgeApiModule } from './knowledge/knowledge.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { DocsModule } from './openapi/docs.module';
@@ -27,6 +28,7 @@ import { UsageModule } from './usage/usage.module';
     ApiKeysModule,
     ProjectsModule,
     RepositoriesModule,
+    IndexingModule,
     KnowledgeApiModule,
     UsageModule,
     DocsModule,

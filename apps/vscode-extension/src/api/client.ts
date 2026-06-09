@@ -1,6 +1,8 @@
 // Thin client for the brain-dock hosted server: REST over `x-api-key`, MCP tools over Bearer.
 import {
+  type FileContent,
   type IndexStatus,
+  type IndexUploadReport,
   normalizeBase,
   type Project,
   parseSummary,
@@ -37,6 +39,15 @@ export class BrainDockClient {
 
   reindex(projectId: string, repoId: string): Promise<unknown> {
     return this.rest('POST', `/projects/${projectId}/repositories/${repoId}/reindex`);
+  }
+
+  /** Upload file contents to be indexed server-side (no git / server path needed). */
+  indexFiles(projectId: string, repoId: string, files: FileContent[]): Promise<IndexUploadReport> {
+    return this.rest<IndexUploadReport>(
+      'POST',
+      `/projects/${projectId}/repositories/${repoId}/index`,
+      { files },
+    );
   }
 
   getUsage(days = 30): Promise<UsageSummary> {

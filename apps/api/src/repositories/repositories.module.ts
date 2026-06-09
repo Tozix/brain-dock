@@ -17,5 +17,6 @@ import { RepositoriesService } from './repositories.service';
       inject: [ConfigService],
     },
   ],
+  exports: [RepositoriesService],
 })
 export class RepositoriesModule {}

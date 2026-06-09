@@ -27,6 +27,7 @@ export type MessageKey =
   | 'btn.indexWorkspace'
   | 'msg.noWorkspace'
   | 'progress.provisioning'
+  | 'progress.uploading'
   | 'msg.workspaceReady'
   | 'btn.save'
   | 'btn.cancel'
@@ -98,6 +99,7 @@ const en: Record<MessageKey, string> = {
   'btn.indexWorkspace': 'Index this workspace',
   'msg.noWorkspace': 'Open a folder in VS Code first.',
   'progress.provisioning': 'brain-dock: setting up the project…',
+  'progress.uploading': 'uploading {n} files…',
   'msg.workspaceReady': 'Project {name} is indexing.',
   'btn.save': 'Save',
   'btn.cancel': 'Cancel',
@@ -171,6 +173,7 @@ const ru: Record<MessageKey, string> = {
   'btn.indexWorkspace': 'Проиндексировать эту папку',
   'msg.noWorkspace': 'Сначала откройте папку в VS Code.',
   'progress.provisioning': 'brain-dock: настраиваю проект…',
+  'progress.uploading': 'загружаю {n} файлов…',
   'msg.workspaceReady': 'Проект {name} индексируется.',
   'btn.save': 'Сохранить',
   'btn.cancel': 'Отмена',
