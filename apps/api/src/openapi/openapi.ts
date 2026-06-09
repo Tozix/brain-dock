@@ -4,6 +4,7 @@ import { credentialsSchema, refreshSchema } from '../auth/auth.dto';
 import { createDocumentSchema } from '../knowledge/documents.dto';
 import { createKnowledgeSchema, createMemorySchema } from '../knowledge/knowledge.dto';
 import { createProjectSchema } from '../projects/projects.dto';
+import { createRepositorySchema, updateRepositorySchema } from '../repositories/repositories.dto';
 
 /** Convert a Zod schema to JSON Schema (OpenAPI 3.1 = JSON Schema 2020-12); drop `$schema`. */
 function js(schema: z.ZodType): Record<string, unknown> {
@@ -45,6 +46,8 @@ export function buildOpenApiDocument(): Record<string, unknown> {
         CreateMemory: js(createMemorySchema),
         CreateKnowledge: js(createKnowledgeSchema),
         CreateDocument: js(createDocumentSchema),
+        CreateRepository: js(createRepositorySchema),
+        UpdateRepository: js(updateRepositorySchema),
       },
     },
     paths: {
@@ -160,6 +163,72 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           summary: 'Delete project',
           parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'Deleted' } },
+        },
+      },
+      '/api/v1/projects/{projectId}/repositories': {
+        post: {
+          tags: ['repositories'],
+          summary: 'Create repository',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          requestBody: body('CreateRepository'),
+          responses: {
+            '201': { description: 'Repository' },
+            '409': { description: 'Alias exists in project' },
+          },
+        },
+        get: {
+          tags: ['repositories'],
+          summary: 'List repositories',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          responses: { '200': { description: 'Repositories' } },
+        },
+      },
+      '/api/v1/projects/{projectId}/repositories/{id}': {
+        get: {
+          tags: ['repositories'],
+          summary: 'Get repository',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          responses: { '200': { description: 'Repository' }, '404': { description: 'Not found' } },
+        },
+        patch: {
+          tags: ['repositories'],
+          summary: 'Update repository (alias is immutable)',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          requestBody: body('UpdateRepository'),
+          responses: { '200': { description: 'Repository' }, '404': { description: 'Not found' } },
+        },
+        delete: {
+          tags: ['repositories'],
+          summary: 'Delete repository',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          responses: { '200': { description: 'Deleted' }, '404': { description: 'Not found' } },
+        },
+      },
+      '/api/v1/projects/{projectId}/repositories/{id}/reindex': {
+        post: {
+          tags: ['repositories'],
+          summary: 'Enqueue an indexing job for the repository',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          responses: {
+            '201': { description: 'Job queued' },
+            '404': { description: 'Not found' },
+          },
         },
       },
       '/api/v1/projects/{projectId}/memory': {

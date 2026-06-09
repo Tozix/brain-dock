@@ -22,6 +22,8 @@ describe('buildOpenApiDocument', () => {
         'CreateProject',
         'CreateMemory',
         'CreateKnowledge',
+        'CreateRepository',
+        'UpdateRepository',
       ]),
     );
     const credentials = components.schemas.Credentials as { properties?: Record<string, unknown> };
@@ -36,6 +38,8 @@ describe('buildOpenApiDocument', () => {
         '/api/v1/projects',
         '/api/v1/projects/{projectId}/memory',
         '/api/v1/projects/{projectId}/knowledge/search',
+        '/api/v1/projects/{projectId}/repositories',
+        '/api/v1/projects/{projectId}/repositories/{id}/reindex',
       ]),
     );
   });

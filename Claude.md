@@ -296,5 +296,7 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Нормализация score:** `UnifiedSearchService` нормализует score каждого источника min-max
   в `[0,1]` (tie-break по `rawScore`), чтобы ни один источник не доминировал из-за своей шкалы;
   `UnifiedResult.rawScore` сохранён для отображения. План [020](docs/plans/020-score-normalization.md).
-- 🔄 Дальше: кросс-репо граф, repositories в OpenAPI, горячее переподнятие watcher'ов; публикация
-  образов, OpenTelemetry-трейсинг.
+- ✅ **Repositories в OpenAPI:** схемы `CreateRepository`/`UpdateRepository` + пути
+  `…/repositories` (CRUD + `/reindex`) в `openapi.json`/Swagger UI. Проверено вживую. План [021](docs/plans/021-repositories-openapi.md).
+- 🔄 Дальше: кросс-репо граф, горячее переподнятие watcher'ов; публикация образов,
+  OpenTelemetry-трейсинг; PATCH/DELETE memory/knowledge/documents в OpenAPI.
