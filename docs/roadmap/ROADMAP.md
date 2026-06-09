@@ -91,5 +91,7 @@
 - ✅ Prisma `Repository` (`@@unique([projectId, alias])`) + миграция; `repositoryId` (uuid) в payload.
 - ✅ REST `RepositoriesController` (owner-scoped CRUD + `POST …/reindex`), индексация через BullMQ
   (`IndexQueue`-порт в `@brain-dock/core`, продьюсер в API). Проверено вживую (409, CRUD, очередь в Redis).
-- ⏭️ Далее: мульти-репо watch-воркер, кросс-репо граф, repositories в OpenAPI.
-- **Планы:** [015-multi-repo.md](../plans/015-multi-repo.md) (Done) · [016-multi-repo-rest.md](../plans/016-multi-repo-rest.md) (Done)
+- ✅ Мульти-репо watch-воркер `watch-all` (читает `Repository` из БД, по watcher'у на репо,
+  инкрементальный реиндекс с `repo`+`repositoryId`). Проверено вживую.
+- ⏭️ Далее: кросс-репо граф, repositories в OpenAPI, горячее переподнятие watcher'ов.
+- **Планы:** [015](../plans/015-multi-repo.md) (Done) · [016](../plans/016-multi-repo-rest.md) (Done) · [017](../plans/017-multi-repo-watch.md) (Done)

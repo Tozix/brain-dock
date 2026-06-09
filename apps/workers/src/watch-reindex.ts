@@ -8,6 +8,10 @@ export interface WatchOptions {
   rootDir: string;
   projectId: string;
   collection: string;
+  /** Repository alias within the project (multi-repo isolation/filtering). */
+  repo?: string;
+  /** Stable repository id (uuid) when the repo is DB-managed. */
+  repositoryId?: string;
   embedder: EmbeddingProvider;
   qdrantUrl: string;
   debounceMs?: number;
@@ -42,6 +46,8 @@ export function startWatchReindexer(options: WatchOptions): WatchHandle {
       const report = await ingestion.ingestIncremental(options.rootDir, {
         projectId: options.projectId,
         collection: options.collection,
+        repo: options.repo,
+        repositoryId: options.repositoryId,
         previous,
       });
       previous = report.index;

@@ -282,5 +282,9 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   через порт `IndexQueue` (`@brain-dock/core`); воркер пишет оба поля в payload. BullMQ-на-Bun:
   DI-токен развязан от bullmq, скрипты API — `--no-addons`. Проверено вживую (409 на дубль alias,
   CRUD, reindex → задача в Redis). План [016](docs/plans/016-multi-repo-rest.md).
-- 🔄 Дальше: мульти-репо watch-воркер, кросс-репо граф, repositories в OpenAPI; публикация образов,
-  OpenTelemetry-трейсинг, нормализация score, update_document, экспорт графа.
+- ✅ **Мульти-репо watch:** `apps/workers/src/watch-all.ts` читает `Repository` из Postgres
+  (опц. scope по `PROJECT_ID`) и поднимает по watcher'у на каждый репо; инкрементальный реиндекс
+  пишет `repo`+`repositoryId`. Чистый маппинг `repositoriesToWatchTargets` покрыт тестом. Проверено
+  вживую (initial → правка файла → incremental). План [017](docs/plans/017-multi-repo-watch.md).
+- 🔄 Дальше: кросс-репо граф, repositories в OpenAPI, горячее переподнятие watcher'ов; публикация
+  образов, OpenTelemetry-трейсинг, нормализация score, update_document, экспорт графа.

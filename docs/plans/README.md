@@ -35,3 +35,4 @@
 | [014](014-redis-rate-limit.md) | Redis-backed rate limit | Backlog | Done |
 | [015](015-multi-repo.md) | Multi-Repo индексация (движок + MCP) | Backlog | Done |
 | [016](016-multi-repo-rest.md) | Multi-Repo: Prisma, REST CRUD, очереди | Backlog | Done |
+| [017](017-multi-repo-watch.md) | Мульти-репо watch-воркер (watch-all) | Backlog | Done |
