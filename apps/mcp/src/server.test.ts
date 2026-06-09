@@ -69,6 +69,14 @@ describe('brain-dock MCP server — structural tools (no Qdrant)', () => {
     expect(body).toContain('AuthController → AuthService');
   });
 
+  it('find_guard finds a guard and find_endpoint lists routes', async () => {
+    const guards = textOf(await client.callTool({ name: 'find_guard', arguments: {} }));
+    expect(guards.toLowerCase()).toContain('guard');
+
+    const endpoints = textOf(await client.callTool({ name: 'find_endpoint', arguments: {} }));
+    expect(endpoints).toMatch(/(GET|POST|PATCH|DELETE)\s+\S+\s+→/);
+  });
+
   it('export_graph returns JSON and DOT', async () => {
     const json = textOf(await client.callTool({ name: 'export_graph', arguments: {} }));
     const parsed = JSON.parse(json) as { nodes: unknown[]; edges: unknown[] };

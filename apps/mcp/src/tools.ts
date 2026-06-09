@@ -204,6 +204,40 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
   roleTool('find_controller', 'controller', 'Controllers');
   roleTool('find_service', 'service', 'Services');
   roleTool('find_module', 'module', 'Modules');
+  roleTool('find_guard', 'guard', 'Guards');
+  roleTool('find_pipe', 'pipe', 'Pipes');
+  roleTool('find_interceptor', 'interceptor', 'Interceptors');
+  roleTool('find_resolver', 'resolver', 'Resolvers');
+  roleTool('find_repository', 'repository', 'Repositories');
+
+  server.registerTool(
+    'find_endpoint',
+    {
+      title: 'Find endpoints',
+      description:
+        'List HTTP endpoints (controller routes), optionally filtered by path substring.',
+      inputSchema: { path: z.string().optional().describe('Filter by route path substring') },
+    },
+    async ({ path }) => {
+      const needle = path?.toLowerCase();
+      const lines: string[] = [];
+      for (const { repo, index } of ctx.indexes()) {
+        for (const file of index.files) {
+          for (const symbol of file.symbols) {
+            if (symbol.nestRole !== 'controller') continue;
+            for (const route of symbol.routes) {
+              const routePath = route.path || '/';
+              if (needle && !routePath.toLowerCase().includes(needle)) continue;
+              lines.push(
+                `${route.method.toUpperCase()} ${routePath} → ${symbol.name}.${route.handler}  (${displayPath(repo, file.path)})`,
+              );
+            }
+          }
+        }
+      }
+      return text(listOrEmpty(lines, path ? `No endpoint matching "${path}".` : 'No endpoints.'));
+    },
+  );
 
   server.registerTool(
     'summarize_project',

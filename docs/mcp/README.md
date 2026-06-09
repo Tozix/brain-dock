@@ -11,7 +11,8 @@ MCP-сервер `apps/mcp` (`@modelcontextprotocol/sdk` v1, stdio) отдаёт
 | `search_code` | Гибридный (vector+keyword) поиск по символам (опц. `repos[]`) | да (после `reindex`) |
 | `generate_context` | Бюджет-ограниченный intent-aware контекст для запроса (опц. `repos[]`) | да |
 | `find_symbol` | Поиск символа по имени (любой kind) | нет |
-| `find_controller` / `find_service` / `find_module` | Список по роли (опц. фильтр по имени) | нет |
+| `find_controller` / `find_service` / `find_module` / `find_guard` / `find_pipe` / `find_interceptor` / `find_resolver` / `find_repository` | Список по NestJS-роли (опц. фильтр по имени) | нет |
+| `find_endpoint` | HTTP-маршруты контроллеров (`METHOD path → Controller.handler`), опц. фильтр по пути | нет |
 | `summarize_project` | Статистика: файлы/символы + разбивка по ролям | нет |
 | `get_architecture` | Модули, контроллеры с маршрутами, DI-рёбра | нет |
 | `remember` / `search_memory` / `list_memory` | Project Memory (DECISION/FACT/NOTE/TODO) | Postgres + Qdrant |

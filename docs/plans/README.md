@@ -50,3 +50,4 @@
 | [029](029-embedder-factory.md) | Общая фабрика эмбеддера (+ фикс воркера) | First-launch | Done |
 | [030](030-readiness-and-readme.md) | Полноценный readiness + корневой README | First-launch | Done |
 | [031](031-prod-first-launch-safety.md) | Безопасность первого прод-запуска | First-launch | Done |
+| [032](032-mcp-find-tools.md) | Недостающие MCP find_*-инструменты | Functional | Done |
