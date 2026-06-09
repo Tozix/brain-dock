@@ -307,5 +307,7 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Горячее переподнятие watcher'ов:** `reconcileWatchTargets` (чистая реконсиляция набора по
   `repositoryId`) + опц. поллинг БД в `watch-all` (`WATCH_POLL_MS`, 0 = снимок) — добавленные/
   удалённые/изменённые репо подхватываются без перезапуска. План [024](docs/plans/024-watch-resubscribe.md).
-- 🔄 Дальше: публикация Docker-образов, OpenTelemetry-трейсинг (требуют решений по
-  registry/секретам и инфраструктуре — согласовать с владельцем).
+- ✅ **Деплой сборкой на сервере:** сервисы `api`/`workers` в `docker-compose.yml` за профилем
+  `app` (Dockerfile'ы + service-DNS env), `bun run deploy` = `compose --profile app up -d --build`.
+  Публикация образов в registry **снята** (нужна только при multi-node/k8s). План [025](docs/plans/025-deploy-build-on-server.md).
+- 🔄 Дальше (опционально): OpenTelemetry-трейсинг, e2e-CI с сервисами.

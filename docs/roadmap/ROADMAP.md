@@ -78,8 +78,10 @@
 ## Production readiness (backlog) 🔄
 - ✅ CI (GitHub Actions): Biome + typecheck + тесты на push/PR.
 - ✅ Dockerfiles для `apps/{api,mcp,workers}`; образ API собран и проверен (`/health` 200 в контейнере).
-- ⏭️ Далее: публикация образов, Swagger/OpenAPI, метрики/трейсинг, Redis-backed rate limit,
-  документы (md/pdf/docx), multi-repo, e2e-CI с сервисами.
+- ✅ Деплой сборкой на сервере (без registry): `bun run deploy` =
+  `docker compose --profile app up -d --build` (api+workers за профилем `app`). Публикация
+  образов в registry **снята** — вернуться к ней только при multi-node/k8s ([план 025](../plans/025-deploy-build-on-server.md)).
+- ⏭️ Далее: OpenTelemetry-трейсинг, e2e-CI с сервисами.
 - **План:** [007-production-readiness.md](../plans/007-production-readiness.md) (Done)
 
 ## Multi-Repo (backlog) 🔄

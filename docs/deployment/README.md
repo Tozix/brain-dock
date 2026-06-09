@@ -16,8 +16,9 @@ Docker / Docker Compose, окружения и инфраструктура. Loc
 
 ## Команды
 ```bash
-bun run infra:up      # docker compose up -d
+bun run infra:up      # docker compose up -d           (инфра: postgres/qdrant/redis/ollama)
 bun run infra:down    # docker compose down
+bun run deploy        # docker compose --profile app up -d --build  (инфра + api/workers, сборка на месте)
 ```
 
 ## Первый запуск
@@ -40,20 +41,36 @@ docker exec brain-dock-ollama ollama pull nomic-embed-text
 [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) на push/PR: `bun install` → `bun run ci`
 (db:generate → Biome → turbo typecheck → bun test). Локально: `bun run ci`.
 
-## Docker-образы
-Сборка из корня репозитория:
+## Деплой: сборка на сервере (без registry)
+Образы **не публикуются** в registry. Для self-hosted (один сервер, docker compose) образы
+собираются **на сервере при деплое** — артефакт всегда соответствует выкаченному коду, без
+секретов и реестра (см. [план 025](../plans/025-deploy-build-on-server.md)). Сервисы `api` и
+`workers` живут за compose-профилем `app`, поэтому `infra:up` остаётся инфра-only.
+
 ```bash
-docker build -f apps/api/Dockerfile     -t brain-dock-api .
-docker build -f apps/mcp/Dockerfile     -t brain-dock-mcp .
-docker build -f apps/workers/Dockerfile -t brain-dock-workers .
+git pull
+cp .env.example .env          # один раз; заполнить секреты (JWT_*) для прод
+bun run deploy                # = docker compose --profile app up -d --build
+# применить миграции (одноразово / после изменений схемы):
+docker compose --profile app run --rm api bun run db:deploy
+docker exec brain-dock-ollama ollama pull nomic-embed-text   # модель эмбеддингов
 ```
-Запуск API (host-сеть, env из .env):
+В compose `environment` перекрывает `.env` сетевыми DNS-адресами (`postgres`/`redis`/`qdrant`/
+`ollama`), т.к. URL в `.env` указывают на host-порты. API публикуется на `3000:3000`.
+
+`mcp` в compose нет: MCP — stdio-сервер, его запускает MCP-клиент (Claude Code/Cursor), а не демон.
+Его образ при необходимости собирается отдельно: `docker build -f apps/mcp/Dockerfile -t brain-dock-mcp .`
+
+> Registry/публикация образов — только если появятся несколько нод или k8s (тогда «собрал один раз
+> — `pull` на все»). Сейчас не нужно.
+
+### Образы вручную (опц.)
 ```bash
-docker run --rm --network host --env-file .env -e API_PORT=3300 brain-dock-api
-# /health → 200, /health/ready → 200 (db.up: true)
+docker build -f apps/api/Dockerfile -t brain-dock-api .
+docker run --rm --network host --env-file .env -e API_PORT=3300 brain-dock-api   # /health → 200
 ```
-Образы используют `bun install --omit=optional` (нативные optional-пакеты рантайму не нужны);
-workers стартуют с `--no-addons` (BullMQ-на-Bun). Подробности — [плана 007](../plans/007-production-readiness.md).
+Образы используют `bun install --omit=optional`; workers стартуют с `--no-addons` (BullMQ-на-Bun).
+Подробности — [план 007](../plans/007-production-readiness.md).
 
 ## Воркеры
 - Index-worker (BullMQ): `bun --no-addons run apps/workers/src/index.ts`.

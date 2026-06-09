@@ -1,5 +1,7 @@
-# brain-dock — local infrastructure (Phase 1 / Foundation).
-# Local-first: Postgres, Qdrant, Redis, Ollama. Start with `bun run infra:up`.
+# brain-dock — local infrastructure + (optional) app services.
+# Local-first: Postgres, Qdrant, Redis, Ollama. Start infra with `bun run infra:up`.
+# App services (api, workers) live behind the `app` profile and are built on the host at deploy
+# time — no image registry: `bun run deploy` (= docker compose --profile app up -d --build).
 
 services:
   postgres:
@@ -53,6 +55,53 @@ services:
       - '11434:11434'
     volumes:
       - ollama-data:/root/.ollama
+
+  # --- App services (profile `app`) — built on the host, not pulled from a registry. ---
+  # `environment` overrides .env with in-network service DNS (the .env URLs point at host ports).
+  api:
+    profiles: ['app']
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: brain-dock-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      API_PORT: '3000'
+      DATABASE_URL: postgresql://brain_dock:brain_dock@postgres:5432/brain_dock?schema=public
+      REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_URL: http://ollama:11434
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  workers:
+    profiles: ['app']
+    build:
+      context: .
+      dockerfile: apps/workers/Dockerfile
+    container_name: brain-dock-workers
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://brain_dock:brain_dock@postgres:5432/brain_dock?schema=public
+      REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_URL: http://ollama:11434
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
 
 volumes:
   postgres-data:
