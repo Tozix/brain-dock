@@ -3,7 +3,7 @@
  * Phase 3: the IndexWorker (index → embed → Qdrant). More workers land later.
  */
 import { initTracing, tracingOptionsFromEnv } from '@brain-dock/core';
-import { OllamaEmbeddingProvider } from '@brain-dock/embedding';
+import { createEmbedder, embedderConfigFromEnv } from '@brain-dock/embedding';
 import { createIndexWorker } from './index-worker';
 
 // Opt-in tracing (shared OTEL_* env; off by default). Init before the worker starts.
@@ -14,11 +14,8 @@ if (initTracing(tracingOptionsFromEnv('brain-dock-workers'))) {
 const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:16379';
 const qdrantUrl = process.env.QDRANT_URL ?? 'http://localhost:16333';
 
-const embedder = new OllamaEmbeddingProvider({
-  url: process.env.OLLAMA_URL ?? 'http://localhost:11434',
-  model: process.env.EMBEDDING_MODEL ?? 'nomic-embed-text',
-  dimensions: 768,
-});
+// Honor EMBEDDER (like api/mcp) so all writers to the same Qdrant collection agree on dimensions.
+const embedder = createEmbedder(embedderConfigFromEnv());
 
 const worker = createIndexWorker({ redisUrl, qdrantUrl, embedder });
 worker.on('completed', (job, result) => {

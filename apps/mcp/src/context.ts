@@ -1,9 +1,5 @@
 import { createPrismaClient } from '@brain-dock/db';
-import {
-  DeterministicEmbeddingProvider,
-  type EmbeddingProvider,
-  OllamaEmbeddingProvider,
-} from '@brain-dock/embedding';
+import { createEmbedder, type EmbeddingProvider } from '@brain-dock/embedding';
 import { SymbolGraph } from '@brain-dock/graph';
 import { type RepositoryIndex, RepositoryIndexer } from '@brain-dock/indexer';
 import { DocumentService, KnowledgeService, MemoryService } from '@brain-dock/knowledge';
@@ -68,13 +64,11 @@ export function loadConfig(): McpConfig {
 }
 
 function makeEmbedder(config: McpConfig): EmbeddingProvider {
-  return config.embedder === 'ollama'
-    ? new OllamaEmbeddingProvider({
-        url: config.ollamaUrl,
-        model: config.embeddingModel,
-        dimensions: 768,
-      })
-    : new DeterministicEmbeddingProvider(256);
+  return createEmbedder({
+    provider: config.embedder,
+    ollamaUrl: config.ollamaUrl,
+    model: config.embeddingModel,
+  });
 }
 
 const INCLUDE = (p: string) => !p.includes('.test.') && !p.includes('.spec.');
