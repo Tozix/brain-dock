@@ -51,7 +51,7 @@ export function activate(context: vscode.ExtensionContext): void {
   output.appendLine('[brain-dock] extension activated');
 
   // Publish the brain-dock MCP to VS Code's native MCP registry (Copilot agent mode, etc.).
-  registerMcpProvider(context);
+  registerMcpProvider(context, output);
 
   const fail = (err: unknown): void => {
     const m = errMsg(err);
