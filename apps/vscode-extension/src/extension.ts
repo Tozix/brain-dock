@@ -142,13 +142,17 @@ export function activate(context: vscode.ExtensionContext): void {
     const root = ws.uri.fsPath;
     const folder = ws.name || basename(root) || 'workspace';
     const slug = slugify(folder);
+    const configuredProject = readSettings().project;
     provider.setBusy(t(lang, 'progress.provisioning'));
     try {
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: t(lang, 'progress.provisioning') },
         async (progress) => {
           const projects = await client.listProjects();
-          let proj = findProject(projects, slug);
+          // Reuse the selected project if it still exists; only fall back to the folder-name slug
+          // (creating a project) when nothing is configured — avoids spawning duplicate projects.
+          let proj = configuredProject ? findProject(projects, configuredProject) : undefined;
+          proj ??= findProject(projects, slug);
           if (!proj) {
             try {
               proj = await client.createProject(folder, slug);
