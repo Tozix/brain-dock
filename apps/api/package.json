@@ -13,6 +13,7 @@
     "@brain-dock/core": "workspace:*",
     "@brain-dock/db": "workspace:*",
     "@brain-dock/embedding": "workspace:*",
+    "@brain-dock/indexer": "workspace:*",
     "@brain-dock/knowledge": "workspace:*",
     "@brain-dock/search": "workspace:*",
     "@brain-dock/shared": "workspace:*",

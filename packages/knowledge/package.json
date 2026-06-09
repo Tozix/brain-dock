@@ -15,6 +15,8 @@
   "dependencies": {
     "@brain-dock/db": "workspace:*",
     "@brain-dock/embedding": "workspace:*",
+    "@brain-dock/graph": "workspace:*",
+    "@brain-dock/indexer": "workspace:*",
     "@brain-dock/storage": "workspace:*",
     "mammoth": "^1.12.0",
     "unpdf": "^1.6.2",

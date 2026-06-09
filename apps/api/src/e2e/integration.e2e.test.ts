@@ -8,7 +8,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createPrismaClient } from '@brain-dock/db';
 import { DeterministicEmbeddingProvider } from '@brain-dock/embedding';
-import { MemoryService } from '@brain-dock/knowledge';
+import { RepositoryIndexer } from '@brain-dock/indexer';
+import { MemoryService, SymbolIndexService } from '@brain-dock/knowledge';
 import { IngestionService, SearchService } from '@brain-dock/search';
 import { QdrantStore } from '@brain-dock/storage';
 
@@ -81,5 +82,58 @@ e2e('Project memory over real Postgres + Qdrant', () => {
 
     const hits = await memory.search(projectId, 'how do we deploy the app', 5);
     expect(hits.some((h) => h.item.id === item.id)).toBe(true);
+  });
+});
+
+e2e('Server-side symbol index over real Postgres', () => {
+  const prisma = DATABASE_URL ? createPrismaClient(DATABASE_URL) : null;
+  const symbols = prisma ? new SymbolIndexService(prisma) : null;
+  // CodeSymbol.projectId is a uuid column.
+  const projectId = crypto.randomUUID();
+  const repo = 'api';
+
+  afterAll(async () => {
+    await prisma?.codeSymbol.deleteMany({ where: { projectId } }).catch(() => {});
+    await prisma?.codeEdge.deleteMany({ where: { projectId } }).catch(() => {});
+    await prisma?.$disconnect();
+  });
+
+  it('persists an index and reconstructs structural queries + graph', async () => {
+    if (!symbols) throw new Error('DATABASE_URL is required for the symbol-index e2e test');
+    const index = new RepositoryIndexer().indexFiles('/repo', [
+      {
+        path: 'cats.controller.ts',
+        content: `import { Controller, Get } from '@nestjs/common';
+import { CatsService } from './cats.service';
+@Controller('cats')
+export class CatsController {
+  constructor(private readonly cats: CatsService) {}
+  @Get('list') list() {}
+}`,
+      },
+      {
+        path: 'cats.service.ts',
+        content: `import { Injectable } from '@nestjs/common';
+@Injectable()
+export class CatsService {}`,
+      },
+    ]);
+
+    const persisted = await symbols.persist({ projectId, repo }, index);
+    expect(persisted.symbols).toBeGreaterThan(0);
+
+    const controllers = await symbols.findSymbols(projectId, { role: 'controller' });
+    expect(controllers.some((s) => s.name === 'CatsController')).toBe(true);
+
+    const endpoints = await symbols.endpoints(projectId);
+    expect(endpoints.some((e) => e.path.includes('list'))).toBe(true);
+
+    const graph = await symbols.graph(projectId);
+    expect(graph.dependents('CatsService')).toContain('CatsController');
+
+    // Re-persist replaces (no duplicates).
+    const again = await symbols.persist({ projectId, repo }, index);
+    const all = await symbols.findSymbols(projectId, {});
+    expect(all.length).toBe(again.symbols);
   });
 });

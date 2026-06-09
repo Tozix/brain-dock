@@ -21,3 +21,10 @@ export {
   updateKnowledgeSchema,
   updateMemorySchema,
 } from './schemas';
+export {
+  type EndpointRow,
+  type ProjectSummary,
+  SymbolIndexService,
+  type SymbolRow,
+  type SymbolScope,
+} from './symbol-index.service';

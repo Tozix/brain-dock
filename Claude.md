@@ -347,6 +347,11 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   knowledge/documents) из Qdrant+Postgres. Пользователь локально ничего не запускает (модель
   vexp.dev). Структурные/граф-tools — отдельный эпик (нужен серверный индекс символов). Проверено
   вживую SDK-клиентом. План [036](docs/plans/036-remote-mcp-http.md).
-- 🔄 Остаётся опционально: серверный индекс символов для remote структурных/граф-tools; трейсинг MCP, context-propagation api→queue→worker, нагрузочное
+- ✅ **Серверный индекс символов:** Prisma `CodeSymbol`/`CodeEdge` (+ миграция); `SymbolIndexService`
+  (`@brain-dock/knowledge`) — `persist(scope, index)` (replace-by-repo) + запросы
+  `findSymbols`/`endpoints`/`summary`/`graph`; воркер при index-job строит индекс один раз →
+  векторы (Qdrant) + символы (Postgres). e2e persist→query вживую. План [037](docs/plans/037-server-symbol-index.md).
+  (Remote структурные/граф-tools поверх него — план 038.)
+- 🔄 Остаётся опционально: remote структурные/граф-tools (038); трейсинг MCP, context-propagation api→queue→worker, нагрузочное
   тестирование, nightly e2e с реальным Ollama; (пункт 2 хвост) `find_prisma_model`/`find_env`/
   `find_config` (нужен парс schema.prisma / скан process.env), доп. воркеры (Embedding/Document/Sync/Cleanup).

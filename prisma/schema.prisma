@@ -162,6 +162,44 @@ model Document {
   @@map("documents")
 }
 
+// Server-side structural index (so the hosted MCP can serve find_*/architecture/graph without the
+// user's files). Populated by the index worker; scoped by project + repo alias; replaced per repo.
+model CodeSymbol {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
+  repo      String
+  name      String
+  kind      String
+  role      String
+  file      String
+  startLine Int      @map("start_line")
+  endLine   Int      @map("end_line")
+  // RouteInfo[] for controllers (method/path/handler); null otherwise.
+  routes    Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([projectId, repo])
+  @@index([projectId, role])
+  @@index([projectId, name])
+  @@map("code_symbols")
+}
+
+model CodeEdge {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
+  repo      String
+  fromName  String   @map("from_name")
+  toName    String   @map("to_name")
+  // injects | extends | implements | imports
+  kind      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([projectId, repo])
+  @@index([projectId, fromName])
+  @@index([projectId, toName])
+  @@map("code_edges")
+}
+
 model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
   actorId    String?  @map("actor_id") @db.Uuid

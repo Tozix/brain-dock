@@ -3,7 +3,9 @@
  * Phase 3: the IndexWorker (index → embed → Qdrant). More workers land later.
  */
 import { initTracing, tracingOptionsFromEnv } from '@brain-dock/core';
+import { createPrismaClient } from '@brain-dock/db';
 import { createEmbedder, embedderConfigFromEnv } from '@brain-dock/embedding';
+import { SymbolIndexService } from '@brain-dock/knowledge';
 import { createIndexWorker } from './index-worker';
 
 // Opt-in tracing (shared OTEL_* env; off by default). Init before the worker starts.
@@ -17,7 +19,12 @@ const qdrantUrl = process.env.QDRANT_URL ?? 'http://localhost:16333';
 // Honor EMBEDDER (like api/mcp) so all writers to the same Qdrant collection agree on dimensions.
 const embedder = createEmbedder(embedderConfigFromEnv());
 
-const worker = createIndexWorker({ redisUrl, qdrantUrl, embedder });
+// With a database, also persist the structural index (symbols/edges) for the hosted MCP.
+const databaseUrl = process.env.DATABASE_URL;
+const symbols = databaseUrl ? new SymbolIndexService(createPrismaClient(databaseUrl)) : undefined;
+if (symbols) console.info('[workers] symbol index persistence enabled');
+
+const worker = createIndexWorker({ redisUrl, qdrantUrl, embedder, symbols });
 worker.on('completed', (job, result) => {
   console.info(`[index] job ${job.id} done:`, result);
 });

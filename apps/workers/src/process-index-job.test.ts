@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { RepositoryIndex } from '@brain-dock/indexer';
 import type { IngestReport } from '@brain-dock/search';
 import { processIndexJob } from './process-index-job';
 import type { IndexJob } from './queues';
@@ -11,32 +12,74 @@ const job: IndexJob = {
   repositoryId: 'r1',
 };
 
+// Minimal index the fake indexer returns (one controller symbol + one DI edge).
+const index: RepositoryIndex = {
+  rootDir: './apps/api',
+  stats: { files: 1, symbols: 1, chunks: 0, relations: 1 },
+  files: [
+    {
+      path: 'cats.controller.ts',
+      hash: 'h',
+      imports: [],
+      chunks: [],
+      symbols: [
+        {
+          name: 'CatsController',
+          kind: 'class',
+          nestRole: 'controller',
+          exported: true,
+          decorators: [],
+          startLine: 1,
+          endLine: 9,
+          dependencies: ['CatsService'],
+          routes: [{ method: 'get', path: 'cats', handler: 'findAll' }],
+        },
+      ],
+      relations: [{ from: 'CatsController', to: 'CatsService', kind: 'injects' }],
+    },
+  ],
+};
+
+const indexer = { index: () => index };
+
 describe('processIndexJob', () => {
-  it('forwards repo + repositoryId to ingestion and returns its report', async () => {
-    const calls: Array<{ rootDir: string; options: unknown }> = [];
+  it('builds the index once, ingests vectors and persists symbols', async () => {
+    const ingestCalls: RepositoryIndex[] = [];
     const ingestion = {
-      ingestRepository: async (rootDir: string, options: unknown): Promise<IngestReport> => {
-        calls.push({ rootDir, options });
-        return { files: 3, chunks: 7 };
+      ingestIndex: async (idx: RepositoryIndex): Promise<IngestReport> => {
+        ingestCalls.push(idx);
+        return { files: 1, chunks: 4 };
+      },
+    };
+    const persistCalls: Array<{ projectId: string; repo: string }> = [];
+    const symbols = {
+      persist: async (scope: { projectId: string; repo: string }) => {
+        persistCalls.push(scope);
+        return { symbols: 1, edges: 1 };
       },
     };
 
-    const report = await processIndexJob(ingestion, job);
+    const report = await processIndexJob({ ingestion, indexer, symbols }, job);
 
-    expect(report).toEqual({ files: 3, chunks: 7 });
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toEqual({
-      rootDir: './apps/api',
-      options: { projectId: 'p1', collection: 'code', repo: 'api', repositoryId: 'r1' },
-    });
+    expect(report).toEqual({ files: 1, chunks: 4 });
+    expect(ingestCalls).toHaveLength(1);
+    expect(persistCalls).toEqual([{ projectId: 'p1', repo: 'api' }]);
+  });
+
+  it('skips symbol persistence when no store is configured', async () => {
+    const ingestion = {
+      ingestIndex: async (): Promise<IngestReport> => ({ files: 1, chunks: 1 }),
+    };
+    const report = await processIndexJob({ ingestion, indexer }, job);
+    expect(report.chunks).toBe(1);
   });
 
   it('propagates ingestion failures', async () => {
     const ingestion = {
-      ingestRepository: async (): Promise<IngestReport> => {
+      ingestIndex: async (): Promise<IngestReport> => {
         throw new Error('qdrant down');
       },
     };
-    await expect(processIndexJob(ingestion, job)).rejects.toThrow('qdrant down');
+    await expect(processIndexJob({ ingestion, indexer }, job)).rejects.toThrow('qdrant down');
   });
 });

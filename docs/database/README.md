@@ -29,9 +29,11 @@ bun run db:deploy     # применить миграции (prod)
 | `KnowledgeItem` | `knowledge_items` | база знаний (BUSINESS_RULE/ARCHITECTURE/ADR/FAQ/…) |
 | `Document` | `documents` | документы (MD/TXT/MDX/JSON/YAML/PDF/DOCX), чанкинг+эмбеддинги |
 | `Repository` | `repositories` | репозитории проекта (multi-repo): `alias`, `root`, `defaultBranch`; `@@unique([projectId, alias])` |
+| `CodeSymbol` | `code_symbols` | серверный индекс символов (name/kind/role/file/lines/routes), scoped `projectId`+`repo` — для remote MCP |
+| `CodeEdge` | `code_edges` | рёбра графа (`from`→`to`, kind: injects/extends/implements/imports), scoped `projectId`+`repo` |
 
 Enums: `Role`, `ApiKeyStatus`, `MemoryType`, `KnowledgeType`, `DocFormat`.
-Миграции: `_init`, `_knowledge_memory`, `_documents`, `_add_repositories`. Память/знания/документы
+Миграции: `_init`, `_knowledge_memory`, `_documents`, `_add_repositories`, `_add_code_symbols`. Память/знания/документы
 изолированы по `projectId` (строка), семантический слой — Qdrant (см. [../knowledge/](../knowledge/README.md)).
 `Repository` связан с `Project` (`onDelete: Cascade`); векторы кода несут `repo` (alias) и
 `repositoryId` (uuid) для изоляции (планы [015](../plans/015-multi-repo.md)/[016](../plans/016-multi-repo-rest.md)).

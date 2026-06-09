@@ -55,3 +55,4 @@
 | [034](034-rest-http-e2e.md) | REST e2e через реальный HTTP | Testing | Done |
 | [035](035-worker-unit-tests.md) | Юнит-тесты воркера (index job) | Testing | Done |
 | [036](036-remote-mcp-http.md) | Удалённый MCP по HTTP (хостинговая модель) | Hosted | Done |
+| [037](037-server-symbol-index.md) | Серверный индекс символов (Postgres) | Hosted | Done |
