@@ -56,6 +56,49 @@ describe('UnifiedSearchService', () => {
     expect(results.find((r) => r.source === 'code')?.ref).toBe('auth/auth.service.ts:16');
   });
 
+  it('normalizes per source so a high-scale source does not bury another source’s top hit', async () => {
+    // code scores live in a high, compressed band; memory lower. Raw merge would keep both code
+    // hits ahead of memory; per-source normalization lifts memory's own top hit above code's weak one.
+    const code = (symbol: string, score: number, startLine: number): SearchResult => ({
+      ...codeResult(),
+      symbol,
+      score,
+      startLine,
+    });
+    const skewed: UnifiedSources = {
+      code: {
+        async search() {
+          return [code('Top', 0.3, 16), code('Weak', 0.28, 99)];
+        },
+      },
+      memory: {
+        async search() {
+          return [
+            { score: 0.2, item: { id: 'm1', type: 'NOTE', content: 'best memory' } },
+            { score: 0.05, item: { id: 'm2', type: 'NOTE', content: 'weak memory' } },
+          ];
+        },
+      },
+      knowledge: {
+        async search() {
+          return [];
+        },
+      },
+      documents: {
+        async search() {
+          return [];
+        },
+      },
+    };
+    const results = await new UnifiedSearchService(skewed).search('q', { projectId: 'p' });
+
+    expect(results.every((r) => r.score >= 0 && r.score <= 1)).toBe(true);
+    // memory's top hit (m1) outranks code's weak second hit, despite a lower raw score.
+    const order = results.map((r) => r.ref);
+    expect(order.indexOf('m1')).toBeLessThan(order.indexOf('auth/auth.service.ts:99'));
+    expect(results[0]?.rawScore).toBe(0.3); // strongest source still leads via the raw tie-break
+  });
+
   it('respects the limit', async () => {
     const results = await new UnifiedSearchService(sources).search('q', {
       projectId: 'p',

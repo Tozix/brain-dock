@@ -38,6 +38,14 @@ dedupe → compress → assemble`.
 Демо: `bun apps/workers/src/context-demo.ts ["query"]` (`EMBEDDER=ollama`). Проверено вживую:
 запрос «why does jwt authentication fail in the guard» → intent=debug, топ `AuthService` (буст), 5/15 включено, бюджет ~3.8k символов.
 
+## Unified Search (готово) — `search_everywhere`
+`UnifiedSearchService`: один запрос по code + memory + knowledge + documents, объединённый
+ранжированный список. Источники имеют разные шкалы score (code = `0.7·vector + 0.3·keyword`,
+остальные = сырой cosine), поэтому score **нормализуется min-max внутри каждого источника** в
+`[0,1]`, а слияние идёт по нормализованному значению с tie-break по `rawScore` (сильные хиты
+лидируют среди равных). Падающий источник не валит весь запрос. План —
+[../plans/020-score-normalization.md](../plans/020-score-normalization.md).
+
 ### Далее (за рамками Phase 4)
 Полноценный BM25/full-text, графовое расширение (DI-соседи через `packages/graph`),
 knowledge-слияние, обучаемый re-ranker. Отдаётся клиентам через MCP — [план 004](../plans/004-mcp-server.md).

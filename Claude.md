@@ -293,5 +293,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Экспорт графа:** `SymbolGraph.toJSON()`/`toDot()` + MCP-tool `export_graph`
   (`format: json|dot`, опц. `repo`) — выгрузка графа зависимостей (Graphviz DOT для визуализации).
   План [019](docs/plans/019-graph-export.md).
+- ✅ **Нормализация score:** `UnifiedSearchService` нормализует score каждого источника min-max
+  в `[0,1]` (tie-break по `rawScore`), чтобы ни один источник не доминировал из-за своей шкалы;
+  `UnifiedResult.rawScore` сохранён для отображения. План [020](docs/plans/020-score-normalization.md).
 - 🔄 Дальше: кросс-репо граф, repositories в OpenAPI, горячее переподнятие watcher'ов; публикация
-  образов, OpenTelemetry-трейсинг, нормализация score.
+  образов, OpenTelemetry-трейсинг.

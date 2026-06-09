@@ -4,7 +4,10 @@ export type UnifiedSource = 'code' | 'memory' | 'knowledge' | 'document';
 
 export interface UnifiedResult {
   source: UnifiedSource;
+  /** Cross-source rank score: each source min-max normalized to [0,1] (see UnifiedSearchService). */
   score: number;
+  /** The source's own raw score (cosine / hybrid) before normalization. */
+  rawScore: number;
   title: string;
   snippet: string;
   /** Locator: `path:line` for code, record id otherwise. */
@@ -48,6 +51,29 @@ function snippet(text: string, max = 160): string {
   return text.replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
+/** A unified result before cross-source normalization (carries only its source's raw score). */
+type RawResult = Omit<UnifiedResult, 'score'>;
+
+/**
+ * Min-max normalize each source's scores to [0,1] so no source dominates merely because its
+ * score scale is larger. A source whose hits are all equal (or single) maps to 1.0; ranking
+ * then falls back to the raw score as a tie-break, keeping more-confident hits ahead.
+ */
+function normalizeBySource(groups: RawResult[][]): UnifiedResult[] {
+  const out: UnifiedResult[] = [];
+  for (const group of groups) {
+    if (group.length === 0) continue;
+    const scores = group.map((r) => r.rawScore);
+    const max = Math.max(...scores);
+    const min = Math.min(...scores);
+    const span = max - min;
+    for (const r of group) {
+      out.push({ ...r, score: span > 0 ? (r.rawScore - min) / span : 1 });
+    }
+  }
+  return out;
+}
+
 /**
  * `search_everywhere`: one query across code + memory + knowledge + documents,
  * merged into a single ranked list. A failing source (e.g. an un-ingested collection)
@@ -74,37 +100,40 @@ export class UnifiedSearchService {
       this.sources.documents.search(projectId, query, limit).catch(() => []),
     ]);
 
-    const results: UnifiedResult[] = [
-      ...code.map((c) => ({
+    const groups: RawResult[][] = [
+      code.map((c) => ({
         source: 'code' as const,
-        score: c.score,
+        rawScore: c.score,
         title: `${c.role} ${c.symbol}`,
         snippet: snippet(c.text),
         ref: `${c.path}:${c.startLine}`,
       })),
-      ...memory.map((m) => ({
+      memory.map((m) => ({
         source: 'memory' as const,
-        score: m.score,
+        rawScore: m.score,
         title: m.item.type,
         snippet: snippet(m.item.content),
         ref: m.item.id,
       })),
-      ...knowledge.map((k) => ({
+      knowledge.map((k) => ({
         source: 'knowledge' as const,
-        score: k.score,
+        rawScore: k.score,
         title: k.item.title,
         snippet: snippet(k.item.content),
         ref: k.item.id,
       })),
-      ...documents.map((d) => ({
+      documents.map((d) => ({
         source: 'document' as const,
-        score: d.score,
+        rawScore: d.score,
         title: d.document.title,
         snippet: snippet(d.document.content),
         ref: d.document.id,
       })),
     ];
 
-    return results.sort((a, b) => b.score - a.score).slice(0, limit);
+    // Rank by normalized score; break ties with the raw score so confident hits stay ahead.
+    return normalizeBySource(groups)
+      .sort((a, b) => b.score - a.score || b.rawScore - a.rawScore)
+      .slice(0, limit);
   }
 }
