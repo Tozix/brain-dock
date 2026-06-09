@@ -1,8 +1,21 @@
 # 004 — MCP-сервер (tools / resources / prompts)
 
-- **Status:** Draft
+- **Status:** Done (первый срез tools; resources/prompts/auth — далее)
 - **Phase:** 5
 - **Связи:** [ROADMAP](../roadmap/ROADMAP.md) · [003-rag-engine](003-rag-engine.md) · [Claude.md](../../Claude.md) §15
+
+## Сделано (Phase 5)
+- `apps/mcp` на `@modelcontextprotocol/sdk` v1.29 (stdio); конфиг через env; `McpContext`
+  (embedder/store/search/context + ленивый in-memory индекс).
+- 9 tools: `reindex`, `search_code`, `generate_context`, `find_symbol`,
+  `find_controller`/`find_service`/`find_module`, `summarize_project`, `get_architecture`.
+- Структурные tools работают по ts-morph-индексу (без внешних сервисов); поисковые — поверх Qdrant.
+- Проверено вживую реальным MCP-клиентом (stdio) + автономный in-process тест.
+- Документация: [docs/mcp/README.md](../mcp/README.md).
+
+## Далее (за рамками этого среза)
+- `remember`/`save_document`/`update_document` (Project Memory/Knowledge — Phase 6).
+- MCP resources & prompts; аутентификация по API-ключу для удалённого транспорта; больше find_*.
 
 ## Goal
 Полностью совместимый MCP-сервер (`apps/mcp`), отдающий поиск/контекст/память проекта

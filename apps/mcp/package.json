@@ -8,5 +8,13 @@
     "start": "bun run src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
+  },
+  "dependencies": {
+    "@brain-dock/embedding": "workspace:*",
+    "@brain-dock/indexer": "workspace:*",
+    "@brain-dock/search": "workspace:*",
+    "@brain-dock/storage": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
   }
 }

@@ -50,10 +50,13 @@
 - ⏭️ Далее: BM25/full-text, графовое расширение (DI-соседи), knowledge-слияние, обучаемый re-ranker.
 - **План:** [003-rag-engine.md](../plans/003-rag-engine.md) (Phase 4 — Done)
 
-## Phase 5 — MCP Server ⬜
+## Phase 5 — MCP Server ✅
 **Цель:** совместимый MCP-сервер для Claude Code/Cursor/VSCode.
-- tools / resources / prompts; контракты всех tools.
-- **План:** [004-mcp-server.md](../plans/004-mcp-server.md)
+- ✅ `apps/mcp` на `@modelcontextprotocol/sdk` v1 (stdio); 9 tools
+  (reindex/search_code/generate_context/find_*/summarize_project/get_architecture).
+- ✅ Проверено реальным MCP-клиентом + in-process тестом; [docs/mcp/](../mcp/README.md).
+- ⏭️ Далее: resources/prompts, auth по API-ключу, memory/knowledge-tools (Phase 6).
+- **План:** [004-mcp-server.md](../plans/004-mcp-server.md) (Done)
 
 ## Phase 6 — Knowledge Base & Project Memory ⬜
 **Цель:** хранение знаний и долговременной памяти.

@@ -156,9 +156,9 @@ prisma/        # схема и миграции
 docs/          # вся документация (см. docs/README.md)
 ```
 
-> Phase 1–3: `apps/{api,mcp,workers}` и `packages/{shared,core,db,indexer,embedding,storage,search}`
-> (api/indexer/embedding/storage/search/workers — рабочие; mcp — заглушка). `prisma/` — схема + миграции.
-> AST-индексатор — [docs/architecture/indexer.md](docs/architecture/indexer.md); RAG — [docs/rag/](docs/rag/);
+> Phase 1–5: `apps/{api,mcp,workers}` и `packages/{shared,core,db,indexer,embedding,storage,search}` — все рабочие.
+> `prisma/` — схема + миграции. AST-индексатор — [docs/architecture/indexer.md](docs/architecture/indexer.md);
+> RAG/Context Engine — [docs/rag/](docs/rag/); MCP — [docs/mcp/](docs/mcp/);
 > особенности Bun (NestJS, BullMQ) — [docs/backend/bun-nestjs-notes.md](docs/backend/bun-nestjs-notes.md).
 
 ## 8. Правила работы с документацией
@@ -246,6 +246,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Phase 3 (Embedding & Vector Storage) завершена:** `@brain-dock/{embedding,storage,search}` —
   Ollama (`nomic-embed-text`, 768d) + deterministic провайдеры, Qdrant-стор, ingestion-pipeline,
   гибридный поиск (vector+keyword); BullMQ `IndexWorker` (риск BullMQ-на-Bun закрыт). Проверено вживую.
-- ✅ **Phase 4 (Context Engine) завершена:** `ContextEngine` — intent detection (debug/modify/refactor/explore),
-  intent-aware re-ranking, дедуп, compression, Context Builder. Проверено вживую.
-- 🔄 Дальше: Phase 5 — MCP-сервер ([004](docs/plans/004-mcp-server.md)), отдаёт поиск/контекст клиентам.
+- ✅ **Phase 4 (Context Engine) завершена:** `ContextEngine` — intent detection, intent-aware re-ranking,
+  дедуп, compression, Context Builder.
+- ✅ **Phase 5 (MCP-сервер) завершена:** `apps/mcp` на `@modelcontextprotocol/sdk` v1 (stdio), 9 tools
+  (reindex/search_code/generate_context/find_*/summarize_project/get_architecture). Проверено реальным MCP-клиентом.
+- 🔄 Дальше: Phase 6 — Knowledge Base & Project Memory (+ MCP memory/knowledge-tools, resources/prompts).

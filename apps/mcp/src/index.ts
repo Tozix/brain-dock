@@ -1,5 +1,15 @@
-/**
- * @brain-dock/mcp — MCP server entrypoint (placeholder).
- * Implemented in Phase 5; see docs/plans/004-mcp-server.md.
- */
-console.info('[brain-dock:mcp] not implemented yet — see docs/plans/004-mcp-server.md');
+#!/usr/bin/env bun
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { createMcpServer } from './server';
+
+// stdio transport: stdout carries the JSON-RPC protocol, so logs must go to stderr only.
+async function main(): Promise<void> {
+  const server = createMcpServer();
+  await server.connect(new StdioServerTransport());
+  console.error('[brain-dock:mcp] server connected over stdio');
+}
+
+main().catch((error) => {
+  console.error('[brain-dock:mcp] fatal:', error);
+  process.exit(1);
+});

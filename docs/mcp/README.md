@@ -1,6 +1,43 @@
 # MCP
 
-MCP-сервер: tools / resources / prompts. Список планируемых tools и правила —
-[Claude.md](../../Claude.md) §15. План реализации — [../plans/004-mcp-server.md](../plans/004-mcp-server.md).
+MCP-сервер `apps/mcp` (`@modelcontextprotocol/sdk` v1, stdio) отдаёт поиск/контекст/структуру
+проекта MCP-клиентам (Claude Code, Cursor, VSCode). Реализованы tools; resources/prompts — далее.
 
-_Заполняется в Phase 5._
+## Tools (Phase 5)
+| Tool | Назначение | Нужен Qdrant |
+|---|---|---|
+| `reindex` | Проиндексировать проект и залить эмбеддинги в векторное хранилище | да |
+| `search_code` | Гибридный (vector+keyword) поиск по символам | да (после `reindex`) |
+| `generate_context` | Бюджет-ограниченный intent-aware контекст для запроса | да |
+| `find_symbol` | Поиск символа по имени (любой kind) | нет |
+| `find_controller` / `find_service` / `find_module` | Список по роли (опц. фильтр по имени) | нет |
+| `summarize_project` | Статистика: файлы/символы + разбивка по ролям | нет |
+| `get_architecture` | Модули, контроллеры с маршрутами, DI-рёбра | нет |
+
+Структурные tools работают по in-memory индексу (ts-morph) и не требуют внешних сервисов.
+
+## Конфигурация (env)
+`PROJECT_ROOT` (что индексировать), `PROJECT_ID`, `COLLECTION` (default `code`),
+`QDRANT_URL`, `OLLAMA_URL`, `EMBEDDING_MODEL`, `EMBEDDER` (`ollama`|`deterministic`, default `deterministic`).
+
+## Подключение из Claude Code
+```json
+{
+  "mcpServers": {
+    "brain-dock": {
+      "command": "bun",
+      "args": ["apps/mcp/src/index.ts"],
+      "env": { "PROJECT_ROOT": "apps/api/src", "EMBEDDER": "ollama" }
+    }
+  }
+}
+```
+
+## Проверено вживую
+Реальный MCP-клиент (stdio) — `bun apps/mcp/src/client-check.ts`: `tools/list` (9 tools),
+`summarize_project`, `get_architecture` (модули/маршруты/DI), `reindex` (27 файлов/32 чанка),
+`search_code` (релевантная выдача). Автономный in-process тест — [`apps/mcp/src/server.test.ts`](../../apps/mcp/src/server.test.ts).
+
+## Далее
+`remember`/`save_document`/`update_document` (Project Memory/Knowledge — Phase 6); MCP resources & prompts;
+аутентификация по API-ключу для удалённого транспорта; больше find_*-инструментов.
