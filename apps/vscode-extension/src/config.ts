@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import type { Lang } from './i18n';
 
 export const SECTION = 'brainDock';
-const API_KEY_SECRET = 'brainDock.apiKey';
+export const API_KEY_SECRET = 'brainDock.apiKey';
 
 /** Resolve the UI language: explicit `brainDock.language`, or `auto` → the VS Code display language. */
 export function resolveLang(): Lang {

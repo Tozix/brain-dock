@@ -66,3 +66,4 @@
 | [045](045-vscode-auto-project-from-workspace.md) | VSCode-расширение: проект = открытая папка (auto-project) | Client | Done |
 | [046](046-index-uploaded-files-no-git.md) | Индексация из загруженных файлов (без git и пути на сервере) | Indexing | Done |
 | [047](047-vexp-like-panel-honest-usage.md) | VEXP-вид панели + честные метрики использования (без фейка) | Client | Done |
+| [048](048-native-vscode-mcp-registration.md) | Нативная регистрация MCP в VS Code (HTTP, Copilot agent mode) | Client | Done |

@@ -11,6 +11,7 @@ import {
   storeApiKey,
 } from './config';
 import { t } from './i18n';
+import { registerMcpProvider } from './mcp-provider';
 import type { PanelState } from './panel/html';
 import { PanelProvider, type SettingsValues } from './panel/provider';
 import { type AgentTarget, applyTarget, type McpServerConfig } from './setup/agents';
@@ -48,6 +49,9 @@ export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel('brain-dock');
   context.subscriptions.push(output);
   output.appendLine('[brain-dock] extension activated');
+
+  // Publish the brain-dock MCP to VS Code's native MCP registry (Copilot agent mode, etc.).
+  registerMcpProvider(context);
 
   const fail = (err: unknown): void => {
     const m = errMsg(err);
