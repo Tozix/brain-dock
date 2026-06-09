@@ -1,60 +1,17 @@
-import { type Tracer, trace } from '@opentelemetry/api';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
-  BatchSpanProcessor,
-  ConsoleSpanExporter,
-  NodeTracerProvider,
-  type SpanExporter,
-} from '@opentelemetry/sdk-trace-node';
-import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
+  getTracer as coreGetTracer,
+  type TracesExporter,
+  type TracingOptions,
+} from '@brain-dock/core';
+import type { Tracer } from '@opentelemetry/api';
 
-export type TracesExporter = 'none' | 'console' | 'otlp';
+// Shared tracing init lives in @brain-dock/core (reused by api + workers).
+export { initTracing, selectExporter, tracingOptionsFromEnv } from '@brain-dock/core';
+export type { TracesExporter, TracingOptions };
 
-export interface TracingOptions {
-  exporter: TracesExporter;
-  otlpEndpoint?: string;
-  serviceName: string;
-  serviceVersion: string;
-}
+const SERVICE = 'brain-dock-api';
 
-/** Build the span exporter for the configured kind; null disables tracing entirely. */
-export function selectExporter(kind: TracesExporter, otlpEndpoint?: string): SpanExporter | null {
-  switch (kind) {
-    case 'console':
-      return new ConsoleSpanExporter();
-    case 'otlp':
-      return new OTLPTraceExporter(otlpEndpoint ? { url: otlpEndpoint } : {});
-    default:
-      return null;
-  }
-}
-
-let started = false;
-
-/**
- * Initialize tracing. Returns true when a provider was registered, false when disabled
- * (`exporter: 'none'`) — in that case `getTracer()` yields the API's no-op tracer, so the
- * instrumentation code path stays nearly free. Safe to call once at process start.
- */
-export function initTracing(options: TracingOptions): boolean {
-  if (started) return true;
-  const exporter = selectExporter(options.exporter, options.otlpEndpoint);
-  if (!exporter) return false;
-
-  const provider = new NodeTracerProvider({
-    resource: resourceFromAttributes({
-      [ATTR_SERVICE_NAME]: options.serviceName,
-      [ATTR_SERVICE_VERSION]: options.serviceVersion,
-    }),
-    spanProcessors: [new BatchSpanProcessor(exporter)],
-  });
-  provider.register();
-  started = true;
-  return true;
-}
-
-/** The brain-dock tracer. Returns a no-op tracer when tracing is disabled. */
+/** The brain-dock API tracer. Returns a no-op tracer when tracing is disabled. */
 export function getTracer(): Tracer {
-  return trace.getTracer('brain-dock-api');
+  return coreGetTracer(SERVICE);
 }

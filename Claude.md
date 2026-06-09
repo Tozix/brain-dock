@@ -318,4 +318,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   миграции и гоняет `RUN_E2E=1 bun test apps/api/src/e2e` (ingestion→search через Qdrant + memory
   roundtrip через Postgres+Qdrant; deterministic embedder). Без `RUN_E2E` тесты пропускаются.
   Проверено локально. План [027](docs/plans/027-e2e-ci.md).
-- 🔄 Дальше (опционально): трейсинг workers/MCP; нагрузочное тестирование.
+- ✅ **Трейсинг workers + общий init в core:** инициализация трейсинга вынесена в
+  `@brain-dock/core` (`observability/tracing.ts` — `initTracing`/`getTracer`/`selectExporter`/
+  `tracingOptionsFromEnv`); api использует её через тонкий re-export. Воркер пишет span `index_job`
+  (project/repo/collection/files/chunks). Проверено вживую (console на реальном job). План [028](docs/plans/028-otel-workers.md).
+- 🔄 Дальше (опционально): трейсинг MCP; context-propagation api→queue→worker; нагрузочное тестирование.

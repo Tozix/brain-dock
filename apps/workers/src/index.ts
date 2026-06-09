@@ -2,8 +2,14 @@
  * @brain-dock/workers — BullMQ workers entrypoint.
  * Phase 3: the IndexWorker (index → embed → Qdrant). More workers land later.
  */
+import { initTracing, tracingOptionsFromEnv } from '@brain-dock/core';
 import { OllamaEmbeddingProvider } from '@brain-dock/embedding';
 import { createIndexWorker } from './index-worker';
+
+// Opt-in tracing (shared OTEL_* env; off by default). Init before the worker starts.
+if (initTracing(tracingOptionsFromEnv('brain-dock-workers'))) {
+  console.info(`[workers] tracing enabled (exporter: ${process.env.OTEL_TRACES_EXPORTER})`);
+}
 
 const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:16379';
 const qdrantUrl = process.env.QDRANT_URL ?? 'http://localhost:16333';

@@ -16,6 +16,7 @@
     "@brain-dock/indexer": "workspace:*",
     "@brain-dock/search": "workspace:*",
     "@brain-dock/storage": "workspace:*",
+    "@opentelemetry/api": "^1.9.1",
     "bullmq": "^5.78.0"
   }
 }
