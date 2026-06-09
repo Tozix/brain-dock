@@ -40,3 +40,4 @@
 | [019](019-graph-export.md) | Экспорт графа зависимостей (JSON/DOT) | Backlog | Done |
 | [020](020-score-normalization.md) | Нормализация score в Unified Search | Backlog | Done |
 | [021](021-repositories-openapi.md) | Repositories в OpenAPI | Backlog | Done |
+| [022](022-crud-openapi.md) | PATCH/DELETE memory/knowledge/documents в OpenAPI | Backlog | Done |

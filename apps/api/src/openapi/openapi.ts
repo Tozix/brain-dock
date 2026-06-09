@@ -1,3 +1,8 @@
+import {
+  updateDocumentSchema,
+  updateKnowledgeSchema,
+  updateMemorySchema,
+} from '@brain-dock/knowledge';
 import { z } from 'zod';
 import { issueApiKeySchema } from '../api-keys/api-keys.dto';
 import { credentialsSchema, refreshSchema } from '../auth/auth.dto';
@@ -48,6 +53,9 @@ export function buildOpenApiDocument(): Record<string, unknown> {
         CreateDocument: js(createDocumentSchema),
         CreateRepository: js(createRepositorySchema),
         UpdateRepository: js(updateRepositorySchema),
+        UpdateMemory: js(updateMemorySchema),
+        UpdateKnowledge: js(updateKnowledgeSchema),
+        UpdateDocument: js(updateDocumentSchema),
       },
     },
     paths: {
@@ -261,6 +269,27 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           responses: { '200': { description: 'Scored memory hits' } },
         },
       },
+      '/api/v1/projects/{projectId}/memory/{id}': {
+        patch: {
+          tags: ['memory'],
+          summary: 'Update memory',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          requestBody: body('UpdateMemory'),
+          responses: { '200': { description: 'Memory item' }, '404': { description: 'Not found' } },
+        },
+        delete: {
+          tags: ['memory'],
+          summary: 'Delete memory',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          responses: { '200': { description: 'Deleted' }, '404': { description: 'Not found' } },
+        },
+      },
       '/api/v1/projects/{projectId}/knowledge': {
         post: {
           tags: ['knowledge'],
@@ -291,6 +320,30 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           responses: { '200': { description: 'Scored knowledge hits' } },
         },
       },
+      '/api/v1/projects/{projectId}/knowledge/{id}': {
+        patch: {
+          tags: ['knowledge'],
+          summary: 'Update knowledge',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          requestBody: body('UpdateKnowledge'),
+          responses: {
+            '200': { description: 'Knowledge item' },
+            '404': { description: 'Not found' },
+          },
+        },
+        delete: {
+          tags: ['knowledge'],
+          summary: 'Delete knowledge',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          responses: { '200': { description: 'Deleted' }, '404': { description: 'Not found' } },
+        },
+      },
       '/api/v1/projects/{projectId}/documents': {
         post: {
           tags: ['documents'],
@@ -319,6 +372,30 @@ export function buildOpenApiDocument(): Record<string, unknown> {
             { name: 'q', in: 'query', required: true, schema: { type: 'string' } },
           ],
           responses: { '200': { description: 'Scored document hits' } },
+        },
+      },
+      '/api/v1/projects/{projectId}/documents/{id}': {
+        patch: {
+          tags: ['documents'],
+          summary: 'Update document (content change re-embeds)',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          requestBody: body('UpdateDocument'),
+          responses: {
+            '200': { description: 'Document + chunk count' },
+            '404': { description: 'Not found' },
+          },
+        },
+        delete: {
+          tags: ['documents'],
+          summary: 'Delete document',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          responses: { '200': { description: 'Deleted' }, '404': { description: 'Not found' } },
         },
       },
       '/api/v1/projects/{projectId}/search': {

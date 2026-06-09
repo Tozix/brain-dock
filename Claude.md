@@ -298,5 +298,7 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   `UnifiedResult.rawScore` сохранён для отображения. План [020](docs/plans/020-score-normalization.md).
 - ✅ **Repositories в OpenAPI:** схемы `CreateRepository`/`UpdateRepository` + пути
   `…/repositories` (CRUD + `/reindex`) в `openapi.json`/Swagger UI. Проверено вживую. План [021](docs/plans/021-repositories-openapi.md).
+- ✅ **OpenAPI завершён:** добавлены `Update*`-схемы и item-пути `PATCH`/`DELETE` для
+  memory/knowledge/documents — Swagger покрывает весь REST. План [022](docs/plans/022-crud-openapi.md).
 - 🔄 Дальше: кросс-репо граф, горячее переподнятие watcher'ов; публикация образов,
-  OpenTelemetry-трейсинг; PATCH/DELETE memory/knowledge/documents в OpenAPI.
+  OpenTelemetry-трейсинг.

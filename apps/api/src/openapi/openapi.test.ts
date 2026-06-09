@@ -24,6 +24,9 @@ describe('buildOpenApiDocument', () => {
         'CreateKnowledge',
         'CreateRepository',
         'UpdateRepository',
+        'UpdateMemory',
+        'UpdateKnowledge',
+        'UpdateDocument',
       ]),
     );
     const credentials = components.schemas.Credentials as { properties?: Record<string, unknown> };
@@ -40,7 +43,15 @@ describe('buildOpenApiDocument', () => {
         '/api/v1/projects/{projectId}/knowledge/search',
         '/api/v1/projects/{projectId}/repositories',
         '/api/v1/projects/{projectId}/repositories/{id}/reindex',
+        '/api/v1/projects/{projectId}/memory/{id}',
+        '/api/v1/projects/{projectId}/documents/{id}',
       ]),
     );
+  });
+
+  it('documents PATCH and DELETE on item paths', () => {
+    const item = paths['/api/v1/projects/{projectId}/knowledge/{id}'] as Record<string, unknown>;
+    expect(item.patch).toBeDefined();
+    expect(item.delete).toBeDefined();
   });
 });
