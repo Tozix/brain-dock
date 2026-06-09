@@ -21,8 +21,8 @@ MCP-сервер `apps/mcp` (`@modelcontextprotocol/sdk` v1, stdio) отдаёт
 | `update_memory` / `delete_memory` | Изменить/удалить запись памяти (с очисткой вектора) | Postgres + Qdrant |
 | `update_knowledge` / `delete_knowledge` | Изменить/удалить запись знаний | Postgres + Qdrant |
 | `update_document` / `delete_document` | Изменить (ре-чанкинг+ре-эмбеддинг при смене `content`) / удалить документ | Postgres + Qdrant |
-| `find_dependencies` / `find_dependents` / `impact` | Граф зависимостей: прямые зависимости/зависимые и транзитивный blast radius | нет |
-| `export_graph` | Экспорт графа зависимостей: `json` (nodes+edges) или Graphviz `dot` (опц. `repo`) | нет |
+| `find_dependencies` / `find_dependents` / `impact` | Граф зависимостей: прямые зависимости/зависимые и транзитивный blast radius (опц. `repo`; `allRepos` — кросс-репо) | нет |
+| `export_graph` | Экспорт графа зависимостей: `json` (nodes+edges) или Graphviz `dot` (опц. `repo`; `allRepos` — объединённый граф) | нет |
 
 Memory/knowledge tools требуют `DATABASE_URL` (иначе возвращают подсказку). См. [../knowledge/](../knowledge/README.md).
 

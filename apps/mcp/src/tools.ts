@@ -600,26 +600,34 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
         inputSchema: {
           name: z.string(),
           repo: z.string().optional().describe('Repository alias (default: search all repos)'),
+          allRepos: z
+            .boolean()
+            .optional()
+            .describe('Use the merged cross-repo graph (traverses repo boundaries)'),
         },
       },
-      async ({ name, repo }) => {
-        // Resolve to the repo graph that contains the symbol (explicit repo wins).
-        const candidates = repo ? ctx.graphs().filter((g) => g.repo === repo) : ctx.graphs();
-        const match = candidates.find(({ graph }) => graph.has(name));
-        if (!match) return text(`Symbol not found: ${name}`);
-        const { repo: foundRepo, graph } = match;
+      async ({ name, repo, allRepos }) => {
+        // Cross-repo: one merged graph. Otherwise the repo graph that contains the symbol.
+        const resolved = allRepos
+          ? { graph: ctx.getMergedGraph() }
+          : (repo ? ctx.graphs().filter((g) => g.repo === repo) : ctx.graphs()).find(({ graph }) =>
+              graph.has(name),
+            );
+        if (!resolved || !resolved.graph.has(name)) return text(`Symbol not found: ${name}`);
+        const { graph } = resolved;
         const names = query(graph, name);
-        const prefix = ctx.multiRepo ? `[${foundRepo}] ` : '';
-        if (names.length === 0) return text(`${prefix}(none)`);
+        if (names.length === 0) return text('(none)');
+        const showRepo = ctx.multiRepo;
         return text(
           names
             .map((n) => {
               const node = graph.node(n);
               if (node?.internal) {
                 const role = node.role && node.role !== 'none' ? `${node.role} ` : '';
-                return `${prefix}${role}${n}  (${node.file})`;
+                const loc = showRepo && node.repo ? `${node.repo}/${node.file}` : node.file;
+                return `${role}${n}  (${loc})`;
               }
-              return `${prefix}${n}  (external)`;
+              return `${n}  (external)`;
             })
             .join('\n'),
         );
@@ -636,11 +644,15 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
       inputSchema: {
         format: z.enum(['json', 'dot']).optional().describe('Output format (default: json)'),
         repo: z.string().optional().describe('Repository alias (default: first repo)'),
+        allRepos: z
+          .boolean()
+          .optional()
+          .describe('Merge all repos into one cross-repo graph (overrides `repo`)'),
       },
     },
-    async ({ format, repo }) => {
+    async ({ format, repo, allRepos }) => {
       try {
-        const graph = ctx.getGraph(repo);
+        const graph = allRepos ? ctx.getMergedGraph() : ctx.getGraph(repo);
         return text(format === 'dot' ? graph.toDot() : JSON.stringify(graph.toJSON(), null, 2));
       } catch (error) {
         return text((error as Error).message);

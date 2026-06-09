@@ -41,3 +41,4 @@
 | [020](020-score-normalization.md) | Нормализация score в Unified Search | Backlog | Done |
 | [021](021-repositories-openapi.md) | Repositories в OpenAPI | Backlog | Done |
 | [022](022-crud-openapi.md) | PATCH/DELETE memory/knowledge/documents в OpenAPI | Backlog | Done |
+| [023](023-cross-repo-graph.md) | Кросс-репо граф зависимостей | Backlog | Done |

@@ -77,3 +77,48 @@ describe('SymbolGraph', () => {
     expect(dot).toContain('"CatsController" -> "CatsService" [label="injects"];');
   });
 });
+
+describe('SymbolGraph.merge (cross-repo)', () => {
+  const indexer = new RepositoryIndexer();
+  // repo "api": OrdersService depends on PaymentsClient, which is defined in repo "payments".
+  const api = SymbolGraph.fromIndex(
+    indexer.indexFiles('/api', [
+      {
+        path: 'orders.service.ts',
+        content: `import { Injectable } from '@nestjs/common';
+import { PaymentsClient } from '@org/payments';
+@Injectable()
+export class OrdersService { constructor(private readonly pay: PaymentsClient) {} }`,
+      },
+    ]),
+    'api',
+  );
+  const payments = SymbolGraph.fromIndex(
+    indexer.indexFiles('/payments', [
+      {
+        path: 'payments.client.ts',
+        content: `import { Injectable } from '@nestjs/common';
+import { Ledger } from './ledger';
+@Injectable()
+export class PaymentsClient { constructor(private readonly ledger: Ledger) {} }`,
+      },
+    ]),
+    'payments',
+  );
+  const merged = SymbolGraph.merge([api, payments]);
+
+  it('links a cross-repo reference to its definition', () => {
+    expect(merged.dependents('PaymentsClient')).toContain('OrdersService');
+    const node = merged.node('PaymentsClient');
+    expect(node?.internal).toBe(true);
+    expect(node?.repo).toBe('payments');
+  });
+
+  it('computes a cross-repo blast radius', () => {
+    expect(merged.impact('Ledger').sort()).toEqual(['OrdersService', 'PaymentsClient']);
+  });
+
+  it('stamps the defining repo on internal nodes', () => {
+    expect(merged.node('OrdersService')?.repo).toBe('api');
+  });
+});

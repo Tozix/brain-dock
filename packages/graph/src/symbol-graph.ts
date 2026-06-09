@@ -5,6 +5,8 @@ export interface GraphNode {
   file?: string;
   role?: string;
   kind?: string;
+  /** Repository alias where the symbol is defined (set for internal nodes in a merged graph). */
+  repo?: string;
   /** True when the symbol is defined in the indexed repo (vs. an external type). */
   internal: boolean;
 }
@@ -25,7 +27,7 @@ export class SymbolGraph {
   private readonly incoming = new Map<string, Set<string>>();
   readonly edges: GraphEdge[] = [];
 
-  static fromIndex(index: RepositoryIndex): SymbolGraph {
+  static fromIndex(index: RepositoryIndex, repo?: string): SymbolGraph {
     const graph = new SymbolGraph();
     for (const file of index.files) {
       for (const symbol of file.symbols) {
@@ -34,6 +36,7 @@ export class SymbolGraph {
           file: file.path,
           role: symbol.nestRole,
           kind: symbol.kind,
+          repo,
           internal: true,
         });
       }
@@ -42,6 +45,21 @@ export class SymbolGraph {
       }
     }
     return graph;
+  }
+
+  /**
+   * Merge per-repo graphs into one, linking cross-repo references: a symbol that is external
+   * (unresolved) in one repo and internal (defined) in another collapses into a single internal
+   * node, so edges from every repo form one connected graph. Name collisions (a symbol defined
+   * internally in more than one repo) keep the first definition seen.
+   */
+  static merge(graphs: SymbolGraph[]): SymbolGraph {
+    const merged = new SymbolGraph();
+    for (const graph of graphs) {
+      for (const node of graph.nodeList()) merged.addNode(node);
+      for (const edge of graph.edges) merged.addEdge(edge.from, edge.to, edge.kind);
+    }
+    return merged;
   }
 
   addNode(node: GraphNode): void {

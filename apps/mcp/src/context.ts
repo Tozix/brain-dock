@@ -95,6 +95,7 @@ export class McpContext {
   private readonly indexer = new RepositoryIndexer();
   private readonly indexCache = new Map<string, RepositoryIndex>();
   private readonly graphCache = new Map<string, SymbolGraph>();
+  private mergedGraph: SymbolGraph | null = null;
 
   constructor(readonly config: McpConfig) {
     this.repos =
@@ -155,10 +156,18 @@ export class McpContext {
     const repo = this.resolveRepo(alias);
     let graph = this.graphCache.get(repo.alias);
     if (!graph) {
-      graph = SymbolGraph.fromIndex(this.getIndex(repo.alias));
+      graph = SymbolGraph.fromIndex(this.getIndex(repo.alias), repo.alias);
       this.graphCache.set(repo.alias, graph);
     }
     return graph;
+  }
+
+  /** Build (and cache) a single graph merged across all repos — links cross-repo references. */
+  getMergedGraph(): SymbolGraph {
+    if (!this.mergedGraph) {
+      this.mergedGraph = SymbolGraph.merge(this.repos.map((r) => this.getGraph(r.alias)));
+    }
+    return this.mergedGraph;
   }
 
   /** Structural indexes for every configured repo. */
@@ -174,5 +183,6 @@ export class McpContext {
   refreshIndex(): void {
     this.indexCache.clear();
     this.graphCache.clear();
+    this.mergedGraph = null;
   }
 }

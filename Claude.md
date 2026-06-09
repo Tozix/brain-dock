@@ -300,5 +300,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   `…/repositories` (CRUD + `/reindex`) в `openapi.json`/Swagger UI. Проверено вживую. План [021](docs/plans/021-repositories-openapi.md).
 - ✅ **OpenAPI завершён:** добавлены `Update*`-схемы и item-пути `PATCH`/`DELETE` для
   memory/knowledge/documents — Swagger покрывает весь REST. План [022](docs/plans/022-crud-openapi.md).
-- 🔄 Дальше: кросс-репо граф, горячее переподнятие watcher'ов; публикация образов,
-  OpenTelemetry-трейсинг.
+- ✅ **Кросс-репо граф:** `SymbolGraph.merge()` объединяет пер-репо графы, склеивая ссылку на
+  символ в одном репо с его определением в другом (по имени; `GraphNode.repo` помечает источник).
+  `McpContext.getMergedGraph()` + `allRepos` у `find_dependencies`/`find_dependents`/`impact`/
+  `export_graph` — трассировка зависимостей через границы репо. План [023](docs/plans/023-cross-repo-graph.md).
+- 🔄 Дальше: горячее переподнятие watcher'ов; публикация образов, OpenTelemetry-трейсинг.
