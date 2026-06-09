@@ -290,5 +290,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   …/documents/:id`) — при изменении `content` ре-извлекает текст, заменяет векторы (drop по
   `documentId` → re-embed); title/source-only — без ре-эмбеддинга. Проверено вживую (PATCH title,
   PATCH content → поиск находит новый контент, 404 на отсутствующий). План [018](docs/plans/018-update-document.md).
+- ✅ **Экспорт графа:** `SymbolGraph.toJSON()`/`toDot()` + MCP-tool `export_graph`
+  (`format: json|dot`, опц. `repo`) — выгрузка графа зависимостей (Graphviz DOT для визуализации).
+  План [019](docs/plans/019-graph-export.md).
 - 🔄 Дальше: кросс-репо граф, repositories в OpenAPI, горячее переподнятие watcher'ов; публикация
-  образов, OpenTelemetry-трейсинг, нормализация score, экспорт графа.
+  образов, OpenTelemetry-трейсинг, нормализация score.

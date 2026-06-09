@@ -627,6 +627,27 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     );
   };
 
+  server.registerTool(
+    'export_graph',
+    {
+      title: 'Export dependency graph',
+      description:
+        'Export the dependency graph as JSON (nodes+edges) or Graphviz DOT for visualization.',
+      inputSchema: {
+        format: z.enum(['json', 'dot']).optional().describe('Output format (default: json)'),
+        repo: z.string().optional().describe('Repository alias (default: first repo)'),
+      },
+    },
+    async ({ format, repo }) => {
+      try {
+        const graph = ctx.getGraph(repo);
+        return text(format === 'dot' ? graph.toDot() : JSON.stringify(graph.toJSON(), null, 2));
+      } catch (error) {
+        return text((error as Error).message);
+      }
+    },
+  );
+
   graphTool(
     'find_dependencies',
     'Find dependencies',

@@ -92,6 +92,33 @@ export class SymbolGraph {
     return this.traverse(name, this.outgoing);
   }
 
+  /** All nodes, in insertion order. */
+  nodeList(): GraphNode[] {
+    return [...this.nodes.values()];
+  }
+
+  /** Serialize the whole graph (nodes + edges) — e.g. for tooling or visualization. */
+  toJSON(): { nodes: GraphNode[]; edges: GraphEdge[] } {
+    return { nodes: this.nodeList(), edges: [...this.edges] };
+  }
+
+  /** Render the graph as Graphviz DOT (external symbols dashed; edges labelled by relation). */
+  toDot(): string {
+    const q = (s: string) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    const lines = ['digraph deps {', '  rankdir=LR;', '  node [shape=box];'];
+    for (const node of this.nodes.values()) {
+      const attrs: string[] = [];
+      if (!node.internal) attrs.push('style=dashed');
+      if (node.role && node.role !== 'none') attrs.push(`label=${q(`${node.role}\n${node.name}`)}`);
+      lines.push(`  ${q(node.name)}${attrs.length > 0 ? ` [${attrs.join(', ')}]` : ''};`);
+    }
+    for (const edge of this.edges) {
+      lines.push(`  ${q(edge.from)} -> ${q(edge.to)} [label=${q(edge.kind)}];`);
+    }
+    lines.push('}');
+    return lines.join('\n');
+  }
+
   private traverse(start: string, edges: Map<string, Set<string>>): string[] {
     const seen = new Set<string>();
     const queue = [...(edges.get(start) ?? [])];

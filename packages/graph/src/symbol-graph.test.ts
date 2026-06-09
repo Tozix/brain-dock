@@ -56,4 +56,24 @@ describe('SymbolGraph', () => {
     expect(node?.role).toBe('repository');
     expect(node?.file).toBe('cats.repository.ts');
   });
+
+  it('exports JSON with all nodes and edges', () => {
+    const json = graph.toJSON();
+    expect(json.nodes.map((n) => n.name)).toEqual(
+      expect.arrayContaining(['CatsController', 'CatsService', 'CatsRepository']),
+    );
+    expect(json.edges).toEqual(
+      expect.arrayContaining([
+        { from: 'CatsController', to: 'CatsService', kind: 'injects' },
+        { from: 'CatsService', to: 'CatsRepository', kind: 'injects' },
+      ]),
+    );
+  });
+
+  it('exports a valid DOT digraph with labelled edges', () => {
+    const dot = graph.toDot();
+    expect(dot.startsWith('digraph deps {')).toBe(true);
+    expect(dot.trimEnd().endsWith('}')).toBe(true);
+    expect(dot).toContain('"CatsController" -> "CatsService" [label="injects"];');
+  });
 });
