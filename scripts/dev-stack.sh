@@ -11,13 +11,16 @@
 
 cd "$(dirname "$0")/.." || exit 1
 
-# Load .env, then apply dev defaults (override by exporting before running).
+# Dev ports default to 3100/8080 and intentionally OVERRIDE any API_PORT/MCP_HTTP_PORT from .env
+# (which uses a prod-style :3000 that often clashes locally). Capture any pre-run override first.
+DEV_API_PORT="${API_PORT:-3100}"
+DEV_MCP_PORT="${MCP_HTTP_PORT:-8080}"
 set -a
 [ -f .env ] && . ./.env
 set +a
 export EMBEDDER="${EMBEDDER:-deterministic}"
-export API_PORT="${API_PORT:-3100}"
-export MCP_HTTP_PORT="${MCP_HTTP_PORT:-8080}"
+export API_PORT="$DEV_API_PORT"
+export MCP_HTTP_PORT="$DEV_MCP_PORT"
 
 echo "brain-dock dev stack — Ctrl+C to stop"
 echo "  API → http://localhost:${API_PORT}  (health: /health/ready, REST: /api/v1)"
