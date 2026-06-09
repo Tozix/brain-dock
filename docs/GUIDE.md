@@ -230,6 +230,27 @@ claude mcp list           # увидеть подключённый сервер
 Модель сама вызывает нужные инструменты по ходу диалога; можно и явно: «через brain-dock найди
 сервис AuthService», «построй контекст по теме X».
 
+### 6.4. VSCode-расширение (быстрый путь, аналог VEXP)
+
+Вместо ручного `claude mcp add` есть расширение `apps/vscode-extension` (`@brain-dock-vscode`):
+боковая панель со статусом индекса (символы/файлы/репозитории), Token Savings и кнопкой
+**Setup Agents**, которая в один клик прописывает наш remote MCP в конфиги агентов.
+
+Собрать и установить локально:
+
+```bash
+cd apps/vscode-extension
+bun install && bun run build && bun run package   # → brain-dock.vsix
+code --install-extension brain-dock.vsix          # или: Extensions → … → Install from VSIX
+```
+
+В панели: задайте `brainDock.serverUrl` / `brainDock.mcpUrl`, нажмите **Connect** (вставьте `bd_…`
+ключ — он хранится в SecretStorage), выберите проект и нажмите **Setup Agents**. Выберите цели —
+**Claude Code** (project `.mcp.json` / global `~/.claude.json`) и/или **Cursor** (`.cursor/mcp.json`).
+Файлы содержат API-ключ — добавьте их в `.gitignore`, если репозиторий общий.
+
+> Прочие кнопки: Force Re-index, Generate Context Capsule, Add / Connect Repository, View Logs.
+
 ---
 
 ## 7. Инструменты MCP (что отдаёт сервер)

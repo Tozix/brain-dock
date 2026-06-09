@@ -1,8 +1,10 @@
 .vscode/**
 src/**
 node_modules/**
+.turbo/**
 esbuild.mjs
 tsconfig.json
 **/*.test.ts
 **/*.map
+*.vsix
 .gitignore

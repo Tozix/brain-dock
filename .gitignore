@@ -146,3 +146,6 @@ vite.config.ts.timestamp-*
 packages/db/src/generated/
 .turbo/
 .env
+
+# VSCode extension package artifact
+*.vsix

@@ -6,6 +6,10 @@
   "private": true,
   "publisher": "braindock",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tozix/brain-dock.git"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
