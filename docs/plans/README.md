@@ -68,3 +68,4 @@
 | [047](047-vexp-like-panel-honest-usage.md) | VEXP-вид панели + честные метрики использования (без фейка) | Client | Done |
 | [048](048-native-vscode-mcp-registration.md) | Нативная регистрация MCP в VS Code (HTTP, Copilot agent mode) | Client | Done |
 | [049](049-panel-period-selector-and-indexing-progress.md) | Панель: селектор периода + видимый прогресс индексации | Client | Done |
+| [050](050-ollama-embedding-truncation-and-dev-ollama.md) | Ollama-эмбеддинг: обрезка под контекст (прод-фикс поиска) + dev на ollama | Search | Done |

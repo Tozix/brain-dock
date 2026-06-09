@@ -7,6 +7,11 @@ export interface OllamaProviderOptions {
   dimensions: number;
   /** Max texts per HTTP request. */
   batchSize?: number;
+  /**
+   * Max characters per input. Longer texts are truncated so a single large symbol/chunk doesn't
+   * exceed the model's context window (nomic-embed-text ≈ 2048 tokens) and fail the whole batch.
+   */
+  maxChars?: number;
 }
 
 interface EmbedResponse {
@@ -16,9 +21,11 @@ interface EmbedResponse {
 /** Embeddings via the local Ollama HTTP API (`POST /api/embed`). */
 export class OllamaEmbeddingProvider implements EmbeddingProvider {
   private readonly batchSize: number;
+  private readonly maxChars: number;
 
   constructor(private readonly options: OllamaProviderOptions) {
     this.batchSize = options.batchSize ?? 64;
+    this.maxChars = options.maxChars ?? 6000;
   }
 
   get model(): string {
@@ -32,7 +39,9 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
   async embed(texts: string[]): Promise<number[][]> {
     const out: number[][] = [];
     for (let i = 0; i < texts.length; i += this.batchSize) {
-      const input = texts.slice(i, i + this.batchSize);
+      const input = texts
+        .slice(i, i + this.batchSize)
+        .map((t) => (t.length > this.maxChars ? t.slice(0, this.maxChars) : t));
       const response = await fetch(`${this.options.url}/api/embed`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

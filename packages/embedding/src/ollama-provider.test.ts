@@ -43,4 +43,24 @@ describe('OllamaEmbeddingProvider', () => {
     });
     await expect(provider.embed(['x'])).rejects.toThrow(/404/);
   });
+
+  it('truncates inputs longer than maxChars so a big chunk cannot exceed the model context', async () => {
+    let sent: string[] = [];
+    globalThis.fetch = (async (_url: string, init: { body: string }) => {
+      sent = (JSON.parse(init.body) as { input: string[] }).input;
+      return new Response(JSON.stringify({ embeddings: sent.map(() => [0, 1]) }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const provider = new OllamaEmbeddingProvider({
+      url: 'http://ollama',
+      model: 'm',
+      dimensions: 2,
+      maxChars: 100,
+    });
+    const out = await provider.embed(['a'.repeat(5000), 'short']);
+
+    expect(sent[0]?.length).toBe(100);
+    expect(sent[1]).toBe('short');
+    expect(out).toHaveLength(2);
+  });
 });
