@@ -14,8 +14,10 @@ export {
   type SaveKnowledgeInput,
   saveDocumentSchema,
   saveKnowledgeSchema,
+  type UpdateDocumentInput,
   type UpdateKnowledgeInput,
   type UpdateMemoryInput,
+  updateDocumentSchema,
   updateKnowledgeSchema,
   updateMemorySchema,
 } from './schemas';

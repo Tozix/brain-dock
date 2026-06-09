@@ -547,6 +547,29 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
   );
 
   server.registerTool(
+    'update_document',
+    {
+      title: 'Update document',
+      description:
+        'Update a document by id. Changing `content` re-chunks and re-embeds (replacing vectors); ' +
+        'title/source-only changes do not re-embed.',
+      inputSchema: {
+        id: z.string(),
+        title: z.string().optional(),
+        format: z.enum(DOC_FORMATS).optional(),
+        content: z.string().optional(),
+        source: z.string().optional(),
+      },
+    },
+    async ({ id, title, format, content, source }) => {
+      if (!ctx.documents) return text(NO_DB);
+      const result = await ctx.documents.update(projectId, id, { title, format, content, source });
+      if (!result) return text(`Document not found: ${id}`);
+      return text(`Updated document "${result.document.title}" (${result.chunks} chunks) ${id}`);
+    },
+  );
+
+  server.registerTool(
     'delete_document',
     {
       title: 'Delete document',

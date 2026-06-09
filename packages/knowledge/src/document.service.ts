@@ -4,7 +4,7 @@ import type { EmbeddingProvider } from '@brain-dock/embedding';
 import { QdrantStore, uuidFromHash, type VectorPoint } from '@brain-dock/storage';
 import { chunkText } from './chunker';
 import { extractText } from './parsers';
-import type { SaveDocumentInput } from './schemas';
+import type { SaveDocumentInput, UpdateDocumentInput } from './schemas';
 
 const COLLECTION = 'documents';
 
@@ -43,29 +43,43 @@ export class DocumentService {
       },
     });
 
-    const chunks = chunkText(text);
-    if (chunks.length > 0) {
-      await this.store.ensureCollection(COLLECTION, this.embedder.dimensions);
-      const vectors = await this.embedder.embed(chunks);
-      const points: VectorPoint[] = [];
-      for (let i = 0; i < chunks.length; i++) {
-        const vector = vectors[i];
-        if (!vector) continue;
-        points.push({
-          id: pointId(document.id, i),
-          vector,
-          payload: {
-            projectId: document.projectId,
-            documentId: document.id,
-            title: document.title,
-            chunkIndex: i,
-          },
-        });
-      }
-      await this.store.upsert(COLLECTION, points);
-    }
+    const chunks = await this.embedDocument(document, text);
+    return { document, chunks };
+  }
 
-    return { document, chunks: chunks.length };
+  /** Chunk + embed a document's text into Qdrant. Returns the number of chunks written. */
+  private async embedDocument(document: Document, text: string): Promise<number> {
+    const chunks = chunkText(text);
+    if (chunks.length === 0) return 0;
+    await this.store.ensureCollection(COLLECTION, this.embedder.dimensions);
+    const vectors = await this.embedder.embed(chunks);
+    const points: VectorPoint[] = [];
+    for (let i = 0; i < chunks.length; i++) {
+      const vector = vectors[i];
+      if (!vector) continue;
+      points.push({
+        id: pointId(document.id, i),
+        vector,
+        payload: {
+          projectId: document.projectId,
+          documentId: document.id,
+          title: document.title,
+          chunkIndex: i,
+        },
+      });
+    }
+    await this.store.upsert(COLLECTION, points);
+    return chunks.length;
+  }
+
+  private async dropVectors(documentId: string): Promise<void> {
+    try {
+      await this.store.deleteByFilter(COLLECTION, {
+        must: [{ key: 'documentId', match: { value: documentId } }],
+      });
+    } catch {
+      // collection may not exist — nothing to clean up
+    }
   }
 
   async search(projectId: string, query: string, limit = 10): Promise<DocumentHit[]> {
@@ -103,17 +117,47 @@ export class DocumentService {
     return out.sort((a, b) => b.score - a.score).slice(0, limit);
   }
 
+  /**
+   * Update a document. Title/source changes touch Postgres only; when `content` is provided the
+   * text is re-extracted (using `format` or the stored one), old vectors are dropped and the new
+   * chunks re-embedded. Returns null when the document does not exist in the project.
+   */
+  async update(
+    projectId: string,
+    id: string,
+    patch: UpdateDocumentInput,
+  ): Promise<{ document: Document; chunks: number } | null> {
+    const existing = await this.prisma.document.findFirst({ where: { id, projectId } });
+    if (existing) {
+      const contentChanged = patch.content !== undefined;
+      const format = patch.format ?? existing.format;
+      const text = contentChanged
+        ? await extractText(format, patch.content as string)
+        : existing.content;
+
+      const document = await this.prisma.document.update({
+        where: { id },
+        data: {
+          ...(patch.title !== undefined ? { title: patch.title } : {}),
+          ...(patch.format !== undefined ? { format: patch.format } : {}),
+          ...(patch.source !== undefined ? { source: patch.source } : {}),
+          ...(contentChanged ? { content: text } : {}),
+        },
+      });
+
+      if (contentChanged) {
+        await this.dropVectors(id);
+        const chunks = await this.embedDocument(document, text);
+        return { document, chunks };
+      }
+      return { document, chunks: chunkText(text).length };
+    }
+    return null;
+  }
+
   async delete(projectId: string, id: string): Promise<boolean> {
     const deleted = await this.prisma.document.deleteMany({ where: { id, projectId } });
-    if (deleted.count > 0) {
-      try {
-        await this.store.deleteByFilter(COLLECTION, {
-          must: [{ key: 'documentId', match: { value: id } }],
-        });
-      } catch {
-        // collection may not exist — nothing to clean up
-      }
-    }
+    if (deleted.count > 0) await this.dropVectors(id);
     return deleted.count > 0;
   }
 

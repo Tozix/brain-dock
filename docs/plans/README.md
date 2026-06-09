@@ -36,3 +36,4 @@
 | [015](015-multi-repo.md) | Multi-Repo индексация (движок + MCP) | Backlog | Done |
 | [016](016-multi-repo-rest.md) | Multi-Repo: Prisma, REST CRUD, очереди | Backlog | Done |
 | [017](017-multi-repo-watch.md) | Мульти-репо watch-воркер (watch-all) | Backlog | Done |
+| [018](018-update-document.md) | `update_document` (CRUD-пробел документов) | Backlog | Done |

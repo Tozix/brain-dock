@@ -49,7 +49,9 @@ documents, общий ранжированный список с тегом `sou
 
 ### CRUD
 `PATCH`/`DELETE /api/v1/projects/:projectId/memory/:id` · `PATCH`/`DELETE …/knowledge/:id` ·
-`DELETE …/documents/:id`. Удаление чистит и Postgres, и векторы в Qdrant; ownership-checked.
+`PATCH`/`DELETE …/documents/:id`. `PATCH …/documents/:id` при изменении `content` ре-извлекает
+текст, заменяет векторы и переэмбеддит; title/source-only — без ре-эмбеддинга. Удаление чистит и
+Postgres, и векторы в Qdrant; ownership-checked.
 
 Память/знания — поверх `@brain-dock/knowledge` (Postgres + Qdrant, изоляция по `projectId`); см.
 [../knowledge/](../knowledge/README.md).

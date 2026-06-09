@@ -6,6 +6,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -13,7 +14,12 @@ import type { AuthenticatedUser } from '../common/auth-user';
 import { CurrentUser } from '../common/current-user.decorator';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { ProjectsService } from '../projects/projects.service';
-import { type CreateDocumentDto, createDocumentSchema } from './documents.dto';
+import {
+  type CreateDocumentDto,
+  createDocumentSchema,
+  type UpdateDocumentDto,
+  updateDocumentSchema,
+} from './documents.dto';
 
 @Controller('projects/:projectId/documents')
 export class DocumentsController {
@@ -46,6 +52,19 @@ export class DocumentsController {
   ) {
     await this.projects.getOwned(user, projectId);
     return this.documents.search(projectId, q ?? '', 10);
+  }
+
+  @Patch(':id')
+  async update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectId') projectId: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateDocumentSchema)) dto: UpdateDocumentDto,
+  ) {
+    await this.projects.getOwned(user, projectId);
+    const result = await this.documents.update(projectId, id, dto);
+    if (!result) throw new NotFoundException('Document not found');
+    return result;
   }
 
   @Delete(':id')

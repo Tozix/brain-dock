@@ -54,3 +54,13 @@ export const updateKnowledgeSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 export type UpdateKnowledgeInput = z.infer<typeof updateKnowledgeSchema>;
+
+// Re-chunking/re-embedding happens only when `content` is provided (`format` defaults to the
+// stored one). Title/source-only updates touch Postgres without re-embedding.
+export const updateDocumentSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  format: z.enum(DOC_FORMATS).optional(),
+  content: z.string().min(1).optional(),
+  source: z.string().max(500).optional(),
+});
+export type UpdateDocumentInput = z.infer<typeof updateDocumentSchema>;

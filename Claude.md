@@ -286,5 +286,9 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   (опц. scope по `PROJECT_ID`) и поднимает по watcher'у на каждый репо; инкрементальный реиндекс
   пишет `repo`+`repositoryId`. Чистый маппинг `repositoriesToWatchTargets` покрыт тестом. Проверено
   вживую (initial → правка файла → incremental). План [017](docs/plans/017-multi-repo-watch.md).
+- ✅ **`update_document`:** `DocumentService.update` (MCP `update_document` + REST `PATCH
+  …/documents/:id`) — при изменении `content` ре-извлекает текст, заменяет векторы (drop по
+  `documentId` → re-embed); title/source-only — без ре-эмбеддинга. Проверено вживую (PATCH title,
+  PATCH content → поиск находит новый контент, 404 на отсутствующий). План [018](docs/plans/018-update-document.md).
 - 🔄 Дальше: кросс-репо граф, repositories в OpenAPI, горячее переподнятие watcher'ов; публикация
-  образов, OpenTelemetry-трейсинг, нормализация score, update_document, экспорт графа.
+  образов, OpenTelemetry-трейсинг, нормализация score, экспорт графа.

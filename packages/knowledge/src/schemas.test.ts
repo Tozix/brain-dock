@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import { rememberSchema, saveDocumentSchema, saveKnowledgeSchema } from './schemas';
+import {
+  rememberSchema,
+  saveDocumentSchema,
+  saveKnowledgeSchema,
+  updateDocumentSchema,
+} from './schemas';
 
 describe('rememberSchema', () => {
   it('accepts a minimal memory and defaults type later', () => {
@@ -56,5 +61,20 @@ describe('saveDocumentSchema', () => {
     expect(saveDocumentSchema.safeParse({ projectId: 'p', title: 'D', content: '' }).success).toBe(
       false,
     );
+  });
+});
+
+describe('updateDocumentSchema', () => {
+  it('accepts an empty patch and partial fields', () => {
+    expect(updateDocumentSchema.safeParse({}).success).toBe(true);
+    expect(updateDocumentSchema.safeParse({ title: 'New' }).success).toBe(true);
+    expect(updateDocumentSchema.safeParse({ content: '# updated', format: 'MD' }).success).toBe(
+      true,
+    );
+  });
+
+  it('rejects empty content and unknown format', () => {
+    expect(updateDocumentSchema.safeParse({ content: '' }).success).toBe(false);
+    expect(updateDocumentSchema.safeParse({ format: 'EXE' }).success).toBe(false);
   });
 });
