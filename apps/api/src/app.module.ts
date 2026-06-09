@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
@@ -14,6 +14,7 @@ import { DocsModule } from './openapi/docs.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
 import { RepositoriesModule } from './repositories/repositories.module';
+import { TracingInterceptor } from './tracing/tracing.interceptor';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { RepositoriesModule } from './repositories/repositories.module';
       inject: [ConfigService],
     },
     { provide: APP_GUARD, useClass: RateLimitGuard },
+    { provide: APP_INTERCEPTOR, useClass: TracingInterceptor },
   ],
 })
 export class AppModule {}

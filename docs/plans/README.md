@@ -44,3 +44,4 @@
 | [023](023-cross-repo-graph.md) | Кросс-репо граф зависимостей | Backlog | Done |
 | [024](024-watch-resubscribe.md) | Горячее переподнятие watcher'ов | Backlog | Done |
 | [025](025-deploy-build-on-server.md) | Деплой сборкой на сервере (без registry) | Backlog | Done |
+| [026](026-otel-tracing.md) | OpenTelemetry-трейсинг (API, opt-in) | Backlog | Done |

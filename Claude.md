@@ -310,4 +310,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Деплой сборкой на сервере:** сервисы `api`/`workers` в `docker-compose.yml` за профилем
   `app` (Dockerfile'ы + service-DNS env), `bun run deploy` = `compose --profile app up -d --build`.
   Публикация образов в registry **снята** (нужна только при multi-node/k8s). План [025](docs/plans/025-deploy-build-on-server.md).
-- 🔄 Дальше (опционально): OpenTelemetry-трейсинг, e2e-CI с сервисами.
+- ✅ **OpenTelemetry-трейсинг (opt-in):** `apps/api` — `initTracing`/`selectExporter` +
+  `TracingInterceptor` (span на HTTP-запрос). `OTEL_TRACES_EXPORTER` = `none` (по умолчанию,
+  нулевой оверхед) | `console` | `otlp` (`OTEL_EXPORTER_OTLP_ENDPOINT`). Ручная инициализация
+  (auto-instrumentation несовместима с Bun). Проверено вживую (console). План [026](docs/plans/026-otel-tracing.md).
+- 🔄 Дальше (опционально): e2e-CI с сервисами; трейсинг workers/MCP.

@@ -65,6 +65,10 @@ Postgres, и векторы в Qdrant; ownership-checked.
   (общий между инстансами, Bun Redis `INCR`+`EXPIRE`). Превышение → `429` + счётчик `rate_limit_blocked_total`.
 - **Audit:** действия (`project.create`/`delete`, `repository.create`/`update`/`delete`/`reindex`,
   `apikey.*`, `user.*`) пишутся в `audit_logs`.
+- **Трейсинг (opt-in):** OpenTelemetry, span на каждый HTTP-запрос (`http.route`, статус).
+  `OTEL_TRACES_EXPORTER` = `none` (по умолчанию, выкл) | `console` (печать) | `otlp`
+  (`OTEL_EXPORTER_OTLP_ENDPOINT`, напр. `http://localhost:4318/v1/traces`). Дополняет Prometheus
+  `/metrics`. Ручная инициализация (без auto-instrumentation — несовместима с Bun).
 
 ## Воспроизведение
 `PORT=3100 bash scripts/smoke-rest.sh` — register → project → memory → search (проверено вживую).

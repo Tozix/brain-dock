@@ -3,8 +3,17 @@ import { Logger, RequestMethod } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from './config/config.service';
+import { initTracing } from './tracing/tracing';
 
 async function bootstrap(): Promise<void> {
+  // Opt-in tracing: initialized before the app so the global tracer exists when interceptors run.
+  const traced = initTracing({
+    exporter: (process.env.OTEL_TRACES_EXPORTER ?? 'none') as 'none' | 'console' | 'otlp',
+    otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+    serviceName: process.env.OTEL_SERVICE_NAME ?? 'brain-dock-api',
+    serviceVersion: '0.1.0',
+  });
+
   const app = await NestFactory.create(AppModule);
 
   // REST API is versioned under /api/v1; health probes stay at the root.
@@ -20,9 +29,11 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService);
   await app.listen(config.env.API_PORT, '0.0.0.0');
 
-  new Logger('Bootstrap').log(
+  const log = new Logger('Bootstrap');
+  log.log(
     `brain-dock API listening on http://0.0.0.0:${config.env.API_PORT} (${config.env.NODE_ENV})`,
   );
+  if (traced) log.log(`tracing enabled (exporter: ${config.env.OTEL_TRACES_EXPORTER})`);
 }
 
 void bootstrap();

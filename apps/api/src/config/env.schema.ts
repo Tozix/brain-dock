@@ -23,6 +23,12 @@ export const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
   // `redis` shares limits across instances (uses REDIS_URL); `memory` is per-process.
   RATE_LIMIT_BACKEND: z.enum(['memory', 'redis']).default('memory'),
+
+  // Tracing (opt-in). `none` keeps tracing off with no overhead; `console` prints spans
+  // (debug); `otlp` exports to OTEL_EXPORTER_OTLP_ENDPOINT (e.g. http://localhost:4318/v1/traces).
+  OTEL_TRACES_EXPORTER: z.enum(['none', 'console', 'otlp']).default('none'),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
+  OTEL_SERVICE_NAME: z.string().default('brain-dock-api'),
 });
 
 export type Env = z.infer<typeof envSchema>;
