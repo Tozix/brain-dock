@@ -1,4 +1,4 @@
-import { INDEX_QUEUE, type IndexJob, type IndexQueue } from '@brain-dock/core';
+import { INDEX_QUEUE, type IndexJob, type IndexQueue, injectTraceContext } from '@brain-dock/core';
 import { Queue } from 'bullmq';
 
 function redisConnection(url: string): { host: string; port: number } {
@@ -19,6 +19,7 @@ export class BullIndexQueue implements IndexQueue {
   }
 
   async enqueue(job: IndexJob): Promise<void> {
-    await this.queue.add('index', job);
+    // Carry the active trace context so the worker's span links to this request.
+    await this.queue.add('index', { ...job, trace: injectTraceContext() });
   }
 }

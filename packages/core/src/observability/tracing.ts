@@ -1,4 +1,4 @@
-import { type Tracer, trace } from '@opentelemetry/api';
+import { context, propagation, type Tracer, trace } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
@@ -70,4 +70,20 @@ export function tracingOptionsFromEnv(
 /** Get a named tracer (no-op when tracing is disabled). */
 export function getTracer(name: string): Tracer {
   return trace.getTracer(name);
+}
+
+/** A W3C trace-context carrier (e.g. `{ traceparent, tracestate }`). */
+export type TraceCarrier = Record<string, string>;
+
+/** Capture the active trace context into a carrier — attach it to a queued job for propagation. */
+export function injectTraceContext(): TraceCarrier {
+  const carrier: TraceCarrier = {};
+  propagation.inject(context.active(), carrier);
+  return carrier;
+}
+
+/** Run `fn` within the trace context extracted from a carrier (no-op when absent/disabled). */
+export function runWithTraceContext<T>(carrier: TraceCarrier | undefined, fn: () => T): T {
+  if (!carrier) return fn();
+  return context.with(propagation.extract(context.active(), carrier), fn);
 }

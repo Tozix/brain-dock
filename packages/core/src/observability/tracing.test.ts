@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
-import { selectExporter, tracingOptionsFromEnv } from './tracing';
+import {
+  injectTraceContext,
+  runWithTraceContext,
+  selectExporter,
+  tracingOptionsFromEnv,
+} from './tracing';
 
 describe('selectExporter', () => {
   it('disables tracing for "none"', () => {
@@ -39,5 +44,14 @@ describe('tracingOptionsFromEnv', () => {
     const opts = tracingOptionsFromEnv('brain-dock-workers');
     expect(opts.exporter).toBe('console');
     expect(opts.serviceName).toBe('custom');
+  });
+});
+
+describe('trace propagation helpers', () => {
+  it('inject returns a carrier and run executes within it (no-op when disabled)', () => {
+    expect(typeof injectTraceContext()).toBe('object');
+    expect(runWithTraceContext(undefined, () => 42)).toBe(42);
+    expect(runWithTraceContext({}, () => 'ok')).toBe('ok');
+    expect(runWithTraceContext({ traceparent: 'bogus' }, () => 7)).toBe(7);
   });
 });

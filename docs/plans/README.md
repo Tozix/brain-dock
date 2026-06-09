@@ -57,3 +57,4 @@
 | [036](036-remote-mcp-http.md) | Удалённый MCP по HTTP (хостинговая модель) | Hosted | Done |
 | [037](037-server-symbol-index.md) | Серверный индекс символов (Postgres) | Hosted | Done |
 | [038](038-remote-structural-tools.md) | Remote структурные/граф-tools | Hosted | Done |
+| [039](039-trace-propagation.md) | Context-propagation api→queue→worker | Observability | Done |

@@ -355,6 +355,9 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   `find_endpoint`/`summarize_project`/`get_architecture`/`find_dependencies`/`find_dependents`/
   `impact`/`export_graph` из серверного индекса символов (Postgres), scoped по `X-Project`. Полный
   паритет remote↔local. Проверено вживую (worker → 73 символа в PG → MCP find_symbol/impact). План [038](docs/plans/038-remote-structural-tools.md).
-- 🔄 Остаётся опционально: трейсинг MCP, context-propagation api→queue→worker, нагрузочное
+- ✅ **Context-propagation api→queue→worker:** `injectTraceContext`/`runWithTraceContext` в core;
+  `IndexJob.trace` едет через BullMQ; спан воркера `index_job` линкуется к трейсу запроса `reindex`
+  (единый распределённый трейс). Проверено (child наследует traceId родителя). План [039](docs/plans/039-trace-propagation.md).
+- 🔄 Остаётся опционально: трейсинг самого MCP-HTTP, нагрузочное
   тестирование, nightly e2e с реальным Ollama; (пункт 2 хвост) `find_prisma_model`/`find_env`/
   `find_config` (нужен парс schema.prisma / скан process.env), доп. воркеры (Embedding/Document/Sync/Cleanup).

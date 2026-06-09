@@ -9,6 +9,8 @@ export interface IndexJob {
   repo?: string;
   /** Stable repository id (uuid) — written into vector payloads for isolation. */
   repositoryId?: string;
+  /** W3C trace-context carrier for api→worker trace propagation (set by the producer). */
+  trace?: Record<string, string>;
 }
 
 /** Producer port: enqueue an indexing job. Backed by BullMQ in production. */
