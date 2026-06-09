@@ -4,6 +4,7 @@ import {
   type EmbeddingProvider,
   OllamaEmbeddingProvider,
 } from '@brain-dock/embedding';
+import { SymbolGraph } from '@brain-dock/graph';
 import { type RepositoryIndex, RepositoryIndexer } from '@brain-dock/indexer';
 import { DocumentService, KnowledgeService, MemoryService } from '@brain-dock/knowledge';
 import {
@@ -64,6 +65,7 @@ export class McpContext {
   readonly unified: UnifiedSearchService;
   private readonly indexer = new RepositoryIndexer();
   private cachedIndex: RepositoryIndex | null = null;
+  private cachedGraph: SymbolGraph | null = null;
 
   constructor(readonly config: McpConfig) {
     const embedder = makeEmbedder(config);
@@ -96,8 +98,15 @@ export class McpContext {
     return this.cachedIndex;
   }
 
+  /** Build (and cache) the dependency graph from the structural index. */
+  getGraph(): SymbolGraph {
+    if (!this.cachedGraph) this.cachedGraph = SymbolGraph.fromIndex(this.getIndex());
+    return this.cachedGraph;
+  }
+
   refreshIndex(): RepositoryIndex {
     this.cachedIndex = null;
+    this.cachedGraph = null;
     return this.getIndex();
   }
 }

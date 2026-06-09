@@ -156,7 +156,7 @@ prisma/        # схема и миграции
 docs/          # вся документация (см. docs/README.md)
 ```
 
-> Phase 1–6: `apps/{api,mcp,workers}` и `packages/{shared,core,db,indexer,embedding,storage,search,knowledge}` — все рабочие.
+> `apps/{api,mcp,workers}` и `packages/{shared,core,db,indexer,embedding,storage,search,knowledge,graph}` — все рабочие.
 > `prisma/` — схема + миграции. AST-индексатор — [docs/architecture/indexer.md](docs/architecture/indexer.md);
 > RAG/Context Engine — [docs/rag/](docs/rag/); MCP — [docs/mcp/](docs/mcp/);
 > особенности Bun (NestJS, BullMQ) — [docs/backend/bun-nestjs-notes.md](docs/backend/bun-nestjs-notes.md).
@@ -261,5 +261,7 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Объединённый поиск:** `UnifiedSearchService` — `search_everywhere` + REST `/projects/:id/search`.
 - ✅ **MCP resources/prompts + CRUD:** resource `brain-dock://architecture`, prompts `onboard`/`explain_symbol`;
   update/delete для memory/knowledge/documents (MCP — 23 tools — и REST PATCH/DELETE) с очисткой векторов в Qdrant. Проверено вживую.
+- ✅ **Граф зависимостей:** `@brain-dock/graph` (`SymbolGraph`) — `find_dependencies`/`find_dependents`/`impact`
+  (26 MCP-tools). Транзитивный blast radius. Проверено вживую на `apps/api`.
 - 🔄 Дальше: публикация образов, метрики/трейсинг (OpenTelemetry), Redis rate limit, multi-repo,
-  графовое расширение (DI-соседи), нормализация score, update_document.
+  графовое расширение результатов поиска, нормализация score, update_document.

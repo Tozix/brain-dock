@@ -42,6 +42,7 @@
       "dependencies": {
         "@brain-dock/db": "workspace:*",
         "@brain-dock/embedding": "workspace:*",
+        "@brain-dock/graph": "workspace:*",
         "@brain-dock/indexer": "workspace:*",
         "@brain-dock/knowledge": "workspace:*",
         "@brain-dock/search": "workspace:*",
@@ -80,6 +81,13 @@
     "packages/embedding": {
       "name": "@brain-dock/embedding",
       "version": "0.0.0",
+    },
+    "packages/graph": {
+      "name": "@brain-dock/graph",
+      "version": "0.0.0",
+      "dependencies": {
+        "@brain-dock/indexer": "workspace:*",
+      },
     },
     "packages/indexer": {
       "name": "@brain-dock/indexer",
@@ -157,6 +165,8 @@
     "@brain-dock/db": ["@brain-dock/db@workspace:packages/db"],
 
     "@brain-dock/embedding": ["@brain-dock/embedding@workspace:packages/embedding"],
+
+    "@brain-dock/graph": ["@brain-dock/graph@workspace:packages/graph"],
 
     "@brain-dock/indexer": ["@brain-dock/indexer@workspace:packages/indexer"],
 

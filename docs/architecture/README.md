@@ -9,5 +9,7 @@
 
 ## Подсистемы
 - **AST-индексатор** (Phase 2, готов): [indexer.md](indexer.md) — пакет `@brain-dock/indexer`.
+- **Граф зависимостей** (`@brain-dock/graph`): `SymbolGraph` из связей индексатора —
+  `dependencies`/`dependents`/`impact`/`closure`. MCP-tools `find_dependencies`/`find_dependents`/`impact`.
 
 _Дополняется по мере роста системы._

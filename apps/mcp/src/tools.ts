@@ -478,4 +478,49 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
       );
     },
   );
+
+  // --- Dependency graph (in-memory index; no Qdrant needed) ---
+
+  const graphTool = (
+    tool: string,
+    label: string,
+    description: string,
+    query: (graph: ReturnType<McpContext['getGraph']>, name: string) => string[],
+  ) => {
+    server.registerTool(
+      tool,
+      { title: label, description, inputSchema: { name: z.string() } },
+      async ({ name }) => {
+        const graph = ctx.getGraph();
+        if (!graph.has(name)) return text(`Symbol not found: ${name}`);
+        const names = query(graph, name);
+        if (names.length === 0) return text('(none)');
+        return text(
+          names
+            .map((n) => {
+              const node = graph.node(n);
+              if (node?.internal) {
+                const role = node.role && node.role !== 'none' ? `${node.role} ` : '';
+                return `${role}${n}  (${node.file})`;
+              }
+              return `${n}  (external)`;
+            })
+            .join('\n'),
+        );
+      },
+    );
+  };
+
+  graphTool(
+    'find_dependencies',
+    'Find dependencies',
+    'What a symbol depends on (direct).',
+    (g, n) => g.dependencies(n),
+  );
+  graphTool('find_dependents', 'Find dependents', 'What depends on a symbol (direct).', (g, n) =>
+    g.dependents(n),
+  );
+  graphTool('impact', 'Impact (blast radius)', 'Transitive dependents of a symbol.', (g, n) =>
+    g.impact(n),
+  );
 }
