@@ -67,3 +67,4 @@
 | [046](046-index-uploaded-files-no-git.md) | Индексация из загруженных файлов (без git и пути на сервере) | Indexing | Done |
 | [047](047-vexp-like-panel-honest-usage.md) | VEXP-вид панели + честные метрики использования (без фейка) | Client | Done |
 | [048](048-native-vscode-mcp-registration.md) | Нативная регистрация MCP в VS Code (HTTP, Copilot agent mode) | Client | Done |
+| [049](049-panel-period-selector-and-indexing-progress.md) | Панель: селектор периода + видимый прогресс индексации | Client | Done |

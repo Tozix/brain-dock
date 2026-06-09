@@ -57,6 +57,8 @@ export type MessageKey =
   | 'idx.files'
   | 'usage.calls'
   | 'usage.tokens'
+  | 'period.today'
+  | 'period.days'
   | 'label.usage'
   | 'status.server'
   | 'msg.apiKeySaved'
@@ -137,6 +139,8 @@ const en: Record<MessageKey, string> = {
   'idx.files': 'Files',
   'usage.calls': 'Calls',
   'usage.tokens': 'Tokens served',
+  'period.today': 'Today',
+  'period.days': 'days',
   'label.usage': 'USAGE',
   'status.server': 'brain-dock',
   'msg.apiKeySaved': 'API key saved.',
@@ -219,6 +223,8 @@ const ru: Record<MessageKey, string> = {
   'idx.files': 'Файлы',
   'usage.calls': 'Вызовов',
   'usage.tokens': 'Токенов отдано',
+  'period.today': 'Сегодня',
+  'period.days': 'дней',
   'label.usage': 'ИСПОЛЬЗОВАНИЕ',
   'status.server': 'brain-dock',
   'msg.apiKeySaved': 'API-ключ сохранён.',

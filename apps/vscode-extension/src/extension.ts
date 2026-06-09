@@ -67,7 +67,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const findProject = (projects: Project[], key: string): Project | undefined =>
     projects.find((p) => p.slug === key || p.id === key);
 
-  const loadState = async (): Promise<PanelState> => {
+  const loadState = async (periodDays: number): Promise<PanelState> => {
     const s = readSettings();
     const apiKey = await getApiKey(secrets);
     const state: PanelState = {
@@ -81,13 +81,14 @@ export function activate(context: vscode.ExtensionContext): void {
       hasKey: Boolean(apiKey),
       hasWorkspace: Boolean(vscode.workspace.workspaceFolders?.length),
       settingsOpen: false,
+      periodDays,
     };
     if (!apiKey) return state;
     const client = new BrainDockClient({ ...s, apiKey });
     try {
       const projects = await client.listProjects();
       state.connected = true;
-      state.usage = await client.getUsage(30).catch(() => undefined);
+      state.usage = await client.getUsage(periodDays).catch(() => undefined);
       if (s.project) {
         const proj = findProject(projects, s.project);
         if (proj) state.repos = await client.listRepositories(proj.id);
@@ -141,6 +142,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const root = ws.uri.fsPath;
     const folder = ws.name || basename(root) || 'workspace';
     const slug = slugify(folder);
+    provider.setBusy(t(lang, 'progress.provisioning'));
     try {
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: t(lang, 'progress.provisioning') },
@@ -166,11 +168,15 @@ export function activate(context: vscode.ExtensionContext): void {
             created = true;
           }
           if (created || forceReindex) {
+            output.appendLine('[index] collecting workspace files…');
             const files = await collectWorkspaceFiles(ws);
-            progress.report({ message: t(lang, 'progress.uploading', { n: files.length }) });
+            const msg = t(lang, 'progress.uploading', { n: files.length });
+            progress.report({ message: msg });
+            provider.setBusy(msg);
+            output.appendLine(`[index] uploading ${files.length} files…`);
             const report = await client.indexFiles(proj.id, repo.id, files);
             output.appendLine(
-              `[index] uploaded ${files.length} files → ${report.symbols} symbols / ${report.chunks} chunks`,
+              `[index] done: ${report.symbols} symbols / ${report.chunks} chunks / ${report.files} files`,
             );
           }
         },
@@ -180,9 +186,10 @@ export function activate(context: vscode.ExtensionContext): void {
           `brain-dock: ${t(lang, 'msg.workspaceReady', { name: slug })}`,
         );
       }
-      await refresh();
     } catch (err) {
       fail(err);
+    } finally {
+      provider.setBusy(undefined);
     }
   };
 

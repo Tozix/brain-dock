@@ -16,6 +16,8 @@ export interface PanelState {
   hasKey: boolean;
   hasWorkspace: boolean;
   settingsOpen: boolean;
+  periodDays: number;
+  busy?: string;
   status?: IndexStatus;
   repos?: Repository[];
   usage?: UsageSummary;
@@ -132,6 +134,13 @@ function renderConnected(state: PanelState): string {
     .sort((a, b) => b[1] - a[1])
     .map(([role, n]) => `<div class="role"><span>${escapeHtml(role)}</span><b>${n}</b></div>`)
     .join('');
+  const periodOpts = [1, 7, 30, 90]
+    .map((d) => {
+      const lbl = d === 1 ? t(L, 'period.today') : `${d} ${t(L, 'period.days')}`;
+      const sel = state.periodDays === d ? ' selected' : '';
+      return `<option value="${d}"${sel}>${escapeHtml(lbl)}</option>`;
+    })
+    .join('');
   const repos = state.repos ?? [];
   const repoBlocks = repos
     .map((r) => {
@@ -159,7 +168,10 @@ function renderConnected(state: PanelState): string {
     </div>
 
     <div class="section">
-      <div class="label">${t(L, 'label.usage')} · ${u?.days ?? 30}d</div>
+      <div class="row">
+        <span class="label">${t(L, 'label.usage')}</span>
+        <select id="f_period" class="period">${periodOpts}</select>
+      </div>
       ${kv(t(L, 'usage.calls'), String(u?.calls ?? 0))}
       ${kv(t(L, 'usage.tokens'), fmtCompact(u?.tokensServed ?? 0))}
     </div>
@@ -222,6 +234,9 @@ export function renderPanel(webview: vscode.Webview, state: PanelState): string 
     padding: 4px 6px; font-size: 12px; color: var(--vscode-input-foreground);
     background: var(--vscode-input-background);
     border: 1px solid var(--vscode-input-border, transparent); border-radius: 3px; }
+  .period { font-size: 11px; padding: 1px 4px; color: var(--vscode-input-foreground);
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border, transparent); border-radius: 3px; cursor: pointer; }
   button.action { display: block; width: 100%; text-align: left; margin: 4px 0;
     padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;
     color: var(--vscode-foreground); background: var(--vscode-button-secondaryBackground); }
@@ -231,6 +246,13 @@ export function renderPanel(webview: vscode.Webview, state: PanelState): string 
   button.action.primary:hover { background: var(--vscode-button-hoverBackground); }
   .hint { color: var(--vscode-descriptionForeground); margin-bottom: 8px; }
   .error { color: var(--vscode-errorForeground); margin-bottom: 8px; word-break: break-word; }
+  .busy { background: var(--vscode-editorWidget-background); border-radius: 4px; padding: 6px 8px;
+    margin: 4px 0 8px; font-size: 11px; }
+  .bar { height: 3px; margin-top: 6px; border-radius: 2px; background-repeat: no-repeat;
+    background-size: 40% 100%;
+    background-image: linear-gradient(90deg, transparent, var(--vscode-progressBar-background, #0a84ff), transparent);
+    animation: bd-slide 1.2s infinite linear; }
+  @keyframes bd-slide { 0% { background-position: -40% 0; } 100% { background-position: 140% 0; } }
 </style>
 </head>
 <body>
@@ -238,6 +260,7 @@ export function renderPanel(webview: vscode.Webview, state: PanelState): string 
     <span class="srv"><span class="dot ${dot}"></span>${escapeHtml(t(L, 'status.server'))}</span>
     <span class="muted">${escapeHtml(dotLabel)}</span>
   </div>
+  ${state.busy ? `<div class="busy">⏳ ${escapeHtml(state.busy)}<div class="bar"></div></div>` : ''}
   ${renderStatus(state)}
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
@@ -259,6 +282,8 @@ export function renderPanel(webview: vscode.Webview, state: PanelState): string 
         }
       });
     }
+    const period = document.getElementById('f_period');
+    if (period) period.addEventListener('change', () => post({ type: 'setPeriod', days: Number(period.value) }));
   </script>
 </body>
 </html>`;
