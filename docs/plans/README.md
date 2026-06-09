@@ -52,3 +52,4 @@
 | [031](031-prod-first-launch-safety.md) | Безопасность первого прод-запуска | First-launch | Done |
 | [032](032-mcp-find-tools.md) | Недостающие MCP find_*-инструменты | Functional | Done |
 | [033](033-api-key-auth.md) | Аутентификация по API-ключу (REST) | Functional | Done |
+| [034](034-rest-http-e2e.md) | REST e2e через реальный HTTP | Testing | Done |

@@ -48,7 +48,11 @@ jobs:
       DATABASE_URL: postgresql://brain_dock:brain_dock@localhost:5432/brain_dock?schema=public
       QDRANT_URL: http://localhost:6333
       REDIS_URL: redis://localhost:6379
+      OLLAMA_URL: http://localhost:11434
       EMBEDDER: deterministic
+      # Required by ConfigService when the REST e2e boots the full app (not production).
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -67,4 +71,5 @@ jobs:
       - name: Apply migrations
         run: bun run db:deploy
       - name: e2e (real Postgres + Qdrant)
-        run: RUN_E2E=1 bun test apps/api/src/e2e
+        # --no-addons: the REST e2e boots AppModule → bullmq (native msgpackr) which panics otherwise.
+        run: RUN_E2E=1 bun --no-addons test apps/api/src/e2e

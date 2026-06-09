@@ -336,6 +336,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **API-key аутентификация:** глобальный `AuthenticationGuard` принимает Bearer JWT **или**
   `x-api-key` (кладёт принципала с ролью владельца); `ApiKeysService.resolvePrincipal`; удалены
   старые `jwt-access.guard`/`api-key.guard`. Проверено вживую. План [033](docs/plans/033-api-key-auth.md).
-- 🔄 Дальше (пункт 3): e2e через NestJS-HTTP, тесты воркеров; опц. трейсинг MCP,
-  context-propagation api→queue→worker, нагрузочное тестирование; (пункт 2 хвост)
-  find_prisma_model/find_env/find_config, доп. воркеры (Embedding/Document/Sync/Cleanup).
+- ✅ **REST e2e через HTTP:** `apps/api/src/e2e/rest.e2e.test.ts` поднимает NestJS-app и ходит по
+  HTTP (readiness, 401, Bearer + `x-api-key` создание проекта). CI e2e-шаг на `bun --no-addons`.
+  План [034](docs/plans/034-rest-http-e2e.md).
+- 🔄 Дальше: тесты воркеров (пункт 3); опц. трейсинг MCP, context-propagation api→queue→worker,
+  нагрузочное тестирование; (пункт 2 хвост) find_prisma_model/find_env/find_config, доп. воркеры.
