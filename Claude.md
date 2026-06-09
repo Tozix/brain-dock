@@ -351,7 +351,10 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   (`@brain-dock/knowledge`) — `persist(scope, index)` (replace-by-repo) + запросы
   `findSymbols`/`endpoints`/`summary`/`graph`; воркер при index-job строит индекс один раз →
   векторы (Qdrant) + символы (Postgres). e2e persist→query вживую. План [037](docs/plans/037-server-symbol-index.md).
-  (Remote структурные/граф-tools поверх него — план 038.)
-- 🔄 Остаётся опционально: remote структурные/граф-tools (038); трейсинг MCP, context-propagation api→queue→worker, нагрузочное
+- ✅ **Remote структурные/граф-tools:** удалённый MCP отдаёт `find_symbol`/`find_<role>`/
+  `find_endpoint`/`summarize_project`/`get_architecture`/`find_dependencies`/`find_dependents`/
+  `impact`/`export_graph` из серверного индекса символов (Postgres), scoped по `X-Project`. Полный
+  паритет remote↔local. Проверено вживую (worker → 73 символа в PG → MCP find_symbol/impact). План [038](docs/plans/038-remote-structural-tools.md).
+- 🔄 Остаётся опционально: трейсинг MCP, context-propagation api→queue→worker, нагрузочное
   тестирование, nightly e2e с реальным Ollama; (пункт 2 хвост) `find_prisma_model`/`find_env`/
   `find_config` (нужен парс schema.prisma / скан process.env), доп. воркеры (Embedding/Document/Sync/Cleanup).

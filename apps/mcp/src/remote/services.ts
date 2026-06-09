@@ -1,6 +1,11 @@
 import { createPrismaClient, type PrismaClient } from '@brain-dock/db';
 import { createEmbedder, embedderConfigFromEnv } from '@brain-dock/embedding';
-import { DocumentService, KnowledgeService, MemoryService } from '@brain-dock/knowledge';
+import {
+  DocumentService,
+  KnowledgeService,
+  MemoryService,
+  SymbolIndexService,
+} from '@brain-dock/knowledge';
 import { ContextEngine, SearchService, UnifiedSearchService } from '@brain-dock/search';
 import { QdrantStore } from '@brain-dock/storage';
 
@@ -13,6 +18,7 @@ export interface RemoteServices {
   memory: MemoryService;
   knowledge: KnowledgeService;
   documents: DocumentService;
+  symbols: SymbolIndexService;
   collection: string;
 }
 
@@ -54,6 +60,7 @@ export function buildRemoteServices(config: RemoteConfig): RemoteServices {
     memory,
     knowledge,
     documents,
+    symbols: new SymbolIndexService(prisma),
     collection: config.collection,
   };
 }

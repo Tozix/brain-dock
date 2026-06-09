@@ -58,10 +58,10 @@ server-side via the workers; the MCP serves each user's own projects, scoped by 
 ```
 The remote MCP runs over **Streamable HTTP** (`apps/mcp/src/http.ts`; in compose: the `mcp` service
 on `:8080`). The key authenticates the user (one key, many projects); `X-Project` selects the
-project. It serves the persisted tools (search / context / memory / knowledge / documents);
-structural/graph tools remain in the local stdio mode for now (they need a server-side symbol
-index). Local stdio mode for development/self-host: `bun run --cwd apps/mcp dev` with
-`PROJECT_ROOT`/`REPOS`. Details — [docs/mcp](docs/mcp/README.md).
+project. It serves search / context / memory / knowledge / documents **and** the structural/graph tools
+(`find_*`, `get_architecture`, `impact`, `export_graph`) from a server-side symbol index that the
+workers populate on indexing — no user files needed. Local stdio mode for development/self-host:
+`bun run --cwd apps/mcp dev` with `PROJECT_ROOT`/`REPOS`. Details — [docs/mcp](docs/mcp/README.md).
 
 ## Test & verify
 ```bash
