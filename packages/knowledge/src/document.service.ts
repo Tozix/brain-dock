@@ -32,7 +32,7 @@ export class DocumentService {
   ) {}
 
   async ingest(input: SaveDocumentInput): Promise<{ document: Document; chunks: number }> {
-    const text = extractText(input.format, input.content);
+    const text = await extractText(input.format, input.content);
     const document = await this.prisma.document.create({
       data: {
         projectId: input.projectId,

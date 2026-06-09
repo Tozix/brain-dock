@@ -256,7 +256,7 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   для api/mcp/workers (`bun install --omit=optional`, workers `--no-addons`); образ API собран и проверен (`/health` в контейнере). `bun run ci` — единый локальный прогон.
 - ✅ **OpenAPI/Swagger:** `GET /api/v1/openapi.json` (OpenAPI 3.1 из Zod) + `GET /api/v1/docs` (Swagger UI).
 - ✅ **Документы:** `DocumentService` (чанкинг + эмбеддинги, Qdrant `documents`), MCP-tools
-  `save_document`/`search_docs`/`list_documents` (итого 17 MCP-tools) + REST `/projects/:id/documents`.
-  Текстовые форматы (md/txt/mdx/json/yaml); PDF/DOCX — далее. Проверено вживую.
-- 🔄 Дальше: PDF/DOCX-парсеры, публикация образов, метрики/трейсинг, Redis rate limit, multi-repo,
+  `save_document`/`search_docs`/`list_documents` (17 MCP-tools) + REST `/projects/:id/documents`.
+  Форматы: md/txt/mdx/json/yaml + **PDF** (`unpdf`) + **DOCX** (`mammoth`, base64). Проверено вживую.
+- 🔄 Дальше: публикация образов, метрики/трейсинг, Redis rate limit, multi-repo,
   объединённый поиск code+knowledge+memory+docs, MCP resources/prompts.

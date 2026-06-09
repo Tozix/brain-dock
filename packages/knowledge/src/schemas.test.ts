@@ -44,9 +44,13 @@ describe('saveDocumentSchema', () => {
     if (parsed.success) expect(parsed.data.format).toBe('MD');
   });
 
-  it('rejects non-text formats and empty content', () => {
+  it('accepts PDF/DOCX formats and rejects unknown formats / empty content', () => {
     expect(
-      saveDocumentSchema.safeParse({ projectId: 'p', title: 'D', content: 'x', format: 'PDF' })
+      saveDocumentSchema.safeParse({ projectId: 'p', title: 'D', content: 'base64', format: 'PDF' })
+        .success,
+    ).toBe(true);
+    expect(
+      saveDocumentSchema.safeParse({ projectId: 'p', title: 'D', content: 'x', format: 'EXE' })
         .success,
     ).toBe(false);
     expect(saveDocumentSchema.safeParse({ projectId: 'p', title: 'D', content: '' }).success).toBe(

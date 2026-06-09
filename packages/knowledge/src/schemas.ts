@@ -28,8 +28,8 @@ export const saveKnowledgeSchema = z.object({
 });
 export type SaveKnowledgeInput = z.infer<typeof saveKnowledgeSchema>;
 
-// Ingestable (text) document formats. PDF/DOCX pending a parser.
-export const DOC_FORMATS = ['MD', 'TXT', 'MDX', 'JSON', 'YAML'] as const;
+// Ingestable document formats. PDF/DOCX content must be base64-encoded.
+export const DOC_FORMATS = ['MD', 'TXT', 'MDX', 'JSON', 'YAML', 'PDF', 'DOCX'] as const;
 
 export const saveDocumentSchema = z.object({
   projectId: z.string().min(1),

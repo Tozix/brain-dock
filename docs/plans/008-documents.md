@@ -1,6 +1,6 @@
 # 008 — Document Ingestion
 
-- **Status:** Done (text-форматы; PDF/DOCX — далее)
+- **Status:** Done (text + PDF/DOCX)
 - **Phase:** 8 (backlog — knowledge expansion)
 - **Связи:** [005-knowledge-memory](005-knowledge-memory.md) · [Claude.md](../../Claude.md)
 
@@ -28,5 +28,9 @@
 - `save_document` → `search_docs` находит документ семантически (через MCP и REST, проверено по REST),
   изоляция по `projectId`. 53 теста/typecheck/Biome/ci зелёные; документация обновлена.
 
+## PDF/DOCX (добавлено)
+- **PDF** через `unpdf`, **DOCX** через `mammoth`; бинарный контент передаётся base64.
+  Round-trip тесты (генерация `pdf-lib`/`docx` → `extractText`) + live REST (PDF/DOCX → поиск) — зелёные.
+
 ## Отложено
-- PDF/DOCX-парсеры (интерфейс `extractText` готов), update/delete, версии документов, OCR.
+- update/delete документов, версии, OCR для сканов, multipart-загрузка файлов.

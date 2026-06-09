@@ -15,7 +15,7 @@ MCP-сервер `apps/mcp` (`@modelcontextprotocol/sdk` v1, stdio) отдаёт
 | `get_architecture` | Модули, контроллеры с маршрутами, DI-рёбра | нет |
 | `remember` / `search_memory` / `list_memory` | Project Memory (DECISION/FACT/NOTE/TODO) | Postgres + Qdrant |
 | `save_knowledge` / `search_knowledge` | Knowledge Base (ADR/architecture/FAQ/…) | Postgres + Qdrant |
-| `save_document` / `search_docs` / `list_documents` | Документы (md/txt/mdx/json/yaml): чанкинг + эмбеддинги | Postgres + Qdrant |
+| `save_document` / `search_docs` / `list_documents` | Документы (md/txt/mdx/json/yaml + PDF/DOCX как base64): чанкинг + эмбеддинги | Postgres + Qdrant |
 
 Memory/knowledge tools требуют `DATABASE_URL` (иначе возвращают подсказку). См. [../knowledge/](../knowledge/README.md).
 
