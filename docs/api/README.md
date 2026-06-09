@@ -48,9 +48,9 @@ documents, общий ранжированный список с тегом `sou
 [../knowledge/](../knowledge/README.md).
 
 ## Hardening
-- **Rate limit:** глобальный fixed-window (`FixedWindowLimiter`), ключ = userId или IP.
-  Конфиг: `RATE_LIMIT_MAX` (default 300), `RATE_LIMIT_WINDOW_MS` (default 60000). Превышение → `429`.
-  Для нескольких инстансов нужен Redis-backed лимитер (далее).
+- **Rate limit:** глобальный fixed-window, ключ = userId или IP. Конфиг: `RATE_LIMIT_MAX` (300),
+  `RATE_LIMIT_WINDOW_MS` (60000), `RATE_LIMIT_BACKEND` = `memory` (per-process) | `redis`
+  (общий между инстансами, Bun Redis `INCR`+`EXPIRE`). Превышение → `429` + счётчик `rate_limit_blocked_total`.
 - **Audit:** действия (`project.create`/`delete`, `apikey.*`, `user.*`) пишутся в `audit_logs`.
 
 ## Воспроизведение

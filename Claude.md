@@ -267,7 +267,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   через `SymbolGraph.dependencies`. Проверено вживую.
 - ✅ **Инкрементальный реиндекс:** `IngestionService.ingestIncremental` (переэмбеддит только изменённые,
   удаляет векторы изменённых/удалённых) + `apps/workers/src/watch.ts` (fs.watch + debounce). Проверено вживую.
-- ✅ **Метрики (Prometheus):** `GET /metrics` (HTTP-счётчики/длительности, rate-limit, uptime) через
-  `MetricsService` + глобальный interceptor. Проверено вживую.
-- 🔄 Дальше: публикация образов, OpenTelemetry-трейсинг, Redis rate limit, multi-repo,
+- ✅ **Метрики (Prometheus):** `GET /metrics` через `MetricsService` + глобальный interceptor.
+- ✅ **Redis-backed rate limit:** `RATE_LIMIT_BACKEND=redis` (Bun Redis `INCR`+`EXPIRE`) — общий лимит
+  между инстансами; `memory` — per-process. Проверено вживую.
+- 🔄 Дальше: публикация образов, OpenTelemetry-трейсинг, multi-repo,
   нормализация score, update_document, экспорт графа.

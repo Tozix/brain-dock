@@ -21,6 +21,8 @@ export const envSchema = z.object({
 
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
+  // `redis` shares limits across instances (uses REDIS_URL); `memory` is per-process.
+  RATE_LIMIT_BACKEND: z.enum(['memory', 'redis']).default('memory'),
 });
 
 export type Env = z.infer<typeof envSchema>;
