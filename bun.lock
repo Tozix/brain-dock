@@ -19,7 +19,10 @@
       "dependencies": {
         "@brain-dock/core": "workspace:*",
         "@brain-dock/db": "workspace:*",
+        "@brain-dock/embedding": "workspace:*",
+        "@brain-dock/knowledge": "workspace:*",
         "@brain-dock/shared": "workspace:*",
+        "@brain-dock/storage": "workspace:*",
         "@nestjs/common": "^11.1.26",
         "@nestjs/core": "^11.1.26",
         "@nestjs/jwt": "^11.0.2",

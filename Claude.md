@@ -249,6 +249,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Phase 4 (Context Engine) завершена:** `ContextEngine` — intent detection, intent-aware re-ranking,
   дедуп, compression, Context Builder.
 - ✅ **Phase 5 (MCP-сервер) завершена:** `apps/mcp` на `@modelcontextprotocol/sdk` v1 (stdio), tools поверх индексатора/поиска/контекста.
-- ✅ **Phase 6 (Knowledge & Memory) завершена:** `@brain-dock/knowledge` (Postgres + Qdrant), MCP-tools
-  `remember`/`search_memory`/`list_memory`/`save_knowledge`/`search_knowledge`. Проверено вживую. Всего 14 MCP-tools.
-- 🔄 Дальше: Phase 7 — Multi-Project/Repo, Admin, REST API для knowledge/memory, документы (md/pdf/docx), MCP resources/prompts.
+- ✅ **Phase 6 (Knowledge & Memory) завершена:** `@brain-dock/knowledge` (Postgres + Qdrant), 14 MCP-tools.
+- ✅ **Phase 7 (Multi-Project, REST & Hardening) завершена:** `ProjectsModule` (owner-scoped) + project-scoped
+  REST для памяти/знаний + глобальный rate limit (fixed-window). Проверено вживую (ownership 403, rate-limit 429).
+- 🔄 Дальше: multi-repo индексация, метрики/нагрузочное тестирование, Redis-backed rate limit,
+  документы (md/pdf/docx), Swagger/OpenAPI, MCP resources/prompts.

@@ -66,7 +66,11 @@
 - ⏭️ Далее: документы (md/pdf/docx), update/delete, REST API, объединённый поиск в Context Engine.
 - **План:** [005-knowledge-memory.md](../plans/005-knowledge-memory.md) (Done)
 
-## Phase 7 — Multi-Project/Repo, Admin & Hardening ⬜
-**Цель:** изоляция, администрирование, готовность к проду.
-- Multi-project/multi-repo изоляция индексов и данных.
-- Admin, rate limit, audit log, кэши, метрики, нагрузочное тестирование.
+## Phase 7 — Multi-Project, REST & Hardening ✅
+**Цель:** изоляция, REST-доступ, готовность к проду.
+- ✅ `ProjectsModule` (REST, owner-scoped) + проверка владения (owner/ADMIN).
+- ✅ Project-scoped REST для памяти/знаний поверх `@brain-dock/knowledge` (изоляция по `projectId`).
+- ✅ Глобальный rate limit (fixed-window, конфиг через env) + audit. Проверено вживую (429).
+- ⏭️ Далее: multi-repo индексация, метрики/нагрузочное тестирование, Redis-backed rate limit,
+  документы (md/pdf/docx), Swagger/OpenAPI, update/delete для knowledge.
+- **План:** [006-multiproject-rest-hardening.md](../plans/006-multiproject-rest-hardening.md) (Done)
