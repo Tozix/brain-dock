@@ -339,5 +339,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **REST e2e через HTTP:** `apps/api/src/e2e/rest.e2e.test.ts` поднимает NestJS-app и ходит по
   HTTP (readiness, 401, Bearer + `x-api-key` создание проекта). CI e2e-шаг на `bun --no-addons`.
   План [034](docs/plans/034-rest-http-e2e.md).
-- 🔄 Дальше: тесты воркеров (пункт 3); опц. трейсинг MCP, context-propagation api→queue→worker,
-  нагрузочное тестирование; (пункт 2 хвост) find_prisma_model/find_env/find_config, доп. воркеры.
+- ✅ **Юнит-тесты воркера:** `processIndexJob` вынесена в отдельный файл (без bullmq) и покрыта
+  тестами (проброс repo/repositoryId, ошибки). План [035](docs/plans/035-worker-unit-tests.md).
+- 🔄 Остаётся опционально: трейсинг MCP, context-propagation api→queue→worker, нагрузочное
+  тестирование, nightly e2e с реальным Ollama; (пункт 2 хвост) `find_prisma_model`/`find_env`/
+  `find_config` (нужен парс schema.prisma / скан process.env), доп. воркеры (Embedding/Document/Sync/Cleanup).
