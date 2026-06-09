@@ -14,4 +14,8 @@ export {
   type SaveKnowledgeInput,
   saveDocumentSchema,
   saveKnowledgeSchema,
+  type UpdateKnowledgeInput,
+  type UpdateMemoryInput,
+  updateKnowledgeSchema,
+  updateMemorySchema,
 } from './schemas';

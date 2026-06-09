@@ -52,6 +52,32 @@ export class MemoryService {
     return out;
   }
 
+  async update(
+    projectId: string,
+    id: string,
+    patch: { content?: string; type?: RememberInput['type']; tags?: string[] },
+  ): Promise<MemoryItem | null> {
+    const updated = await this.prisma.memoryItem.updateMany({
+      where: { id, projectId },
+      data: { content: patch.content, type: patch.type, tags: patch.tags },
+    });
+    if (updated.count === 0) return null;
+    const item = await this.prisma.memoryItem.findUnique({ where: { id } });
+    if (item) {
+      await this.index.upsert(item.id, item.content, {
+        projectId: item.projectId,
+        type: item.type,
+      });
+    }
+    return item;
+  }
+
+  async delete(projectId: string, id: string): Promise<boolean> {
+    const deleted = await this.prisma.memoryItem.deleteMany({ where: { id, projectId } });
+    if (deleted.count > 0) await this.index.delete(id);
+    return deleted.count > 0;
+  }
+
   async list(projectId: string): Promise<MemoryItem[]> {
     return await this.prisma.memoryItem.findMany({
       where: { projectId },

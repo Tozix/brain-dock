@@ -1,5 +1,19 @@
-import { KnowledgeService } from '@brain-dock/knowledge';
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  KnowledgeService,
+  type UpdateKnowledgeInput,
+  updateKnowledgeSchema,
+} from '@brain-dock/knowledge';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import type { AuthenticatedUser } from '../common/auth-user';
 import { CurrentUser } from '../common/current-user.decorator';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -37,5 +51,30 @@ export class KnowledgeController {
   ) {
     await this.projects.getOwned(user, projectId);
     return this.knowledge.search(projectId, q ?? '', 10);
+  }
+
+  @Patch(':id')
+  async update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectId') projectId: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateKnowledgeSchema)) dto: UpdateKnowledgeInput,
+  ) {
+    await this.projects.getOwned(user, projectId);
+    const item = await this.knowledge.update(projectId, id, dto);
+    if (!item) throw new NotFoundException('Knowledge not found');
+    return item;
+  }
+
+  @Delete(':id')
+  async remove(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectId') projectId: string,
+    @Param('id') id: string,
+  ) {
+    await this.projects.getOwned(user, projectId);
+    if (!(await this.knowledge.delete(projectId, id)))
+      throw new NotFoundException('Knowledge not found');
+    return { id, deleted: true };
   }
 }

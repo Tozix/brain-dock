@@ -68,4 +68,19 @@ describe('brain-dock MCP server — structural tools (no Qdrant)', () => {
     expect(body).toContain('AuthController');
     expect(body).toContain('AuthController → AuthService');
   });
+
+  it('exposes prompts', async () => {
+    const { prompts } = await client.listPrompts();
+    expect(prompts.map((p) => p.name)).toEqual(
+      expect.arrayContaining(['onboard', 'explain_symbol']),
+    );
+  });
+
+  it('exposes the architecture resource', async () => {
+    const { resources } = await client.listResources();
+    expect(resources.map((r) => r.uri)).toContain('brain-dock://architecture');
+    const read = await client.readResource({ uri: 'brain-dock://architecture' });
+    const content = (read.contents as Array<{ text?: string }>)[0];
+    expect(content?.text).toContain('Modules');
+  });
 });

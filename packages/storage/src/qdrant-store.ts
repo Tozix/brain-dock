@@ -63,6 +63,15 @@ export class QdrantStore {
     }));
   }
 
+  async deletePoints(name: string, ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await this.client.delete(name, { wait: true, points: ids });
+  }
+
+  async deleteByFilter(name: string, filter: QdrantFilter): Promise<void> {
+    await this.client.delete(name, { wait: true, filter });
+  }
+
   async deleteCollection(name: string): Promise<void> {
     await this.client.deleteCollection(name);
   }

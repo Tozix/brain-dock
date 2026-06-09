@@ -23,6 +23,14 @@ export class EmbeddedIndex {
     await this.store.upsert(this.collection, [{ id, vector, payload }]);
   }
 
+  async delete(id: string): Promise<void> {
+    try {
+      await this.store.deletePoints(this.collection, [id]);
+    } catch {
+      // collection may not exist yet — nothing to delete
+    }
+  }
+
   async search(query: string, projectId: string, limit: number): Promise<SearchHit[]> {
     await this.ensure();
     const [vector] = await this.embedder.embed([query]);

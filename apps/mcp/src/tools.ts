@@ -390,4 +390,92 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
       );
     },
   );
+
+  // --- CRUD: update / delete (require DATABASE_URL) ---
+
+  server.registerTool(
+    'update_memory',
+    {
+      title: 'Update memory',
+      description: 'Update a memory item by id (only your project).',
+      inputSchema: {
+        id: z.string(),
+        content: z.string().optional(),
+        type: z.enum(MEMORY_TYPES).optional(),
+        tags: z.array(z.string()).optional(),
+      },
+    },
+    async ({ id, content, type, tags }) => {
+      if (!ctx.memory) return text(NO_DB);
+      const item = await ctx.memory.update(projectId, id, { content, type, tags });
+      return text(item ? `Updated memory ${item.id}` : `Memory not found: ${id}`);
+    },
+  );
+
+  server.registerTool(
+    'delete_memory',
+    {
+      title: 'Delete memory',
+      description: 'Delete a memory item by id.',
+      inputSchema: { id: z.string() },
+    },
+    async ({ id }) => {
+      if (!ctx.memory) return text(NO_DB);
+      return text(
+        (await ctx.memory.delete(projectId, id)) ? `Deleted memory ${id}` : `Not found: ${id}`,
+      );
+    },
+  );
+
+  server.registerTool(
+    'update_knowledge',
+    {
+      title: 'Update knowledge',
+      description: 'Update a knowledge entry by id.',
+      inputSchema: {
+        id: z.string(),
+        title: z.string().optional(),
+        content: z.string().optional(),
+        type: z.enum(KNOWLEDGE_TYPES).optional(),
+        tags: z.array(z.string()).optional(),
+      },
+    },
+    async ({ id, title, content, type, tags }) => {
+      if (!ctx.knowledge) return text(NO_DB);
+      const item = await ctx.knowledge.update(projectId, id, { title, content, type, tags });
+      return text(item ? `Updated knowledge ${item.id}` : `Knowledge not found: ${id}`);
+    },
+  );
+
+  server.registerTool(
+    'delete_knowledge',
+    {
+      title: 'Delete knowledge',
+      description: 'Delete a knowledge entry by id.',
+      inputSchema: { id: z.string() },
+    },
+    async ({ id }) => {
+      if (!ctx.knowledge) return text(NO_DB);
+      return text(
+        (await ctx.knowledge.delete(projectId, id))
+          ? `Deleted knowledge ${id}`
+          : `Not found: ${id}`,
+      );
+    },
+  );
+
+  server.registerTool(
+    'delete_document',
+    {
+      title: 'Delete document',
+      description: 'Delete a document and its chunks by id.',
+      inputSchema: { id: z.string() },
+    },
+    async ({ id }) => {
+      if (!ctx.documents) return text(NO_DB);
+      return text(
+        (await ctx.documents.delete(projectId, id)) ? `Deleted document ${id}` : `Not found: ${id}`,
+      );
+    },
+  );
 }

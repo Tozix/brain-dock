@@ -28,3 +28,4 @@
 | [007](007-production-readiness.md) | Production readiness: CI & Docker | Backlog | Done |
 | [008](008-documents.md) | Document Ingestion (md/txt/mdx/json/yaml + PDF/DOCX) | Backlog | Done |
 | [009](009-unified-search.md) | Unified Search (search_everywhere) | Backlog | Done |
+| [010](010-mcp-resources-crud.md) | MCP resources & prompts + CRUD | Backlog | Done |

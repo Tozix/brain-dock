@@ -17,8 +17,15 @@ MCP-сервер `apps/mcp` (`@modelcontextprotocol/sdk` v1, stdio) отдаёт
 | `save_knowledge` / `search_knowledge` | Knowledge Base (ADR/architecture/FAQ/…) | Postgres + Qdrant |
 | `save_document` / `search_docs` / `list_documents` | Документы (md/txt/mdx/json/yaml + PDF/DOCX как base64): чанкинг + эмбеддинги | Postgres + Qdrant |
 | `search_everywhere` | Объединённый поиск: code + memory + knowledge + documents, общий ранжированный список | Qdrant (+Postgres для не-кода) |
+| `update_memory` / `delete_memory` | Изменить/удалить запись памяти (с очисткой вектора) | Postgres + Qdrant |
+| `update_knowledge` / `delete_knowledge` | Изменить/удалить запись знаний | Postgres + Qdrant |
+| `delete_document` | Удалить документ и его чанки | Postgres + Qdrant |
 
 Memory/knowledge tools требуют `DATABASE_URL` (иначе возвращают подсказку). См. [../knowledge/](../knowledge/README.md).
+
+## Resources & Prompts
+- **Resource** `brain-dock://architecture` — модули/контроллеры/статистика проекта.
+- **Prompts**: `onboard` (саммари проекта через tools), `explain_symbol` (arg `name`).
 
 Структурные tools работают по in-memory индексу (ts-morph) и не требуют внешних сервисов.
 

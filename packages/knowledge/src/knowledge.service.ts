@@ -54,6 +54,38 @@ export class KnowledgeService {
     return out;
   }
 
+  async update(
+    projectId: string,
+    id: string,
+    patch: {
+      title?: string;
+      content?: string;
+      type?: SaveKnowledgeInput['type'];
+      tags?: string[];
+    },
+  ): Promise<KnowledgeItem | null> {
+    const updated = await this.prisma.knowledgeItem.updateMany({
+      where: { id, projectId },
+      data: { title: patch.title, content: patch.content, type: patch.type, tags: patch.tags },
+    });
+    if (updated.count === 0) return null;
+    const item = await this.prisma.knowledgeItem.findUnique({ where: { id } });
+    if (item) {
+      await this.index.upsert(item.id, `${item.title}\n\n${item.content}`, {
+        projectId: item.projectId,
+        type: item.type,
+        title: item.title,
+      });
+    }
+    return item;
+  }
+
+  async delete(projectId: string, id: string): Promise<boolean> {
+    const deleted = await this.prisma.knowledgeItem.deleteMany({ where: { id, projectId } });
+    if (deleted.count > 0) await this.index.delete(id);
+    return deleted.count > 0;
+  }
+
   async list(projectId: string): Promise<KnowledgeItem[]> {
     return await this.prisma.knowledgeItem.findMany({
       where: { projectId },

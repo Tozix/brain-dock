@@ -103,6 +103,20 @@ export class DocumentService {
     return out.sort((a, b) => b.score - a.score).slice(0, limit);
   }
 
+  async delete(projectId: string, id: string): Promise<boolean> {
+    const deleted = await this.prisma.document.deleteMany({ where: { id, projectId } });
+    if (deleted.count > 0) {
+      try {
+        await this.store.deleteByFilter(COLLECTION, {
+          must: [{ key: 'documentId', match: { value: id } }],
+        });
+      } catch {
+        // collection may not exist — nothing to clean up
+      }
+    }
+    return deleted.count > 0;
+  }
+
   async list(projectId: string): Promise<Document[]> {
     return await this.prisma.document.findMany({
       where: { projectId },

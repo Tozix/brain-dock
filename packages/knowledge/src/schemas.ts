@@ -39,3 +39,18 @@ export const saveDocumentSchema = z.object({
   source: z.string().max(500).optional(),
 });
 export type SaveDocumentInput = z.infer<typeof saveDocumentSchema>;
+
+export const updateMemorySchema = z.object({
+  content: z.string().min(1).optional(),
+  type: z.enum(MEMORY_TYPES).optional(),
+  tags: z.array(z.string()).optional(),
+});
+export type UpdateMemoryInput = z.infer<typeof updateMemorySchema>;
+
+export const updateKnowledgeSchema = z.object({
+  title: z.string().min(1).optional(),
+  content: z.string().min(1).optional(),
+  type: z.enum(KNOWLEDGE_TYPES).optional(),
+  tags: z.array(z.string()).optional(),
+});
+export type UpdateKnowledgeInput = z.infer<typeof updateKnowledgeSchema>;
