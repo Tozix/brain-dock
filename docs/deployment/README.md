@@ -35,3 +35,22 @@ docker exec brain-dock-ollama ollama pull nomic-embed-text
 ```
 
 Проверка: `bash scripts/smoke.sh` (или `PORT=3100 bash scripts/smoke.sh`).
+
+## CI
+[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) на push/PR: `bun install` → `bun run ci`
+(db:generate → Biome → turbo typecheck → bun test). Локально: `bun run ci`.
+
+## Docker-образы
+Сборка из корня репозитория:
+```bash
+docker build -f apps/api/Dockerfile     -t brain-dock-api .
+docker build -f apps/mcp/Dockerfile     -t brain-dock-mcp .
+docker build -f apps/workers/Dockerfile -t brain-dock-workers .
+```
+Запуск API (host-сеть, env из .env):
+```bash
+docker run --rm --network host --env-file .env -e API_PORT=3300 brain-dock-api
+# /health → 200, /health/ready → 200 (db.up: true)
+```
+Образы используют `bun install --omit=optional` (нативные optional-пакеты рантайму не нужны);
+workers стартуют с `--no-addons` (BullMQ-на-Bun). Подробности — [плана 007](../plans/007-production-readiness.md).

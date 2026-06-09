@@ -25,3 +25,4 @@
 | [004](004-mcp-server.md) | MCP-сервер (tools/resources/prompts) | Phase 5 | Done (tools) |
 | [005](005-knowledge-memory.md) | Knowledge Base & Project Memory | Phase 6 | Done |
 | [006](006-multiproject-rest-hardening.md) | Multi-Project, REST API, Hardening | Phase 7 | Done |
+| [007](007-production-readiness.md) | Production readiness: CI & Docker | Backlog | Done |

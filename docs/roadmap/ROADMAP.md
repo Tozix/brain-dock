@@ -74,3 +74,10 @@
 - ⏭️ Далее: multi-repo индексация, метрики/нагрузочное тестирование, Redis-backed rate limit,
   документы (md/pdf/docx), Swagger/OpenAPI, update/delete для knowledge.
 - **План:** [006-multiproject-rest-hardening.md](../plans/006-multiproject-rest-hardening.md) (Done)
+
+## Production readiness (backlog) 🔄
+- ✅ CI (GitHub Actions): Biome + typecheck + тесты на push/PR.
+- ✅ Dockerfiles для `apps/{api,mcp,workers}`; образ API собран и проверен (`/health` 200 в контейнере).
+- ⏭️ Далее: публикация образов, Swagger/OpenAPI, метрики/трейсинг, Redis-backed rate limit,
+  документы (md/pdf/docx), multi-repo, e2e-CI с сервисами.
+- **План:** [007-production-readiness.md](../plans/007-production-readiness.md) (Done)

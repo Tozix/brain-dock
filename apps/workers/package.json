@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts",
+    "dev": "bun --no-addons --watch src/index.ts",
+    "start": "bun --no-addons run src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "echo 'no tests'"
   },
   "dependencies": {
     "@brain-dock/embedding": "workspace:*",

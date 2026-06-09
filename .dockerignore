@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/dist
+**/.turbo
+packages/db/src/generated
+.env
+*.log
+docs
+.claude
+.vexp
+.vscode
+.github

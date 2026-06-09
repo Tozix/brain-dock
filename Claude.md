@@ -252,5 +252,7 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Phase 6 (Knowledge & Memory) завершена:** `@brain-dock/knowledge` (Postgres + Qdrant), 14 MCP-tools.
 - ✅ **Phase 7 (Multi-Project, REST & Hardening) завершена:** `ProjectsModule` (owner-scoped) + project-scoped
   REST для памяти/знаний + глобальный rate limit (fixed-window). Проверено вживую (ownership 403, rate-limit 429).
-- 🔄 Дальше: multi-repo индексация, метрики/нагрузочное тестирование, Redis-backed rate limit,
-  документы (md/pdf/docx), Swagger/OpenAPI, MCP resources/prompts.
+- ✅ **Production readiness (CI & Docker):** GitHub Actions (Biome+typecheck+тесты), Dockerfiles
+  для api/mcp/workers (`bun install --omit=optional`, workers `--no-addons`); образ API собран и проверен (`/health` в контейнере). `bun run ci` — единый локальный прогон.
+- 🔄 Дальше: публикация образов, Swagger/OpenAPI, метрики/трейсинг, Redis-backed rate limit,
+  multi-repo индексация, документы (md/pdf/docx), MCP resources/prompts.
