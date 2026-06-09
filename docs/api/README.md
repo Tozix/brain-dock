@@ -3,6 +3,11 @@
 REST API под префиксом `/api/v1` (health — в корне). Валидация — Zod; аутентификация — JWT
 (глобальный `JwtAccessGuard`); RBAC — `@Roles`; глобальный rate limit. См. [Claude.md](../../Claude.md) §10.
 
+## OpenAPI / Swagger
+- `GET /api/v1/openapi.json` — спецификация **OpenAPI 3.1**, собранная из **Zod-схем** через
+  `z.toJSONSchema` (без доп. зависимостей; схемы — единый источник истины для валидации и контракта).
+- `GET /api/v1/docs` — Swagger UI (загружает `swagger-ui-dist` с CDN).
+
 ## Эндпоинты
 
 ### Health

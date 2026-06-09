@@ -7,6 +7,7 @@ import { RateLimitGuard } from './common/rate-limit.guard';
 import { ConfigModule } from './config/config.module';
 import { HealthModule } from './health/health.module';
 import { KnowledgeApiModule } from './knowledge/knowledge.module';
+import { DocsModule } from './openapi/docs.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
 
@@ -19,6 +20,7 @@ import { ProjectsModule } from './projects/projects.module';
     ApiKeysModule,
     ProjectsModule,
     KnowledgeApiModule,
+    DocsModule,
     HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: RateLimitGuard }],
