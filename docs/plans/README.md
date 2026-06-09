@@ -31,3 +31,4 @@
 | [010](010-mcp-resources-crud.md) | MCP resources & prompts + CRUD | Backlog | Done |
 | [011](011-dependency-graph.md) | Dependency Graph (@brain-dock/graph) | Backlog | Done |
 | [012](012-incremental-watch.md) | Incremental watch-reindex | Backlog | Done |
+| [013](013-metrics.md) | Observability: Prometheus metrics | Backlog | Done |

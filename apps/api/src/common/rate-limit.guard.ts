@@ -7,6 +7,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { ConfigService } from '../config/config.service';
+import { MetricsService } from '../metrics/metrics.service';
 import { FixedWindowLimiter } from './rate-limit';
 
 /** Global fixed-window rate limit, keyed by authenticated user id or client IP. */
@@ -14,7 +15,10 @@ import { FixedWindowLimiter } from './rate-limit';
 export class RateLimitGuard implements CanActivate {
   private readonly limiter: FixedWindowLimiter;
 
-  constructor(config: ConfigService) {
+  constructor(
+    config: ConfigService,
+    private readonly metrics: MetricsService,
+  ) {
     this.limiter = new FixedWindowLimiter(
       config.env.RATE_LIMIT_MAX,
       config.env.RATE_LIMIT_WINDOW_MS,
@@ -30,6 +34,7 @@ export class RateLimitGuard implements CanActivate {
     const key = request.user?.id ?? request.ip ?? request.socket?.remoteAddress ?? 'anonymous';
 
     if (!this.limiter.hit(key, Date.now()).allowed) {
+      this.metrics.incCounter('rate_limit_blocked_total');
       throw new HttpException(
         { code: ErrorCode.RATE_LIMITED, message: 'Too many requests' },
         HttpStatus.TOO_MANY_REQUESTS,

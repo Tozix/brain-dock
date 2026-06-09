@@ -64,6 +64,14 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           responses: { '200': { description: 'OK' }, '503': { description: 'Degraded' } },
         },
       },
+      '/metrics': {
+        get: {
+          tags: ['health'],
+          summary: 'Prometheus metrics',
+          ...PUBLIC,
+          responses: { '200': { description: 'Prometheus text exposition' } },
+        },
+      },
       '/api/v1/auth/register': {
         post: {
           tags: ['auth'],
