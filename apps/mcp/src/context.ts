@@ -5,7 +5,7 @@ import {
   OllamaEmbeddingProvider,
 } from '@brain-dock/embedding';
 import { type RepositoryIndex, RepositoryIndexer } from '@brain-dock/indexer';
-import { KnowledgeService, MemoryService } from '@brain-dock/knowledge';
+import { DocumentService, KnowledgeService, MemoryService } from '@brain-dock/knowledge';
 import { ContextEngine, IngestionService, SearchService } from '@brain-dock/search';
 import { QdrantStore } from '@brain-dock/storage';
 
@@ -54,6 +54,7 @@ export class McpContext {
   /** Present only when DATABASE_URL is configured. */
   readonly memory?: MemoryService;
   readonly knowledge?: KnowledgeService;
+  readonly documents?: DocumentService;
   private readonly indexer = new RepositoryIndexer();
   private cachedIndex: RepositoryIndex | null = null;
 
@@ -68,6 +69,7 @@ export class McpContext {
       const prisma = createPrismaClient(config.databaseUrl);
       this.memory = new MemoryService(prisma, embedder, store);
       this.knowledge = new KnowledgeService(prisma, embedder, store);
+      this.documents = new DocumentService(prisma, embedder, store);
     }
   }
 

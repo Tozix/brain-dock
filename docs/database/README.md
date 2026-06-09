@@ -27,9 +27,10 @@ bun run db:deploy     # применить миграции (prod)
 | `AuditLog` | `audit_logs` | append-only журнал действий |
 | `MemoryItem` | `memory_items` | долговременная память проекта (DECISION/FACT/NOTE/TODO) |
 | `KnowledgeItem` | `knowledge_items` | база знаний (BUSINESS_RULE/ARCHITECTURE/ADR/FAQ/…) |
+| `Document` | `documents` | документы (MD/TXT/MDX/JSON/YAML/PDF/DOCX), чанкинг+эмбеддинги |
 
-Enums: `Role`, `ApiKeyStatus`, `MemoryType`, `KnowledgeType`.
-Миграции: `_init`, `_knowledge_memory`. Память/знания изолированы по `projectId` (строка),
-семантический слой — Qdrant (см. [../knowledge/](../knowledge/README.md)).
+Enums: `Role`, `ApiKeyStatus`, `MemoryType`, `KnowledgeType`, `DocFormat`.
+Миграции: `_init`, `_knowledge_memory`, `_documents`. Память/знания/документы изолированы по
+`projectId` (строка), семантический слой — Qdrant (см. [../knowledge/](../knowledge/README.md)).
 
 > Сгенерированный клиент (`packages/db/src/generated`) — в `.gitignore`; восстанавливается `db:generate`.

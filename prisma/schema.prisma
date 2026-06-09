@@ -41,6 +41,16 @@ enum KnowledgeType {
   NOTE
 }
 
+enum DocFormat {
+  MD
+  TXT
+  MDX
+  JSON
+  YAML
+  PDF
+  DOCX
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique
@@ -116,6 +126,20 @@ model KnowledgeItem {
 
   @@index([projectId])
   @@map("knowledge_items")
+}
+
+model Document {
+  id        String    @id @default(uuid()) @db.Uuid
+  projectId String    @map("project_id")
+  title     String
+  format    DocFormat @default(MD)
+  source    String?
+  content   String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@map("documents")
 }
 
 model AuditLog {

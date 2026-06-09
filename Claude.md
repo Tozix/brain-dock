@@ -254,7 +254,9 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   REST для памяти/знаний + глобальный rate limit (fixed-window). Проверено вживую (ownership 403, rate-limit 429).
 - ✅ **Production readiness (CI & Docker):** GitHub Actions (Biome+typecheck+тесты), Dockerfiles
   для api/mcp/workers (`bun install --omit=optional`, workers `--no-addons`); образ API собран и проверен (`/health` в контейнере). `bun run ci` — единый локальный прогон.
-- ✅ **OpenAPI/Swagger:** `GET /api/v1/openapi.json` (OpenAPI 3.1 из Zod через `z.toJSONSchema`) +
-  `GET /api/v1/docs` (Swagger UI). Проверено вживую.
-- 🔄 Дальше: публикация образов, метрики/трейсинг, Redis-backed rate limit, multi-repo индексация,
-  документы (md/pdf/docx), MCP resources/prompts.
+- ✅ **OpenAPI/Swagger:** `GET /api/v1/openapi.json` (OpenAPI 3.1 из Zod) + `GET /api/v1/docs` (Swagger UI).
+- ✅ **Документы:** `DocumentService` (чанкинг + эмбеддинги, Qdrant `documents`), MCP-tools
+  `save_document`/`search_docs`/`list_documents` (итого 17 MCP-tools) + REST `/projects/:id/documents`.
+  Текстовые форматы (md/txt/mdx/json/yaml); PDF/DOCX — далее. Проверено вживую.
+- 🔄 Дальше: PDF/DOCX-парсеры, публикация образов, метрики/трейсинг, Redis rate limit, multi-repo,
+  объединённый поиск code+knowledge+memory+docs, MCP resources/prompts.

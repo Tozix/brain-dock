@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { issueApiKeySchema } from '../api-keys/api-keys.dto';
 import { credentialsSchema, refreshSchema } from '../auth/auth.dto';
+import { createDocumentSchema } from '../knowledge/documents.dto';
 import { createKnowledgeSchema, createMemorySchema } from '../knowledge/knowledge.dto';
 import { createProjectSchema } from '../projects/projects.dto';
 
@@ -43,6 +44,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
         CreateProject: js(createProjectSchema),
         CreateMemory: js(createMemorySchema),
         CreateKnowledge: js(createKnowledgeSchema),
+        CreateDocument: js(createDocumentSchema),
       },
     },
     paths: {
@@ -210,6 +212,36 @@ export function buildOpenApiDocument(): Record<string, unknown> {
             { name: 'q', in: 'query', required: true, schema: { type: 'string' } },
           ],
           responses: { '200': { description: 'Scored knowledge hits' } },
+        },
+      },
+      '/api/v1/projects/{projectId}/documents': {
+        post: {
+          tags: ['documents'],
+          summary: 'Ingest a text document (md/txt/mdx/json/yaml)',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          requestBody: body('CreateDocument'),
+          responses: { '201': { description: 'Document + chunk count' } },
+        },
+        get: {
+          tags: ['documents'],
+          summary: 'List documents',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          responses: { '200': { description: 'Documents' } },
+        },
+      },
+      '/api/v1/projects/{projectId}/documents/search': {
+        get: {
+          tags: ['documents'],
+          summary: 'Search documents',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'q', in: 'query', required: true, schema: { type: 'string' } },
+          ],
+          responses: { '200': { description: 'Scored document hits' } },
         },
       },
     },

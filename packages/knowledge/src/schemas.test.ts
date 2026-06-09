@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { rememberSchema, saveKnowledgeSchema } from './schemas';
+import { rememberSchema, saveDocumentSchema, saveKnowledgeSchema } from './schemas';
 
 describe('rememberSchema', () => {
   it('accepts a minimal memory and defaults type later', () => {
@@ -34,5 +34,23 @@ describe('saveKnowledgeSchema', () => {
       tags: ['stack'],
     });
     expect(parsed.success).toBe(true);
+  });
+});
+
+describe('saveDocumentSchema', () => {
+  it('defaults format to MD', () => {
+    const parsed = saveDocumentSchema.safeParse({ projectId: 'p', title: 'Doc', content: '# Hi' });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.format).toBe('MD');
+  });
+
+  it('rejects non-text formats and empty content', () => {
+    expect(
+      saveDocumentSchema.safeParse({ projectId: 'p', title: 'D', content: 'x', format: 'PDF' })
+        .success,
+    ).toBe(false);
+    expect(saveDocumentSchema.safeParse({ projectId: 'p', title: 'D', content: '' }).success).toBe(
+      false,
+    );
   });
 });

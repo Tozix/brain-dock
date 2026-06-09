@@ -1,5 +1,5 @@
 import type { RepositoryIndex } from '@brain-dock/indexer';
-import { KNOWLEDGE_TYPES, MEMORY_TYPES } from '@brain-dock/knowledge';
+import { DOC_FORMATS, KNOWLEDGE_TYPES, MEMORY_TYPES } from '@brain-dock/knowledge';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { McpContext } from './context';
@@ -302,6 +302,66 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
       return text(
         hits.map((h) => `${h.score.toFixed(3)}  [${h.item.type}] ${h.item.title}`).join('\n'),
       );
+    },
+  );
+
+  // --- Documents (require DATABASE_URL) ---
+
+  server.registerTool(
+    'save_document',
+    {
+      title: 'Save document',
+      description: 'Ingest a text document (md/txt/mdx/json/yaml): stored, chunked and embedded.',
+      inputSchema: {
+        title: z.string(),
+        content: z.string(),
+        format: z.enum(DOC_FORMATS).optional(),
+        source: z.string().optional(),
+      },
+    },
+    async ({ title, content, format, source }) => {
+      if (!ctx.documents) return text(NO_DB);
+      const { document, chunks } = await ctx.documents.ingest({
+        projectId,
+        title,
+        content,
+        format: format ?? 'MD',
+        source,
+      });
+      return text(`Saved document "${document.title}" (${chunks} chunks) ${document.id}`);
+    },
+  );
+
+  server.registerTool(
+    'search_docs',
+    {
+      title: 'Search documents',
+      description: 'Semantic search over ingested documents.',
+      inputSchema: { query: z.string(), limit: z.number().int().positive().max(50).optional() },
+    },
+    async ({ query, limit }) => {
+      if (!ctx.documents) return text(NO_DB);
+      const hits = await ctx.documents.search(projectId, query, limit ?? 10);
+      if (hits.length === 0) return text('No matching documents.');
+      return text(
+        hits
+          .map((h) => `${h.score.toFixed(3)}  [${h.document.format}] ${h.document.title}`)
+          .join('\n'),
+      );
+    },
+  );
+
+  server.registerTool(
+    'list_documents',
+    {
+      title: 'List documents',
+      description: 'List documents in the project.',
+    },
+    async () => {
+      if (!ctx.documents) return text(NO_DB);
+      const docs = await ctx.documents.list(projectId);
+      if (docs.length === 0) return text('No documents yet.');
+      return text(docs.map((d) => `[${d.format}] ${d.title}`).join('\n'));
     },
   );
 }

@@ -15,6 +15,9 @@
 ## Сервисы
 - `MemoryService`: `remember`, `search`, `list`.
 - `KnowledgeService`: `save`, `search`, `list`.
+- `DocumentService`: `ingest`, `search`, `list` — документы (Postgres `documents` + Qdrant `documents`),
+  чанкинг (`chunkText`, по абзацам с лимитом и overlap), парсеры текстовых форматов
+  (md/txt/mdx/json/yaml; PDF/DOCX — далее, интерфейс `extractText` готов).
 - `EmbeddedIndex`: общий хелпер (embed → Qdrant upsert/search с фильтром по `projectId`).
 
 ## Доступ через MCP (см. [../mcp/](../mcp/README.md))
