@@ -1,9 +1,11 @@
-// Renders the sidebar webview HTML. VEXP-like layout using VS Code theme variables; buttons
-// post their command id back to the extension host.
+// Renders the sidebar webview HTML. VEXP-like layout using VS Code theme variables; buttons post
+// their command id back to the extension host. All visible text goes through i18n (state.lang).
 import type * as vscode from 'vscode';
+import { type Lang, t } from '../i18n';
 import type { IndexStatus, Repository, UsageSummary } from '../util';
 
 export interface PanelState {
+  lang: Lang;
   configured: boolean;
   connected: boolean;
   serverUrl: string;
@@ -47,25 +49,28 @@ function button(action: Action): string {
 }
 
 function renderStatus(state: PanelState): string {
+  const L = state.lang;
   if (!state.configured) {
-    return `<div class="hint">Not connected. Set your API key to begin.</div>
-      ${button({ cmd: 'brainDock.connect', label: 'Connect (set API key)', primary: true })}
-      ${button({ cmd: 'brainDock.openSettings', label: 'Settings' })}`;
+    return `<div class="hint">${escapeHtml(t(L, 'panel.notConnectedHint'))}</div>
+      ${button({ cmd: 'brainDock.connect', label: t(L, 'btn.connect'), primary: true })}
+      ${button({ cmd: 'brainDock.openSettings', label: t(L, 'btn.settings') })}`;
   }
   if (state.error) {
     return `<div class="error">${escapeHtml(state.error)}</div>
-      ${button({ cmd: 'brainDock.refresh', label: 'Retry', primary: true })}
-      ${button({ cmd: 'brainDock.openSettings', label: 'Settings' })}
-      ${button({ cmd: 'brainDock.signOut', label: 'Sign out' })}`;
+      <div class="hint">${escapeHtml(t(L, 'panel.serverHint', { url: state.serverUrl }))}</div>
+      ${button({ cmd: 'brainDock.refresh', label: t(L, 'btn.retry'), primary: true })}
+      ${button({ cmd: 'brainDock.openSettings', label: t(L, 'btn.settings') })}
+      ${button({ cmd: 'brainDock.signOut', label: t(L, 'btn.signOut') })}`;
   }
   if (!state.project) {
-    return `<div class="hint">Connected. Pick a project to load its index.</div>
-      ${button({ cmd: 'brainDock.selectProject', label: 'Select project', primary: true })}`;
+    return `<div class="hint">${escapeHtml(t(L, 'panel.pickProjectHint'))}</div>
+      ${button({ cmd: 'brainDock.selectProject', label: t(L, 'btn.selectProject'), primary: true })}`;
   }
   return renderConnected(state);
 }
 
 function renderConnected(state: PanelState): string {
+  const L = state.lang;
   const s = state.status ?? { files: 0, symbols: 0, repos: [], roles: {} };
   const roleRows = Object.entries(s.roles)
     .sort((a, b) => b[1] - a[1])
@@ -81,56 +86,55 @@ function renderConnected(state: PanelState): string {
 
   return `
     <div class="section">
-      <div class="row"><span class="label">PROJECT</span>
-        <button class="link" data-cmd="brainDock.selectProject">change</button></div>
+      <div class="row"><span class="label">${t(L, 'label.project')}</span>
+        <button class="link" data-cmd="brainDock.selectProject">${t(L, 'btn.change')}</button></div>
       <div class="project">${escapeHtml(state.project)}</div>
     </div>
 
     <div class="section">
-      <div class="label">INDEX</div>
+      <div class="label">${t(L, 'label.index')}</div>
       <div class="metrics">
-        <div class="metric"><div class="n">${s.symbols}</div><div class="muted">symbols</div></div>
-        <div class="metric"><div class="n">${s.files}</div><div class="muted">files</div></div>
-        <div class="metric"><div class="n">${s.repos.length}</div><div class="muted">repos</div></div>
+        <div class="metric"><div class="n">${s.symbols}</div><div class="muted">${t(L, 'metric.symbols')}</div></div>
+        <div class="metric"><div class="n">${s.files}</div><div class="muted">${t(L, 'metric.files')}</div></div>
+        <div class="metric"><div class="n">${s.repos.length}</div><div class="muted">${t(L, 'metric.repos')}</div></div>
       </div>
       ${roleRows ? `<div class="roles">${roleRows}</div>` : ''}
     </div>
 
     <div class="section">
-      <div class="label">TOKEN SAVINGS · ${state.usage?.days ?? 30}d</div>
+      <div class="label">${t(L, 'label.tokenSavings')} · ${state.usage?.days ?? 30}d</div>
       <div class="metrics">
-        <div class="metric"><div class="n">${fmtCompact(state.usage?.estTokensSaved ?? 0)}</div><div class="muted">est. saved</div></div>
-        <div class="metric"><div class="n">${state.usage?.avgSavingPct ?? 0}%</div><div class="muted">avg saving</div></div>
-        <div class="metric"><div class="n">${state.usage?.calls ?? 0}</div><div class="muted">calls</div></div>
+        <div class="metric"><div class="n">${fmtCompact(state.usage?.estTokensSaved ?? 0)}</div><div class="muted">${t(L, 'metric.estSaved')}</div></div>
+        <div class="metric"><div class="n">${state.usage?.avgSavingPct ?? 0}%</div><div class="muted">${t(L, 'metric.avgSaving')}</div></div>
+        <div class="metric"><div class="n">${state.usage?.calls ?? 0}</div><div class="muted">${t(L, 'metric.calls')}</div></div>
       </div>
     </div>
 
     <div class="section">
-      <div class="label">ACTIONS</div>
-      ${button({ cmd: 'brainDock.setupAgents', label: '⚙ Setup Agents', primary: true })}
-      ${button({ cmd: 'brainDock.reindex', label: '↻ Force Re-index' })}
-      ${button({ cmd: 'brainDock.generateContext', label: '⬡ Generate Context Capsule' })}
-      ${button({ cmd: 'brainDock.addRepository', label: '+ Add / Connect Repository' })}
-      ${button({ cmd: 'brainDock.selectProject', label: '⌗ Switch Project' })}
-      ${button({ cmd: 'brainDock.viewLogs', label: '≡ View Logs' })}
-      ${button({ cmd: 'brainDock.openSettings', label: '⚙ Settings' })}
+      <div class="label">${t(L, 'label.actions')}</div>
+      ${button({ cmd: 'brainDock.setupAgents', label: `⚙ ${t(L, 'btn.setupAgents')}`, primary: true })}
+      ${button({ cmd: 'brainDock.reindex', label: `↻ ${t(L, 'btn.reindex')}` })}
+      ${button({ cmd: 'brainDock.generateContext', label: `⬡ ${t(L, 'btn.generateContext')}` })}
+      ${button({ cmd: 'brainDock.addRepository', label: `+ ${t(L, 'btn.addRepository')}` })}
+      ${button({ cmd: 'brainDock.selectProject', label: `⌗ ${t(L, 'btn.switchProject')}` })}
+      ${button({ cmd: 'brainDock.viewLogs', label: `≡ ${t(L, 'btn.viewLogs')}` })}
+      ${button({ cmd: 'brainDock.openSettings', label: `⚙ ${t(L, 'btn.settings')}` })}
     </div>
 
-    ${
-      repoRows ? `<div class="section"><div class="label">REPOSITORIES</div>${repoRows}</div>` : ''
-    }`;
+    ${repoRows ? `<div class="section"><div class="label">${t(L, 'label.repositories')}</div>${repoRows}</div>` : ''}`;
 }
 
 export function renderPanel(webview: vscode.Webview, state: PanelState): string {
   const nonce = getNonce();
+  const L = state.lang;
   const dot = state.configured && state.connected && !state.error ? 'ok' : 'off';
   const dotLabel = !state.configured
-    ? 'not connected'
+    ? t(L, 'status.notConnected')
     : state.error
-      ? 'error'
+      ? t(L, 'status.error')
       : state.connected
-        ? 'connected'
-        : 'connecting…';
+        ? t(L, 'status.connected')
+        : t(L, 'status.connecting');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -179,7 +183,7 @@ export function renderPanel(webview: vscode.Webview, state: PanelState): string 
 <body>
   <div class="header">
     <span>brain-dock</span>
-    <span class="status"><span class="dot ${dot}"></span>${dotLabel}</span>
+    <span class="status"><span class="dot ${dot}"></span>${escapeHtml(dotLabel)}</span>
   </div>
   ${renderStatus(state)}
   <script nonce="${nonce}">

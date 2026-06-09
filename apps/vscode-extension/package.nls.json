@@ -1,0 +1,12 @@
+{
+  "cmd.connect": "brain-dock: Connect (set API key)",
+  "cmd.signOut": "brain-dock: Sign out (clear API key)",
+  "cmd.refresh": "brain-dock: Refresh",
+  "cmd.selectProject": "brain-dock: Select project",
+  "cmd.reindex": "brain-dock: Force re-index",
+  "cmd.setupAgents": "brain-dock: Setup Agents (write MCP config)",
+  "cmd.generateContext": "brain-dock: Generate context capsule",
+  "cmd.addRepository": "brain-dock: Add / connect repository",
+  "cmd.viewLogs": "brain-dock: View logs",
+  "cmd.openSettings": "brain-dock: Open settings"
+}

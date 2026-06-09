@@ -1,0 +1,12 @@
+{
+  "cmd.connect": "brain-dock: Подключиться (ввести API-ключ)",
+  "cmd.signOut": "brain-dock: Выйти (удалить API-ключ)",
+  "cmd.refresh": "brain-dock: Обновить",
+  "cmd.selectProject": "brain-dock: Выбрать проект",
+  "cmd.reindex": "brain-dock: Переиндексировать",
+  "cmd.setupAgents": "brain-dock: Настроить агентов (записать MCP-конфиг)",
+  "cmd.generateContext": "brain-dock: Собрать контекст",
+  "cmd.addRepository": "brain-dock: Добавить / подключить репозиторий",
+  "cmd.viewLogs": "brain-dock: Показать логи",
+  "cmd.openSettings": "brain-dock: Открыть настройки"
+}

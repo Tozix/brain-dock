@@ -1,8 +1,16 @@
 // Settings + secret storage. The API key lives in SecretStorage (never in settings.json).
 import * as vscode from 'vscode';
+import type { Lang } from './i18n';
 
 export const SECTION = 'brainDock';
 const API_KEY_SECRET = 'brainDock.apiKey';
+
+/** Resolve the UI language: explicit `brainDock.language`, or `auto` → the VS Code display language. */
+export function resolveLang(): Lang {
+  const setting = vscode.workspace.getConfiguration(SECTION).get<string>('language') ?? 'auto';
+  if (setting === 'ru' || setting === 'en') return setting;
+  return vscode.env.language.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+}
 
 export interface Settings {
   serverUrl: string;

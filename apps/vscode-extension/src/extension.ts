@@ -1,6 +1,14 @@
 import * as vscode from 'vscode';
 import { BrainDockClient } from './api/client';
-import { clearApiKey, getApiKey, readSettings, setProject, storeApiKey } from './config';
+import {
+  clearApiKey,
+  getApiKey,
+  readSettings,
+  resolveLang,
+  setProject,
+  storeApiKey,
+} from './config';
+import { t } from './i18n';
 import type { PanelState } from './panel/html';
 import { PanelProvider } from './panel/provider';
 import { type AgentTarget, applyTarget, type McpServerConfig } from './setup/agents';
@@ -32,6 +40,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const s = readSettings();
     const apiKey = await getApiKey(secrets);
     const state: PanelState = {
+      lang: resolveLang(),
       configured: Boolean(apiKey),
       connected: false,
       serverUrl: s.serverUrl,
@@ -68,21 +77,22 @@ export function activate(context: vscode.ExtensionContext): void {
   register('brainDock.refresh', refresh);
 
   register('brainDock.connect', async () => {
+    const lang = resolveLang();
     const key = await vscode.window.showInputBox({
-      title: 'brain-dock API key',
-      prompt: 'Paste your bd_… API key',
+      title: t(lang, 'prompt.apiKeyTitle'),
+      prompt: t(lang, 'prompt.apiKeyPrompt'),
       password: true,
       ignoreFocusOut: true,
     });
     if (!key) return;
     await storeApiKey(secrets, key.trim());
-    vscode.window.showInformationMessage('brain-dock: API key saved.');
+    vscode.window.showInformationMessage(`brain-dock: ${t(lang, 'msg.apiKeySaved')}`);
     await refresh();
   });
 
   register('brainDock.signOut', async () => {
     await clearApiKey(secrets);
-    vscode.window.showInformationMessage('brain-dock: signed out.');
+    vscode.window.showInformationMessage(`brain-dock: ${t(resolveLang(), 'msg.signedOut')}`);
     await refresh();
   });
 
@@ -91,22 +101,21 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   register('brainDock.selectProject', async () => {
+    const lang = resolveLang();
     const client = await buildClient();
     if (!client) {
-      vscode.window.showWarningMessage('brain-dock: set your API key first (Connect).');
+      vscode.window.showWarningMessage(`brain-dock: ${t(lang, 'msg.selectProjectFirst')}`);
       return;
     }
     try {
       const projects = await client.listProjects();
       if (projects.length === 0) {
-        vscode.window.showInformationMessage(
-          'brain-dock: no projects yet — create one via the API.',
-        );
+        vscode.window.showInformationMessage(`brain-dock: ${t(lang, 'msg.noProjects')}`);
         return;
       }
       const pick = await vscode.window.showQuickPick(
         projects.map((p) => ({ label: p.slug, description: p.name, detail: p.id })),
-        { title: 'Select brain-dock project' },
+        { title: t(lang, 'prompt.selectProject') },
       );
       if (!pick) return;
       await setProject(pick.label);
@@ -117,21 +126,22 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   register('brainDock.reindex', async () => {
+    const lang = resolveLang();
     const s = readSettings();
     const client = await buildClient();
     if (!client || !s.project) {
-      vscode.window.showWarningMessage('brain-dock: connect and select a project first.');
+      vscode.window.showWarningMessage(`brain-dock: ${t(lang, 'msg.connectFirst')}`);
       return;
     }
     try {
       const proj = findProject(await client.listProjects(), s.project);
       if (!proj) {
-        vscode.window.showErrorMessage('brain-dock: active project not found.');
+        vscode.window.showErrorMessage(`brain-dock: ${t(lang, 'msg.projectNotFound')}`);
         return;
       }
       const repos = await client.listRepositories(proj.id);
       if (repos.length === 0) {
-        vscode.window.showInformationMessage('brain-dock: no repositories to re-index.');
+        vscode.window.showInformationMessage(`brain-dock: ${t(lang, 'msg.noRepos')}`);
         return;
       }
       let pick: Repository | undefined;
@@ -140,13 +150,15 @@ export function activate(context: vscode.ExtensionContext): void {
       } else {
         const chosen = await vscode.window.showQuickPick(
           repos.map((r) => ({ label: r.alias, description: r.root, id: r.id })),
-          { title: 'Re-index which repository?' },
+          { title: t(lang, 'prompt.reindexWhich') },
         );
         pick = chosen ? repos.find((r) => r.id === chosen.id) : undefined;
       }
       if (!pick) return;
       await client.reindex(proj.id, pick.id);
-      vscode.window.showInformationMessage(`brain-dock: re-index queued for ${pick.alias}.`);
+      vscode.window.showInformationMessage(
+        `brain-dock: ${t(lang, 'msg.reindexQueued', { name: pick.alias })}`,
+      );
       await refresh();
     } catch (err) {
       fail(err);
@@ -154,10 +166,11 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   register('brainDock.setupAgents', async () => {
+    const lang = resolveLang();
     const s = readSettings();
     const apiKey = await getApiKey(secrets);
     if (!apiKey || !s.project) {
-      vscode.window.showWarningMessage('brain-dock: connect and select a project first.');
+      vscode.window.showWarningMessage(`brain-dock: ${t(lang, 'msg.connectFirst')}`);
       return;
     }
     const items: Array<vscode.QuickPickItem & { target: AgentTarget }> = [
@@ -167,7 +180,7 @@ export function activate(context: vscode.ExtensionContext): void {
       { label: 'Cursor — global (~/.cursor/mcp.json)', target: 'cursor-global' },
     ];
     const picks = await vscode.window.showQuickPick(items, {
-      title: 'Setup Agents — write the brain-dock MCP config',
+      title: t(lang, 'prompt.setupTitle'),
       canPickMany: true,
     });
     if (!picks || picks.length === 0) return;
@@ -188,33 +201,31 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     if (written.length === 0) return;
     const choice = await vscode.window.showWarningMessage(
-      `brain-dock: wrote MCP config to ${written.length} file(s). They contain your API key — gitignore them if this repo is shared.`,
-      'Open file',
+      `brain-dock: ${t(lang, 'msg.setupWrote', { n: written.length })}`,
+      t(lang, 'msg.openFile'),
     );
-    if (choice === 'Open file' && written[0]) {
+    if (choice && written[0]) {
       void vscode.window.showTextDocument(vscode.Uri.file(written[0]));
     }
   });
 
   register('brainDock.generateContext', async () => {
+    const lang = resolveLang();
     const s = readSettings();
     const client = await buildClient();
     if (!client || !s.project) {
-      vscode.window.showWarningMessage('brain-dock: connect and select a project first.');
+      vscode.window.showWarningMessage(`brain-dock: ${t(lang, 'msg.connectFirst')}`);
       return;
     }
     const query = await vscode.window.showInputBox({
-      title: 'Generate context',
-      prompt: 'Describe the task or question to assemble context for',
+      title: t(lang, 'prompt.contextTitle'),
+      prompt: t(lang, 'prompt.contextPrompt'),
       ignoreFocusOut: true,
     });
     if (!query) return;
     try {
       const text = await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: 'brain-dock: generating context…',
-        },
+        { location: vscode.ProgressLocation.Notification, title: t(lang, 'progress.generating') },
         () => client.generateContext(query),
       );
       const doc = await vscode.workspace.openTextDocument({ content: text, language: 'markdown' });
@@ -226,27 +237,28 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   register('brainDock.addRepository', async () => {
+    const lang = resolveLang();
     const s = readSettings();
     const client = await buildClient();
     if (!client || !s.project) {
-      vscode.window.showWarningMessage('brain-dock: connect and select a project first.');
+      vscode.window.showWarningMessage(`brain-dock: ${t(lang, 'msg.connectFirst')}`);
       return;
     }
     try {
       const proj = findProject(await client.listProjects(), s.project);
       if (!proj) {
-        vscode.window.showErrorMessage('brain-dock: active project not found.');
+        vscode.window.showErrorMessage(`brain-dock: ${t(lang, 'msg.projectNotFound')}`);
         return;
       }
       const alias = await vscode.window.showInputBox({
-        title: 'Add repository — alias',
-        prompt: 'Short unique alias (e.g. api)',
+        title: t(lang, 'prompt.aliasTitle'),
+        prompt: t(lang, 'prompt.aliasPrompt'),
         ignoreFocusOut: true,
       });
       if (!alias) return;
       const root = await vscode.window.showInputBox({
-        title: 'Add repository — root path',
-        prompt: 'Filesystem path the server/worker can read',
+        title: t(lang, 'prompt.rootTitle'),
+        prompt: t(lang, 'prompt.rootPrompt'),
         value: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '',
         ignoreFocusOut: true,
       });
@@ -254,10 +266,10 @@ export function activate(context: vscode.ExtensionContext): void {
       const repo = await client.createRepository(proj.id, { name: alias, alias, root });
       output.appendLine(`[repo] created ${repo.alias} (${repo.root})`);
       const choice = await vscode.window.showInformationMessage(
-        `brain-dock: added repository ${repo.alias}.`,
-        'Re-index now',
+        `brain-dock: ${t(lang, 'msg.repoAdded', { name: repo.alias })}`,
+        t(lang, 'msg.reindexNow'),
       );
-      if (choice === 'Re-index now') await client.reindex(proj.id, repo.id);
+      if (choice) await client.reindex(proj.id, repo.id);
       await refresh();
     } catch (err) {
       fail(err);

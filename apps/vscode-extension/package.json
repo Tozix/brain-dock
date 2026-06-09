@@ -2,7 +2,7 @@
   "name": "brain-dock-vscode",
   "displayName": "brain-dock",
   "description": "Connect your AI agents (Claude Code, Cursor) to the brain-dock hosted MCP, and watch your code index from the sidebar.",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "publisher": "braindock",
   "license": "MIT",
@@ -43,44 +43,44 @@
     "commands": [
       {
         "command": "brainDock.connect",
-        "title": "brain-dock: Connect (set API key)"
+        "title": "%cmd.connect%"
       },
       {
         "command": "brainDock.signOut",
-        "title": "brain-dock: Sign out (clear API key)"
+        "title": "%cmd.signOut%"
       },
       {
         "command": "brainDock.refresh",
-        "title": "brain-dock: Refresh",
+        "title": "%cmd.refresh%",
         "icon": "$(refresh)"
       },
       {
         "command": "brainDock.selectProject",
-        "title": "brain-dock: Select project"
+        "title": "%cmd.selectProject%"
       },
       {
         "command": "brainDock.reindex",
-        "title": "brain-dock: Force re-index"
+        "title": "%cmd.reindex%"
       },
       {
         "command": "brainDock.setupAgents",
-        "title": "brain-dock: Setup Agents (write MCP config)"
+        "title": "%cmd.setupAgents%"
       },
       {
         "command": "brainDock.generateContext",
-        "title": "brain-dock: Generate context capsule"
+        "title": "%cmd.generateContext%"
       },
       {
         "command": "brainDock.addRepository",
-        "title": "brain-dock: Add / connect repository"
+        "title": "%cmd.addRepository%"
       },
       {
         "command": "brainDock.viewLogs",
-        "title": "brain-dock: View logs"
+        "title": "%cmd.viewLogs%"
       },
       {
         "command": "brainDock.openSettings",
-        "title": "brain-dock: Open settings"
+        "title": "%cmd.openSettings%"
       }
     ],
     "menus": {
@@ -109,6 +109,21 @@
           "type": "string",
           "default": "",
           "description": "Active project (slug or id). Used as the X-Project header for MCP calls."
+        },
+        "brainDock.language": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "en",
+            "ru"
+          ],
+          "enumDescriptions": [
+            "Follow the VS Code display language",
+            "English",
+            "Русский"
+          ],
+          "default": "auto",
+          "description": "Panel/dialog language. 'auto' follows the VS Code display language."
         }
       }
     }
