@@ -23,3 +23,4 @@
 | [002](002-indexer.md) | AST-индексатор | Phase 2 | Done |
 | [003](003-rag-engine.md) | Embedding, Vector Storage, Hybrid Search, Context | Phase 3–4 | Done |
 | [004](004-mcp-server.md) | MCP-сервер (tools/resources/prompts) | Phase 5 | Done (tools) |
+| [005](005-knowledge-memory.md) | Knowledge Base & Project Memory | Phase 6 | Done |

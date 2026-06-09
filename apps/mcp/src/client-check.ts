@@ -36,4 +36,18 @@ console.log(
   `\n# search_code "jwt access token guard"\n${await call('search_code', { query: 'jwt access token guard', limit: 5 })}`,
 );
 
+// Project Memory & Knowledge (require DATABASE_URL).
+console.log(
+  `\n# remember\n${await call('remember', { content: 'We run NestJS on the Bun runtime; emitDecoratorMetadata needs a root tsconfig.', type: 'DECISION', tags: ['bun', 'nestjs'] })}`,
+);
+console.log(
+  `\n# search_memory "how do we run nestjs"\n${await call('search_memory', { query: 'how do we run nestjs', limit: 3 })}`,
+);
+console.log(
+  `\n# save_knowledge\n${await call('save_knowledge', { title: 'Auth model', content: 'JWT access + refresh, RBAC USER<ADMIN<SUPER_ADMIN, API keys issued by Super Admin.', type: 'ARCHITECTURE' })}`,
+);
+console.log(
+  `\n# search_knowledge "role based access"\n${await call('search_knowledge', { query: 'role based access control', limit: 3 })}`,
+);
+
 await client.close();

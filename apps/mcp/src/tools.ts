@@ -1,4 +1,5 @@
 import type { RepositoryIndex } from '@brain-dock/indexer';
+import { KNOWLEDGE_TYPES, MEMORY_TYPES } from '@brain-dock/knowledge';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { McpContext } from './context';
@@ -211,6 +212,95 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
           `DI edges (${edges.length}):`,
           ...edges.slice(0, 40).map((e) => `  ${e}`),
         ].join('\n'),
+      );
+    },
+  );
+
+  // --- Project Memory & Knowledge Base (require DATABASE_URL) ---
+
+  const NO_DB = 'Memory/knowledge tools require DATABASE_URL to be configured.';
+
+  server.registerTool(
+    'remember',
+    {
+      title: 'Remember',
+      description: 'Save a long-term project memory (decision/fact/note/todo).',
+      inputSchema: {
+        content: z.string().describe('What to remember'),
+        type: z.enum(MEMORY_TYPES).optional(),
+        tags: z.array(z.string()).optional(),
+      },
+    },
+    async ({ content, type, tags }) => {
+      if (!ctx.memory) return text(NO_DB);
+      const item = await ctx.memory.remember({ projectId, content, type, tags });
+      return text(`Remembered [${item.type}] ${item.id}`);
+    },
+  );
+
+  server.registerTool(
+    'search_memory',
+    {
+      title: 'Search memory',
+      description: 'Semantic search over saved project memory.',
+      inputSchema: { query: z.string(), limit: z.number().int().positive().max(50).optional() },
+    },
+    async ({ query, limit }) => {
+      if (!ctx.memory) return text(NO_DB);
+      const hits = await ctx.memory.search(projectId, query, limit ?? 10);
+      if (hits.length === 0) return text('No matching memories.');
+      return text(
+        hits.map((h) => `${h.score.toFixed(3)}  [${h.item.type}] ${h.item.content}`).join('\n'),
+      );
+    },
+  );
+
+  server.registerTool(
+    'list_memory',
+    {
+      title: 'List memory',
+      description: 'List recent project memories.',
+    },
+    async () => {
+      if (!ctx.memory) return text(NO_DB);
+      const items = await ctx.memory.list(projectId);
+      if (items.length === 0) return text('No memories yet.');
+      return text(items.map((i) => `[${i.type}] ${i.content}`).join('\n'));
+    },
+  );
+
+  server.registerTool(
+    'save_knowledge',
+    {
+      title: 'Save knowledge',
+      description: 'Save a knowledge-base entry (business rule/architecture/ADR/FAQ/…).',
+      inputSchema: {
+        title: z.string(),
+        content: z.string(),
+        type: z.enum(KNOWLEDGE_TYPES).optional(),
+        tags: z.array(z.string()).optional(),
+      },
+    },
+    async ({ title, content, type, tags }) => {
+      if (!ctx.knowledge) return text(NO_DB);
+      const item = await ctx.knowledge.save({ projectId, title, content, type, tags });
+      return text(`Saved knowledge [${item.type}] "${item.title}" ${item.id}`);
+    },
+  );
+
+  server.registerTool(
+    'search_knowledge',
+    {
+      title: 'Search knowledge',
+      description: 'Semantic search over the knowledge base.',
+      inputSchema: { query: z.string(), limit: z.number().int().positive().max(50).optional() },
+    },
+    async ({ query, limit }) => {
+      if (!ctx.knowledge) return text(NO_DB);
+      const hits = await ctx.knowledge.search(projectId, query, limit ?? 10);
+      if (hits.length === 0) return text('No matching knowledge.');
+      return text(
+        hits.map((h) => `${h.score.toFixed(3)}  [${h.item.type}] ${h.item.title}`).join('\n'),
       );
     },
   );

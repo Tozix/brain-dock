@@ -1,9 +1,11 @@
+import { createPrismaClient } from '@brain-dock/db';
 import {
   DeterministicEmbeddingProvider,
   type EmbeddingProvider,
   OllamaEmbeddingProvider,
 } from '@brain-dock/embedding';
 import { type RepositoryIndex, RepositoryIndexer } from '@brain-dock/indexer';
+import { KnowledgeService, MemoryService } from '@brain-dock/knowledge';
 import { ContextEngine, IngestionService, SearchService } from '@brain-dock/search';
 import { QdrantStore } from '@brain-dock/storage';
 
@@ -15,6 +17,8 @@ export interface McpConfig {
   ollamaUrl: string;
   embeddingModel: string;
   embedder: 'ollama' | 'deterministic';
+  /** Empty disables memory/knowledge tools (they require Postgres). */
+  databaseUrl: string;
 }
 
 export function loadConfig(): McpConfig {
@@ -26,6 +30,7 @@ export function loadConfig(): McpConfig {
     ollamaUrl: process.env.OLLAMA_URL ?? 'http://localhost:11434',
     embeddingModel: process.env.EMBEDDING_MODEL ?? 'nomic-embed-text',
     embedder: process.env.EMBEDDER === 'ollama' ? 'ollama' : 'deterministic',
+    databaseUrl: process.env.DATABASE_URL ?? '',
   };
 }
 
@@ -46,6 +51,9 @@ export class McpContext {
   readonly ingestion: IngestionService;
   readonly search: SearchService;
   readonly context: ContextEngine;
+  /** Present only when DATABASE_URL is configured. */
+  readonly memory?: MemoryService;
+  readonly knowledge?: KnowledgeService;
   private readonly indexer = new RepositoryIndexer();
   private cachedIndex: RepositoryIndex | null = null;
 
@@ -55,6 +63,12 @@ export class McpContext {
     this.ingestion = new IngestionService(embedder, store, this.indexer);
     this.search = new SearchService(embedder, store);
     this.context = new ContextEngine(this.search);
+
+    if (config.databaseUrl) {
+      const prisma = createPrismaClient(config.databaseUrl);
+      this.memory = new MemoryService(prisma, embedder, store);
+      this.knowledge = new KnowledgeService(prisma, embedder, store);
+    }
   }
 
   /** Build (and cache) the structural index — used by symbol/architecture tools (no Qdrant needed). */

@@ -1,22 +1,21 @@
 {
-  "name": "@brain-dock/mcp",
+  "name": "@brain-dock/knowledge",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
   "dependencies": {
     "@brain-dock/db": "workspace:*",
     "@brain-dock/embedding": "workspace:*",
-    "@brain-dock/indexer": "workspace:*",
-    "@brain-dock/knowledge": "workspace:*",
-    "@brain-dock/search": "workspace:*",
     "@brain-dock/storage": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3"
   }
 }

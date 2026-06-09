@@ -7,7 +7,16 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/dist", "!**/node_modules", "!**/generated", "!**/.turbo"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/node_modules",
+      "!**/generated",
+      "!**/.turbo",
+      "!.vexp",
+      "!.claude",
+      "!.vscode"
+    ]
   },
   "formatter": {
     "enabled": true,

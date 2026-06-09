@@ -58,10 +58,13 @@
 - ⏭️ Далее: resources/prompts, auth по API-ключу, memory/knowledge-tools (Phase 6).
 - **План:** [004-mcp-server.md](../plans/004-mcp-server.md) (Done)
 
-## Phase 6 — Knowledge Base & Project Memory ⬜
+## Phase 6 — Knowledge Base & Project Memory ✅
 **Цель:** хранение знаний и долговременной памяти.
-- Business rules, ADR, requirements, FAQ, release notes, deployment.
-- Project Memory: решения, факты, заметки, TODO.
+- ✅ Prisma `MemoryItem`/`KnowledgeItem` + миграция; пакет `@brain-dock/knowledge`.
+- ✅ Postgres (source of truth) + Qdrant (`memory`/`knowledge`) семантический поиск; изоляция по `projectId`.
+- ✅ MCP-tools: `remember`/`search_memory`/`list_memory`/`save_knowledge`/`search_knowledge` — проверено вживую.
+- ⏭️ Далее: документы (md/pdf/docx), update/delete, REST API, объединённый поиск в Context Engine.
+- **План:** [005-knowledge-memory.md](../plans/005-knowledge-memory.md) (Done)
 
 ## Phase 7 — Multi-Project/Repo, Admin & Hardening ⬜
 **Цель:** изоляция, администрирование, готовность к проду.

@@ -13,6 +13,10 @@ MCP-сервер `apps/mcp` (`@modelcontextprotocol/sdk` v1, stdio) отдаёт
 | `find_controller` / `find_service` / `find_module` | Список по роли (опц. фильтр по имени) | нет |
 | `summarize_project` | Статистика: файлы/символы + разбивка по ролям | нет |
 | `get_architecture` | Модули, контроллеры с маршрутами, DI-рёбра | нет |
+| `remember` / `search_memory` / `list_memory` | Project Memory (DECISION/FACT/NOTE/TODO) | Postgres + Qdrant |
+| `save_knowledge` / `search_knowledge` | Knowledge Base (ADR/architecture/FAQ/…) | Postgres + Qdrant |
+
+Memory/knowledge tools требуют `DATABASE_URL` (иначе возвращают подсказку). См. [../knowledge/](../knowledge/README.md).
 
 Структурные tools работают по in-memory индексу (ts-morph) и не требуют внешних сервисов.
 

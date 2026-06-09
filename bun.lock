@@ -36,8 +36,10 @@
       "name": "@brain-dock/mcp",
       "version": "0.0.0",
       "dependencies": {
+        "@brain-dock/db": "workspace:*",
         "@brain-dock/embedding": "workspace:*",
         "@brain-dock/indexer": "workspace:*",
+        "@brain-dock/knowledge": "workspace:*",
         "@brain-dock/search": "workspace:*",
         "@brain-dock/storage": "workspace:*",
         "@modelcontextprotocol/sdk": "^1.29.0",
@@ -84,6 +86,16 @@
       "dependencies": {
         "@brain-dock/core": "workspace:*",
         "ts-morph": "^28.0.0",
+      },
+    },
+    "packages/knowledge": {
+      "name": "@brain-dock/knowledge",
+      "version": "0.0.0",
+      "dependencies": {
+        "@brain-dock/db": "workspace:*",
+        "@brain-dock/embedding": "workspace:*",
+        "@brain-dock/storage": "workspace:*",
+        "zod": "^4.4.3",
       },
     },
     "packages/search": {
@@ -137,6 +149,8 @@
     "@brain-dock/embedding": ["@brain-dock/embedding@workspace:packages/embedding"],
 
     "@brain-dock/indexer": ["@brain-dock/indexer@workspace:packages/indexer"],
+
+    "@brain-dock/knowledge": ["@brain-dock/knowledge@workspace:packages/knowledge"],
 
     "@brain-dock/mcp": ["@brain-dock/mcp@workspace:apps/mcp"],
 

@@ -21,6 +21,7 @@ describe('brain-dock MCP server — structural tools (no Qdrant)', () => {
       ollamaUrl: 'http://localhost:1',
       embeddingModel: 'x',
       embedder: 'deterministic',
+      databaseUrl: '',
     });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     client = new Client({ name: 'test', version: '0.0.0' });

@@ -156,7 +156,7 @@ prisma/        # схема и миграции
 docs/          # вся документация (см. docs/README.md)
 ```
 
-> Phase 1–5: `apps/{api,mcp,workers}` и `packages/{shared,core,db,indexer,embedding,storage,search}` — все рабочие.
+> Phase 1–6: `apps/{api,mcp,workers}` и `packages/{shared,core,db,indexer,embedding,storage,search,knowledge}` — все рабочие.
 > `prisma/` — схема + миграции. AST-индексатор — [docs/architecture/indexer.md](docs/architecture/indexer.md);
 > RAG/Context Engine — [docs/rag/](docs/rag/); MCP — [docs/mcp/](docs/mcp/);
 > особенности Bun (NestJS, BullMQ) — [docs/backend/bun-nestjs-notes.md](docs/backend/bun-nestjs-notes.md).
@@ -248,6 +248,7 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   гибридный поиск (vector+keyword); BullMQ `IndexWorker` (риск BullMQ-на-Bun закрыт). Проверено вживую.
 - ✅ **Phase 4 (Context Engine) завершена:** `ContextEngine` — intent detection, intent-aware re-ranking,
   дедуп, compression, Context Builder.
-- ✅ **Phase 5 (MCP-сервер) завершена:** `apps/mcp` на `@modelcontextprotocol/sdk` v1 (stdio), 9 tools
-  (reindex/search_code/generate_context/find_*/summarize_project/get_architecture). Проверено реальным MCP-клиентом.
-- 🔄 Дальше: Phase 6 — Knowledge Base & Project Memory (+ MCP memory/knowledge-tools, resources/prompts).
+- ✅ **Phase 5 (MCP-сервер) завершена:** `apps/mcp` на `@modelcontextprotocol/sdk` v1 (stdio), tools поверх индексатора/поиска/контекста.
+- ✅ **Phase 6 (Knowledge & Memory) завершена:** `@brain-dock/knowledge` (Postgres + Qdrant), MCP-tools
+  `remember`/`search_memory`/`list_memory`/`save_knowledge`/`search_knowledge`. Проверено вживую. Всего 14 MCP-tools.
+- 🔄 Дальше: Phase 7 — Multi-Project/Repo, Admin, REST API для knowledge/memory, документы (md/pdf/docx), MCP resources/prompts.
