@@ -15,6 +15,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
 import { RepositoriesModule } from './repositories/repositories.module';
 import { TracingInterceptor } from './tracing/tracing.interceptor';
+import { UsageModule } from './usage/usage.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { TracingInterceptor } from './tracing/tracing.interceptor';
     ProjectsModule,
     RepositoriesModule,
     KnowledgeApiModule,
+    UsageModule,
     DocsModule,
     HealthModule,
   ],

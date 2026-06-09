@@ -6,6 +6,7 @@ import {
   parseSummary,
   type Repository,
   toolText,
+  type UsageSummary,
 } from '../util';
 
 export interface ClientOptions {
@@ -32,6 +33,10 @@ export class BrainDockClient {
 
   reindex(projectId: string, repoId: string): Promise<unknown> {
     return this.rest('POST', `/projects/${projectId}/repositories/${repoId}/reindex`);
+  }
+
+  getUsage(days = 30): Promise<UsageSummary> {
+    return this.rest<UsageSummary>('GET', `/usage?days=${days}`);
   }
 
   createRepository(

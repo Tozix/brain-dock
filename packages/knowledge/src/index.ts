@@ -28,3 +28,4 @@ export {
   type SymbolRow,
   type SymbolScope,
 } from './symbol-index.service';
+export { UsageService, type UsageSummary } from './usage.service';

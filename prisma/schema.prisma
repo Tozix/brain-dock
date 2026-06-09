@@ -216,3 +216,17 @@ model AuditLog {
   @@index([action])
   @@map("audit_logs")
 }
+
+// Per-user, per-day MCP usage rollup (calls + approximate tokens served). Written by the remote MCP
+// after each tool call; read by the API (`GET /usage`) to power the extension's Token Savings panel.
+model McpUsageDaily {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  day          DateTime @db.Date
+  calls        Int      @default(0)
+  tokensServed Int      @default(0) @map("tokens_served")
+
+  @@unique([userId, day])
+  @@index([userId])
+  @@map("mcp_usage_daily")
+}

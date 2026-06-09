@@ -5,6 +5,7 @@ import {
   KnowledgeService,
   MemoryService,
   SymbolIndexService,
+  UsageService,
 } from '@brain-dock/knowledge';
 import { ContextEngine, SearchService, UnifiedSearchService } from '@brain-dock/search';
 import { QdrantStore } from '@brain-dock/storage';
@@ -19,6 +20,7 @@ export interface RemoteServices {
   knowledge: KnowledgeService;
   documents: DocumentService;
   symbols: SymbolIndexService;
+  usage: UsageService;
   collection: string;
 }
 
@@ -61,6 +63,7 @@ export function buildRemoteServices(config: RemoteConfig): RemoteServices {
     knowledge,
     documents,
     symbols: new SymbolIndexService(prisma),
+    usage: new UsageService(prisma),
     collection: config.collection,
   };
 }

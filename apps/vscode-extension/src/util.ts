@@ -21,6 +21,14 @@ export interface IndexStatus {
   roles: Record<string, number>;
 }
 
+export interface UsageSummary {
+  days: number;
+  calls: number;
+  tokensServed: number;
+  estTokensSaved: number;
+  avgSavingPct: number;
+}
+
 /** Strip trailing slashes from a base URL so path joins stay clean. */
 export function normalizeBase(url: string): string {
   return url.trim().replace(/\/+$/, '');

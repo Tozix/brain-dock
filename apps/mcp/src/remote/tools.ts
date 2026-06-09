@@ -4,10 +4,6 @@ import { z } from 'zod';
 import { listUserProjects, type RemotePrincipal } from './auth';
 import type { RemoteServices } from './services';
 
-function text(body: string) {
-  return { content: [{ type: 'text' as const, text: body }] };
-}
-
 const NEED_PROJECT =
   'No project selected. Set the `X-Project` header (project id or slug) — call `list_projects` to see yours.';
 
@@ -28,6 +24,12 @@ export function registerRemoteTools(
 ): void {
   const { collection } = services;
   const project = ctx.projectId;
+
+  // Every tool returns through `text(...)` exactly once — so this is our per-call usage hook.
+  const text = (body: string) => {
+    void services.usage?.record(ctx.principal.userId, Math.ceil(body.length / 4)).catch(() => {});
+    return { content: [{ type: 'text' as const, text: body }] };
+  };
 
   server.registerTool(
     'list_projects',

@@ -42,6 +42,7 @@ export function activate(context: vscode.ExtensionContext): void {
     try {
       const projects = await client.listProjects();
       state.connected = true;
+      state.usage = await client.getUsage(30).catch(() => undefined);
       if (s.project) {
         const proj = findProject(projects, s.project);
         if (proj) state.repos = await client.listRepositories(proj.id);

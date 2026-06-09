@@ -1,7 +1,7 @@
 // Renders the sidebar webview HTML. VEXP-like layout using VS Code theme variables; buttons
 // post their command id back to the extension host.
 import type * as vscode from 'vscode';
-import type { IndexStatus, Repository } from '../util';
+import type { IndexStatus, Repository, UsageSummary } from '../util';
 
 export interface PanelState {
   configured: boolean;
@@ -10,6 +10,7 @@ export interface PanelState {
   project: string;
   status?: IndexStatus;
   repos?: Repository[];
+  usage?: UsageSummary;
   error?: string;
 }
 
@@ -24,6 +25,12 @@ function getNonce(): string {
   let nonce = '';
   for (let i = 0; i < 32; i++) nonce += chars.charAt(Math.floor(Math.random() * chars.length));
   return nonce;
+}
+
+function fmtCompact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
 }
 
 function escapeHtml(value: string): string {
@@ -87,6 +94,15 @@ function renderConnected(state: PanelState): string {
         <div class="metric"><div class="n">${s.repos.length}</div><div class="muted">repos</div></div>
       </div>
       ${roleRows ? `<div class="roles">${roleRows}</div>` : ''}
+    </div>
+
+    <div class="section">
+      <div class="label">TOKEN SAVINGS · ${state.usage?.days ?? 30}d</div>
+      <div class="metrics">
+        <div class="metric"><div class="n">${fmtCompact(state.usage?.estTokensSaved ?? 0)}</div><div class="muted">est. saved</div></div>
+        <div class="metric"><div class="n">${state.usage?.avgSavingPct ?? 0}%</div><div class="muted">avg saving</div></div>
+        <div class="metric"><div class="n">${state.usage?.calls ?? 0}</div><div class="muted">calls</div></div>
+      </div>
     </div>
 
     <div class="section">
