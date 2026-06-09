@@ -304,4 +304,8 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   символ в одном репо с его определением в другом (по имени; `GraphNode.repo` помечает источник).
   `McpContext.getMergedGraph()` + `allRepos` у `find_dependencies`/`find_dependents`/`impact`/
   `export_graph` — трассировка зависимостей через границы репо. План [023](docs/plans/023-cross-repo-graph.md).
-- 🔄 Дальше: горячее переподнятие watcher'ов; публикация образов, OpenTelemetry-трейсинг.
+- ✅ **Горячее переподнятие watcher'ов:** `reconcileWatchTargets` (чистая реконсиляция набора по
+  `repositoryId`) + опц. поллинг БД в `watch-all` (`WATCH_POLL_MS`, 0 = снимок) — добавленные/
+  удалённые/изменённые репо подхватываются без перезапуска. План [024](docs/plans/024-watch-resubscribe.md).
+- 🔄 Дальше: публикация Docker-образов, OpenTelemetry-трейсинг (требуют решений по
+  registry/секретам и инфраструктуре — согласовать с владельцем).

@@ -9,8 +9,12 @@ import {
   type EmbeddingProvider,
   OllamaEmbeddingProvider,
 } from '@brain-dock/embedding';
-import { startWatchReindexer } from './watch-reindex';
-import { repositoriesToWatchTargets } from './watch-targets';
+import { startWatchReindexer, type WatchHandle } from './watch-reindex';
+import {
+  reconcileWatchTargets,
+  repositoriesToWatchTargets,
+  type WatchTarget,
+} from './watch-targets';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -31,16 +35,11 @@ const qdrantUrl = process.env.QDRANT_URL ?? 'http://localhost:16333';
 const projectId = process.env.PROJECT_ID;
 
 const prisma = createPrismaClient(databaseUrl);
-const repos = await prisma.repository.findMany(projectId ? { where: { projectId } } : undefined);
-const targets = repositoriesToWatchTargets(repos);
+// Active watchers keyed by repositoryId, so the desired set can be reconciled against them.
+const active = new Map<string, { target: WatchTarget; handle: WatchHandle }>();
 
-if (targets.length === 0) {
-  console.error(`[watch-all] no repositories found${projectId ? ` for project ${projectId}` : ''}`);
-  process.exit(0);
-}
-
-const handles = targets.map((target) =>
-  startWatchReindexer({
+function startTarget(target: WatchTarget): void {
+  const handle = startWatchReindexer({
     ...target,
     embedder,
     qdrantUrl,
@@ -48,15 +47,56 @@ const handles = targets.map((target) =>
       console.error(
         `[watch-all:${target.repo}] reindex: files=${r.files} changed=${r.changedFiles} removed=${r.removedFiles} chunks=${r.chunks}`,
       ),
-  }),
+  });
+  active.set(target.repositoryId, { target, handle });
+}
+
+function apply(desired: WatchTarget[]): void {
+  const diff = reconcileWatchTargets(
+    desired,
+    new Map([...active].map(([id, v]) => [id, v.target])),
+  );
+  for (const id of [...diff.toStop, ...diff.toRestart.map((t) => t.repositoryId)]) {
+    active.get(id)?.handle.stop();
+    active.delete(id);
+  }
+  for (const target of [...diff.toRestart, ...diff.toStart]) startTarget(target);
+  if (diff.toStart.length + diff.toStop.length + diff.toRestart.length > 0) {
+    console.error(
+      `[watch-all] +${diff.toStart.length} -${diff.toStop.length} ~${diff.toRestart.length} → watching ${active.size} repo(s): ${[...active.values()].map((v) => v.target.repo).join(', ')}`,
+    );
+  }
+}
+
+async function loadTargets(): Promise<WatchTarget[]> {
+  const repos = await prisma.repository.findMany(projectId ? { where: { projectId } } : undefined);
+  return repositoriesToWatchTargets(repos);
+}
+
+const initial = await loadTargets();
+if (initial.length === 0) {
+  console.error(`[watch-all] no repositories found${projectId ? ` for project ${projectId}` : ''}`);
+}
+apply(initial);
+console.error(
+  `[brain-dock:watch-all] watching ${active.size} repo(s): ${[...active.values()].map((v) => v.target.repo).join(', ')}`,
 );
 
-console.error(
-  `[brain-dock:watch-all] watching ${targets.length} repo(s): ${targets.map((t) => t.repo).join(', ')}`,
-);
+// Optional hot re-subscribe: poll the DB and reconcile the watcher set. 0 = startup snapshot only.
+const pollMs = Number(process.env.WATCH_POLL_MS ?? 0);
+const poll =
+  pollMs > 0
+    ? setInterval(() => {
+        void loadTargets()
+          .then(apply)
+          .catch((e) => console.error(`[watch-all] poll failed: ${(e as Error).message}`));
+      }, pollMs)
+    : null;
+if (poll) console.error(`[watch-all] hot re-subscribe every ${pollMs}ms`);
 
 const shutdown = () => {
-  for (const handle of handles) handle.stop();
+  if (poll) clearInterval(poll);
+  for (const { handle } of active.values()) handle.stop();
   void prisma.$disconnect();
   process.exit(0);
 };

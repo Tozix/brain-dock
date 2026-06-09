@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import { repositoriesToWatchTargets } from './watch-targets';
+import {
+  reconcileWatchTargets,
+  repositoriesToWatchTargets,
+  type WatchTarget,
+} from './watch-targets';
 
 describe('repositoriesToWatchTargets', () => {
   it('maps repository rows to watch targets carrying alias + id', () => {
@@ -25,7 +29,39 @@ describe('repositoriesToWatchTargets', () => {
       },
     ]);
   });
+});
 
+describe('reconcileWatchTargets', () => {
+  const t = (id: string, root: string): WatchTarget => ({
+    rootDir: root,
+    projectId: 'p1',
+    collection: 'code',
+    repo: id,
+    repositoryId: id,
+  });
+
+  it('starts new, stops gone, and restarts changed repos', () => {
+    const active = new Map<string, WatchTarget>([
+      ['keep', t('keep', './keep')],
+      ['gone', t('gone', './gone')],
+      ['moved', t('moved', './old')],
+    ]);
+    const desired = [t('keep', './keep'), t('moved', './new'), t('fresh', './fresh')];
+
+    const diff = reconcileWatchTargets(desired, active);
+    expect(diff.toStart.map((x) => x.repositoryId)).toEqual(['fresh']);
+    expect(diff.toStop).toEqual(['gone']);
+    expect(diff.toRestart.map((x) => x.repositoryId)).toEqual(['moved']);
+  });
+
+  it('is a no-op when nothing changed', () => {
+    const active = new Map<string, WatchTarget>([['a', t('a', './a')]]);
+    const diff = reconcileWatchTargets([t('a', './a')], active);
+    expect(diff).toEqual({ toStart: [], toStop: [], toRestart: [] });
+  });
+});
+
+describe('repositoriesToWatchTargets — collection', () => {
   it('honours a custom collection and an empty list', () => {
     expect(repositoriesToWatchTargets([], 'code_v2')).toEqual([]);
     const [t] = repositoriesToWatchTargets(

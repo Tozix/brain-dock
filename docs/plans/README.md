@@ -42,3 +42,4 @@
 | [021](021-repositories-openapi.md) | Repositories в OpenAPI | Backlog | Done |
 | [022](022-crud-openapi.md) | PATCH/DELETE memory/knowledge/documents в OpenAPI | Backlog | Done |
 | [023](023-cross-repo-graph.md) | Кросс-репо граф зависимостей | Backlog | Done |
+| [024](024-watch-resubscribe.md) | Горячее переподнятие watcher'ов | Backlog | Done |
