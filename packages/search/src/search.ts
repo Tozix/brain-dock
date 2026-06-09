@@ -1,11 +1,13 @@
 import type { EmbeddingProvider } from '@brain-dock/embedding';
-import type { QdrantStore } from '@brain-dock/storage';
+import type { QdrantFilter, QdrantStore } from '@brain-dock/storage';
 import type { ChunkPayload, SearchResult } from './types';
 
 export interface QueryOptions {
   projectId: string;
   collection: string;
   limit?: number;
+  /** Restrict to a subset of repository aliases. Omit/empty = all repos in the project. */
+  repos?: string[];
 }
 
 const VECTOR_WEIGHT = 0.7;
@@ -42,9 +44,16 @@ export class SearchService {
     const queryVector = vectors[0];
     if (!queryVector) throw new Error('Failed to embed query');
 
+    const filter: QdrantFilter = {
+      must: [{ key: 'projectId', match: { value: options.projectId } }],
+    };
+    if (options.repos && options.repos.length > 0) {
+      filter.must?.push({ key: 'repo', match: { any: options.repos } });
+    }
+
     const hits = await this.store.search(options.collection, queryVector, {
       limit: limit * 3,
-      filter: { must: [{ key: 'projectId', match: { value: options.projectId } }] },
+      filter,
     });
 
     const queryTokens = tokenize(query);

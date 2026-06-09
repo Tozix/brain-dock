@@ -3,6 +3,8 @@ export interface ChunkPayload {
   /** Index signature lets the payload satisfy Qdrant's Record<string, unknown> shape. */
   [key: string]: unknown;
   projectId: string;
+  /** Repository alias within the project — enables multi-repo isolation/filtering. */
+  repo: string;
   path: string;
   symbol: string;
   kind: string;
@@ -20,3 +22,6 @@ export interface SearchResult extends ChunkPayload {
 }
 
 export const CODE_COLLECTION = 'code';
+
+/** Repository alias used when a project has a single (unnamed) repository. */
+export const DEFAULT_REPO = 'default';

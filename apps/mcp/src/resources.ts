@@ -3,18 +3,27 @@ import { z } from 'zod';
 import type { McpContext } from './context';
 
 function architectureText(ctx: McpContext): string {
-  const index = ctx.getIndex();
   const modules: string[] = [];
   const controllers: string[] = [];
-  for (const file of index.files) {
-    for (const symbol of file.symbols) {
-      if (symbol.nestRole === 'module') modules.push(symbol.name);
-      if (symbol.nestRole === 'controller') controllers.push(symbol.name);
+  let files = 0;
+  let symbols = 0;
+  let relations = 0;
+  const tag = (repo: string, name: string) => (ctx.multiRepo ? `[${repo}] ${name}` : name);
+
+  for (const { repo, index } of ctx.indexes()) {
+    files += index.stats.files;
+    symbols += index.stats.symbols;
+    relations += index.stats.relations;
+    for (const file of index.files) {
+      for (const symbol of file.symbols) {
+        if (symbol.nestRole === 'module') modules.push(tag(repo, symbol.name));
+        if (symbol.nestRole === 'controller') controllers.push(tag(repo, symbol.name));
+      }
     }
   }
   return [
-    `Project root: ${ctx.config.projectRoot}`,
-    `Files: ${index.stats.files}, symbols: ${index.stats.symbols}, relations: ${index.stats.relations}`,
+    `Repositories (${ctx.repos.length}): ${ctx.repoAliases().join(', ')}`,
+    `Files: ${files}, symbols: ${symbols}, relations: ${relations}`,
     `Modules (${modules.length}): ${modules.join(', ')}`,
     `Controllers (${controllers.length}): ${controllers.join(', ')}`,
   ].join('\n');

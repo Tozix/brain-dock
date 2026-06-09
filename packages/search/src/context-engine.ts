@@ -26,6 +26,8 @@ export interface ContextResult {
 export interface BuildContextOptions {
   projectId: string;
   collection: string;
+  /** Restrict to a subset of repository aliases. Omit/empty = all repos in the project. */
+  repos?: string[];
   /** Max symbols to include. */
   limit?: number;
   /** Total character budget for the assembled context. */
@@ -74,6 +76,7 @@ export class ContextEngine {
     const candidates = await this.search.search(query, {
       projectId: options.projectId,
       collection: options.collection,
+      repos: options.repos,
       limit: limit * 3,
     });
 

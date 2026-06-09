@@ -33,3 +33,5 @@
 | [012](012-incremental-watch.md) | Incremental watch-reindex | Backlog | Done |
 | [013](013-metrics.md) | Observability: Prometheus metrics | Backlog | Done |
 | [014](014-redis-rate-limit.md) | Redis-backed rate limit | Backlog | Done |
+| [015](015-multi-repo.md) | Multi-Repo индексация (движок + MCP) | Backlog | Done |
+| [016](016-multi-repo-rest.md) | Multi-Repo: Prisma, REST CRUD, очереди | Backlog | Draft |

@@ -58,6 +58,29 @@ describe('SearchService — hybrid ranking', () => {
     expect(capturedFilter).toEqual({ must: [{ key: 'projectId', match: { value: 'p1' } }] });
   });
 
+  it('adds a repo "any" filter when repos are provided', async () => {
+    let capturedFilter: QdrantFilter | undefined;
+    const store = {
+      async search(
+        _name: string,
+        _vector: number[],
+        options?: { limit?: number; filter?: QdrantFilter },
+      ): Promise<SearchHit[]> {
+        capturedFilter = options?.filter;
+        return [];
+      },
+    };
+    const service = new SearchService(new DeterministicEmbeddingProvider(64), store);
+    await service.search('q', { projectId: 'p1', collection: 'code', repos: ['api', 'web'] });
+
+    expect(capturedFilter).toEqual({
+      must: [
+        { key: 'projectId', match: { value: 'p1' } },
+        { key: 'repo', match: { any: ['api', 'web'] } },
+      ],
+    });
+  });
+
   it('respects the result limit', async () => {
     const store = {
       async search(): Promise<SearchHit[]> {

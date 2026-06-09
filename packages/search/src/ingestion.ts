@@ -1,11 +1,13 @@
 import type { EmbeddingProvider } from '@brain-dock/embedding';
 import { type FileIndex, type RepositoryIndex, RepositoryIndexer } from '@brain-dock/indexer';
 import { QdrantStore, uuidFromHash, type VectorPoint } from '@brain-dock/storage';
-import type { ChunkPayload } from './types';
+import { type ChunkPayload, DEFAULT_REPO } from './types';
 
 export interface IngestOptions {
   projectId: string;
   collection: string;
+  /** Repository alias within the project (defaults to `DEFAULT_REPO`). */
+  repo?: string;
 }
 
 export interface IngestReport {
@@ -35,10 +37,11 @@ export class IngestionService {
   }
 
   async ingestIndex(index: RepositoryIndex, options: IngestOptions): Promise<IngestReport> {
+    const repo = options.repo ?? DEFAULT_REPO;
     await this.store.ensureCollection(options.collection, this.embedder.dimensions);
     let chunks = 0;
     for (const file of index.files) {
-      const points = await this.embedFile(file, options.projectId);
+      const points = await this.embedFile(file, options.projectId, repo);
       if (points.length > 0) {
         await this.store.upsert(options.collection, points);
         chunks += points.length;
@@ -52,6 +55,7 @@ export class IngestionService {
     rootDir: string,
     options: IngestOptions & { previous?: RepositoryIndex },
   ): Promise<IncrementalReport> {
+    const repo = options.repo ?? DEFAULT_REPO;
     const index = this.indexer.index(rootDir, { previous: options.previous, include: INCLUDE });
     await this.store.ensureCollection(options.collection, this.embedder.dimensions);
 
@@ -64,8 +68,8 @@ export class IngestionService {
       const previous = previousByPath.get(file.path);
       if (previous && previous.hash === file.hash) continue; // unchanged — reuse vectors
       changedFiles++;
-      await this.deletePath(options.collection, file.path);
-      const points = await this.embedFile(file, options.projectId);
+      await this.deletePath(options.collection, options.projectId, repo, file.path);
+      const points = await this.embedFile(file, options.projectId, repo);
       if (points.length > 0) {
         await this.store.upsert(options.collection, points);
         chunks += points.length;
@@ -76,14 +80,18 @@ export class IngestionService {
     for (const path of previousByPath.keys()) {
       if (!currentPaths.has(path)) {
         removedFiles++;
-        await this.deletePath(options.collection, path);
+        await this.deletePath(options.collection, options.projectId, repo, path);
       }
     }
 
     return { files: index.files.length, changedFiles, removedFiles, chunks, index };
   }
 
-  private async embedFile(file: FileIndex, projectId: string): Promise<VectorPoint[]> {
+  private async embedFile(
+    file: FileIndex,
+    projectId: string,
+    repo: string,
+  ): Promise<VectorPoint[]> {
     if (file.chunks.length === 0) return [];
     const roleByKey = new Map(file.symbols.map((s) => [`${s.name}:${s.startLine}`, s.nestRole]));
     const vectors = await this.embedder.embed(file.chunks.map((c) => c.text));
@@ -95,6 +103,7 @@ export class IngestionService {
       if (!chunk || !vector) continue;
       const payload: ChunkPayload = {
         projectId,
+        repo,
         path: file.path,
         symbol: chunk.symbol,
         kind: chunk.kind,
@@ -109,10 +118,19 @@ export class IngestionService {
     return points;
   }
 
-  private async deletePath(collection: string, path: string): Promise<void> {
+  private async deletePath(
+    collection: string,
+    projectId: string,
+    repo: string,
+    path: string,
+  ): Promise<void> {
     try {
       await this.store.deleteByFilter(collection, {
-        must: [{ key: 'path', match: { value: path } }],
+        must: [
+          { key: 'projectId', match: { value: projectId } },
+          { key: 'repo', match: { value: repo } },
+          { key: 'path', match: { value: path } },
+        ],
       });
     } catch {
       // collection may be empty / missing — nothing to delete

@@ -84,3 +84,56 @@ describe('brain-dock MCP server — structural tools (no Qdrant)', () => {
     expect(content?.text).toContain('Modules');
   });
 });
+
+describe('brain-dock MCP server — multi-repo', () => {
+  let client: Client;
+
+  beforeAll(async () => {
+    const server = createMcpServer({
+      projectRoot: 'apps/api/src',
+      projectId: 'test',
+      collection: 'code_test',
+      repos: [
+        { alias: 'api', root: 'apps/api/src' },
+        { alias: 'idx', root: 'packages/indexer/src' },
+      ],
+      qdrantUrl: 'http://localhost:1',
+      ollamaUrl: 'http://localhost:1',
+      embeddingModel: 'x',
+      embedder: 'deterministic',
+      databaseUrl: '',
+    });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    client = new Client({ name: 'test', version: '0.0.0' });
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+  });
+
+  afterAll(async () => {
+    await client.close();
+  });
+
+  it('list_repos lists both configured repositories', async () => {
+    const body = textOf(await client.callTool({ name: 'list_repos', arguments: {} }));
+    expect(body).toContain('api');
+    expect(body).toContain('idx');
+  });
+
+  it('find_symbol prefixes paths with the repo alias across repos', async () => {
+    const auth = textOf(
+      await client.callTool({ name: 'find_symbol', arguments: { name: 'AuthService' } }),
+    );
+    expect(auth).toContain('api/');
+
+    const indexer = textOf(
+      await client.callTool({ name: 'find_symbol', arguments: { name: 'RepositoryIndexer' } }),
+    );
+    expect(indexer).toContain('idx/');
+  });
+
+  it('summarize_project reports per-repo counts', async () => {
+    const body = textOf(await client.callTool({ name: 'summarize_project', arguments: {} }));
+    expect(body).toContain('Repositories (2)');
+    expect(body).toContain('api:');
+    expect(body).toContain('idx:');
+  });
+});

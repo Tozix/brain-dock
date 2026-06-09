@@ -8,14 +8,21 @@ function text(body: string) {
   return { content: [{ type: 'text' as const, text: body }] };
 }
 
-function findByRole(index: RepositoryIndex, role: string, name?: string): string[] {
+function findByRole(
+  entries: Array<{ repo: string; index: RepositoryIndex }>,
+  role: string,
+  displayPath: (repo: string, path: string) => string,
+  name?: string,
+): string[] {
   const needle = name?.toLowerCase();
   const out: string[] = [];
-  for (const file of index.files) {
-    for (const symbol of file.symbols) {
-      if (symbol.nestRole !== role) continue;
-      if (needle && !symbol.name.toLowerCase().includes(needle)) continue;
-      out.push(`${file.path}:${symbol.startLine}  ${symbol.name}`);
+  for (const { repo, index } of entries) {
+    for (const file of index.files) {
+      for (const symbol of file.symbols) {
+        if (symbol.nestRole !== role) continue;
+        if (needle && !symbol.name.toLowerCase().includes(needle)) continue;
+        out.push(`${displayPath(repo, file.path)}:${symbol.startLine}  ${symbol.name}`);
+      }
     }
   }
   return out;
@@ -28,6 +35,29 @@ function listOrEmpty(lines: string[], emptyMessage: string): string {
 export function registerTools(server: McpServer, ctx: McpContext): void {
   const { projectId, collection } = ctx.config;
 
+  /** Prefix a repo-relative path with its alias only when the project spans multiple repos. */
+  const displayPath = (repo: string, path: string) => (ctx.multiRepo ? `${repo}/${path}` : path);
+
+  // --- Repository inventory ---
+
+  server.registerTool(
+    'list_repos',
+    {
+      title: 'List repositories',
+      description: 'List the repositories configured for this project, with file/symbol counts.',
+    },
+    async () =>
+      text(
+        ctx
+          .indexes()
+          .map(
+            ({ repo, index }) =>
+              `${repo}  (${index.stats.files} files, ${index.stats.symbols} symbols)`,
+          )
+          .join('\n'),
+      ),
+  );
+
   // --- Vector / context tools (require an ingested Qdrant collection) ---
 
   server.registerTool(
@@ -35,15 +65,32 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     {
       title: 'Reindex project',
       description:
-        'Index the project and upsert embeddings into the vector store. Run before search tools.',
+        'Index the project and upsert embeddings into the vector store. Run before search tools. ' +
+        'Pass `repo` to reindex a single repository; omit to reindex all.',
+      inputSchema: { repo: z.string().optional().describe('Repository alias (default: all)') },
     },
-    async () => {
-      const report = await ctx.ingestion.ingestRepository(ctx.config.projectRoot, {
-        projectId,
-        collection,
-      });
+    async ({ repo }) => {
+      const targets = repo ? ctx.repos.filter((r) => r.alias === repo) : ctx.repos;
+      if (targets.length === 0) {
+        return text(`Unknown repo "${repo}". Known: ${ctx.repoAliases().join(', ')}`);
+      }
+      let files = 0;
+      let chunks = 0;
+      const lines: string[] = [];
+      for (const target of targets) {
+        const report = await ctx.ingestion.ingestRepository(target.root, {
+          projectId,
+          collection,
+          repo: target.alias,
+        });
+        files += report.files;
+        chunks += report.chunks;
+        lines.push(`  ${target.alias}: ${report.files} files, ${report.chunks} chunks`);
+      }
       ctx.refreshIndex();
-      return text(`Reindexed ${report.files} files, ${report.chunks} chunks into "${collection}".`);
+      return text(
+        `Reindexed ${files} files, ${chunks} chunks into "${collection}".\n${lines.join('\n')}`,
+      );
     },
   );
 
@@ -55,13 +102,15 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
       inputSchema: {
         query: z.string().describe('Natural-language or keyword query'),
         limit: z.number().int().positive().max(50).optional(),
+        repos: z.array(z.string()).optional().describe('Restrict to these repository aliases'),
       },
     },
-    async ({ query, limit }) => {
+    async ({ query, limit, repos }) => {
       try {
         const results = await ctx.search.search(query, {
           projectId,
           collection,
+          repos,
           limit: limit ?? 10,
         });
         if (results.length === 0) return text('No results. Run the "reindex" tool first.');
@@ -85,16 +134,24 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
         query: z.string(),
         limit: z.number().int().positive().max(20).optional(),
         maxChars: z.number().int().positive().max(20000).optional(),
+        repos: z.array(z.string()).optional().describe('Restrict to these repository aliases'),
       },
     },
-    async ({ query, limit, maxChars }) => {
+    async ({ query, limit, maxChars, repos }) => {
       try {
+        // Dependency neighbours, merged across the in-scope repo graphs.
+        const scoped = repos?.length
+          ? ctx.graphs().filter((g) => repos.includes(g.repo))
+          : ctx.graphs();
+        const neighbors = (symbol: string) =>
+          scoped.flatMap(({ graph }) => (graph.has(symbol) ? graph.dependencies(symbol) : []));
         const result = await ctx.context.buildContext(query, {
           projectId,
           collection,
+          repos,
           limit: limit ?? 8,
           maxChars: maxChars ?? 6000,
-          neighbors: (symbol) => ctx.getGraph().dependencies(symbol),
+          neighbors,
         });
         return text(result.text);
       } catch (error) {
@@ -117,11 +174,15 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     async ({ name }) => {
       const needle = name.toLowerCase();
       const lines: string[] = [];
-      for (const file of ctx.getIndex().files) {
-        for (const symbol of file.symbols) {
-          if (!symbol.name.toLowerCase().includes(needle)) continue;
-          const role = symbol.nestRole !== 'none' ? `${symbol.nestRole} ` : '';
-          lines.push(`${file.path}:${symbol.startLine}  ${role}${symbol.kind} ${symbol.name}`);
+      for (const { repo, index } of ctx.indexes()) {
+        for (const file of index.files) {
+          for (const symbol of file.symbols) {
+            if (!symbol.name.toLowerCase().includes(needle)) continue;
+            const role = symbol.nestRole !== 'none' ? `${symbol.nestRole} ` : '';
+            lines.push(
+              `${displayPath(repo, file.path)}:${symbol.startLine}  ${role}${symbol.kind} ${symbol.name}`,
+            );
+          }
         }
       }
       return text(listOrEmpty(lines, `No symbol matching "${name}".`));
@@ -137,7 +198,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
         inputSchema: { name: z.string().optional() },
       },
       async ({ name }) =>
-        text(listOrEmpty(findByRole(ctx.getIndex(), role, name), `No ${role} found.`)),
+        text(listOrEmpty(findByRole(ctx.indexes(), role, displayPath, name), `No ${role} found.`)),
     );
   };
   roleTool('find_controller', 'controller', 'Controllers');
@@ -151,24 +212,37 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
       description: 'High-level stats: file/symbol counts and role breakdown.',
     },
     async () => {
-      const index = ctx.getIndex();
+      const entries = ctx.indexes();
       const roles = new Map<string, number>();
-      for (const file of index.files) {
-        for (const symbol of file.symbols) {
-          if (symbol.nestRole !== 'none')
-            roles.set(symbol.nestRole, (roles.get(symbol.nestRole) ?? 0) + 1);
+      let files = 0;
+      let symbols = 0;
+      let relations = 0;
+      for (const { index } of entries) {
+        files += index.stats.files;
+        symbols += index.stats.symbols;
+        relations += index.stats.relations;
+        for (const file of index.files) {
+          for (const symbol of file.symbols) {
+            if (symbol.nestRole !== 'none')
+              roles.set(symbol.nestRole, (roles.get(symbol.nestRole) ?? 0) + 1);
+          }
         }
       }
       const roleLines = [...roles]
         .sort((a, b) => b[1] - a[1])
         .map(([role, count]) => `  ${role}: ${count}`);
+      const repoLines = entries.map(
+        ({ repo, index }) =>
+          `  ${repo}: ${index.stats.files} files, ${index.stats.symbols} symbols`,
+      );
       return text(
         [
           `Project: ${projectId}`,
-          `Root: ${ctx.config.projectRoot}`,
-          `Files: ${index.stats.files}`,
-          `Symbols: ${index.stats.symbols}`,
-          `Relations: ${index.stats.relations}`,
+          `Repositories (${entries.length}):`,
+          ...repoLines,
+          `Files: ${files}`,
+          `Symbols: ${symbols}`,
+          `Relations: ${relations}`,
           'Roles:',
           ...roleLines,
         ].join('\n'),
@@ -183,23 +257,25 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
       description: 'Modules, controllers with routes, and dependency-injection edges.',
     },
     async () => {
-      const index = ctx.getIndex();
       const modules: string[] = [];
       const controllers: string[] = [];
       const edges: string[] = [];
+      const tag = (repo: string, name: string) => (ctx.multiRepo ? `[${repo}] ${name}` : name);
 
-      for (const file of index.files) {
-        for (const symbol of file.symbols) {
-          if (symbol.nestRole === 'module') modules.push(symbol.name);
-          if (symbol.nestRole === 'controller') {
-            const routes = symbol.routes
-              .map((r) => `${r.method.toUpperCase()} ${r.path || '/'} → ${r.handler}`)
-              .join(', ');
-            controllers.push(`${symbol.name}${routes ? ` [${routes}]` : ''}`);
+      for (const { repo, index } of ctx.indexes()) {
+        for (const file of index.files) {
+          for (const symbol of file.symbols) {
+            if (symbol.nestRole === 'module') modules.push(tag(repo, symbol.name));
+            if (symbol.nestRole === 'controller') {
+              const routes = symbol.routes
+                .map((r) => `${r.method.toUpperCase()} ${r.path || '/'} → ${r.handler}`)
+                .join(', ');
+              controllers.push(`${tag(repo, symbol.name)}${routes ? ` [${routes}]` : ''}`);
+            }
           }
-        }
-        for (const rel of file.relations) {
-          if (rel.kind === 'injects') edges.push(`${rel.from} → ${rel.to}`);
+          for (const rel of file.relations) {
+            if (rel.kind === 'injects') edges.push(`${rel.from} → ${rel.to}`);
+          }
         }
       }
 
@@ -373,12 +449,17 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     {
       title: 'Search everywhere',
       description: 'One query across code + memory + knowledge + documents, ranked together.',
-      inputSchema: { query: z.string(), limit: z.number().int().positive().max(50).optional() },
+      inputSchema: {
+        query: z.string(),
+        limit: z.number().int().positive().max(50).optional(),
+        repos: z.array(z.string()).optional().describe('Restrict the code source to these repos'),
+      },
     },
-    async ({ query, limit }) => {
+    async ({ query, limit, repos }) => {
       const results = await ctx.unified.search(query, {
         projectId,
         codeCollection: collection,
+        repos,
         limit: limit ?? 10,
       });
       if (results.length === 0) return text('No results across any source.');
@@ -490,21 +571,32 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
   ) => {
     server.registerTool(
       tool,
-      { title: label, description, inputSchema: { name: z.string() } },
-      async ({ name }) => {
-        const graph = ctx.getGraph();
-        if (!graph.has(name)) return text(`Symbol not found: ${name}`);
+      {
+        title: label,
+        description,
+        inputSchema: {
+          name: z.string(),
+          repo: z.string().optional().describe('Repository alias (default: search all repos)'),
+        },
+      },
+      async ({ name, repo }) => {
+        // Resolve to the repo graph that contains the symbol (explicit repo wins).
+        const candidates = repo ? ctx.graphs().filter((g) => g.repo === repo) : ctx.graphs();
+        const match = candidates.find(({ graph }) => graph.has(name));
+        if (!match) return text(`Symbol not found: ${name}`);
+        const { repo: foundRepo, graph } = match;
         const names = query(graph, name);
-        if (names.length === 0) return text('(none)');
+        const prefix = ctx.multiRepo ? `[${foundRepo}] ` : '';
+        if (names.length === 0) return text(`${prefix}(none)`);
         return text(
           names
             .map((n) => {
               const node = graph.node(n);
               if (node?.internal) {
                 const role = node.role && node.role !== 'none' ? `${node.role} ` : '';
-                return `${role}${n}  (${node.file})`;
+                return `${prefix}${role}${n}  (${node.file})`;
               }
-              return `${n}  (external)`;
+              return `${prefix}${n}  (external)`;
             })
             .join('\n'),
         );

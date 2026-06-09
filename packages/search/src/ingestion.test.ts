@@ -15,8 +15,10 @@ class FakeStore {
     this.upsertedPaths.push(points.map((p) => String((p.payload as { path: string }).path)));
   }
   async deleteByFilter(_name: string, filter: QdrantFilter): Promise<void> {
-    const value = filter.must?.[0]?.match.value;
-    if (typeof value === 'string') this.deletedPaths.push(value);
+    const cond = filter.must?.find((m) => m.key === 'path')?.match;
+    if (cond && 'value' in cond && typeof cond.value === 'string') {
+      this.deletedPaths.push(cond.value);
+    }
   }
 }
 

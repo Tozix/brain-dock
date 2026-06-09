@@ -14,6 +14,8 @@ export interface UnifiedResult {
 export interface UnifiedQuery {
   projectId: string;
   codeCollection?: string;
+  /** Restrict the code source to a subset of repository aliases. Omit/empty = all repos. */
+  repos?: string[];
   limit?: number;
 }
 
@@ -60,7 +62,12 @@ export class UnifiedSearchService {
 
     const [code, memory, knowledge, documents] = await Promise.all([
       this.sources.code
-        .search(query, { projectId, collection: options.codeCollection ?? 'code', limit })
+        .search(query, {
+          projectId,
+          collection: options.codeCollection ?? 'code',
+          repos: options.repos,
+          limit,
+        })
         .catch(() => []),
       this.sources.memory.search(projectId, query, limit).catch(() => []),
       this.sources.knowledge.search(projectId, query, limit).catch(() => []),

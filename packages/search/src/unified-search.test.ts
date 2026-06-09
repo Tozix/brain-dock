@@ -5,6 +5,7 @@ import { UnifiedSearchService, type UnifiedSources } from './unified-search';
 function codeResult(): SearchResult {
   return {
     projectId: 'p',
+    repo: 'default',
     path: 'auth/auth.service.ts',
     symbol: 'AuthService',
     kind: 'class',

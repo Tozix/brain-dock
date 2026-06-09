@@ -1,5 +1,6 @@
 export {
   type QdrantFilter,
+  type QdrantMatch,
   QdrantStore,
   type SearchHit,
   type VectorDistance,

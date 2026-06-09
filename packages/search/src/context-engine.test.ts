@@ -6,6 +6,7 @@ import type { SearchResult } from './types';
 function result(symbol: string, role: string, score: number, text = 'line1\nline2'): SearchResult {
   return {
     projectId: 'p1',
+    repo: 'default',
     path: `${symbol}.ts`,
     symbol,
     kind: 'class',

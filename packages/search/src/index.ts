@@ -12,7 +12,7 @@ export {
 } from './ingestion';
 export { detectIntent, type Intent, type IntentAnalysis } from './intent';
 export { type QueryOptions, SearchService } from './search';
-export { type ChunkPayload, CODE_COLLECTION, type SearchResult } from './types';
+export { type ChunkPayload, CODE_COLLECTION, DEFAULT_REPO, type SearchResult } from './types';
 export {
   type UnifiedQuery,
   type UnifiedResult,

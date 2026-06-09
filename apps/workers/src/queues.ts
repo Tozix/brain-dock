@@ -5,4 +5,6 @@ export interface IndexJob {
   projectId: string;
   rootDir: string;
   collection: string;
+  /** Repository alias within the project (defaults to the ingestion default). */
+  repo?: string;
 }

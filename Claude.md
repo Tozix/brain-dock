@@ -270,5 +270,11 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Метрики (Prometheus):** `GET /metrics` через `MetricsService` + глобальный interceptor.
 - ✅ **Redis-backed rate limit:** `RATE_LIMIT_BACKEND=redis` (Bun Redis `INCR`+`EXPIRE`) — общий лимит
   между инстансами; `memory` — per-process. Проверено вживую.
-- 🔄 Дальше: публикация образов, OpenTelemetry-трейсинг, multi-repo,
-  нормализация score, update_document, экспорт графа.
+- ✅ **Multi-Repo (движок + MCP):** `repo`-alias в `ChunkPayload`, фильтр `repos[]`
+  (`SearchService`/`ContextEngine`/`UnifiedSearch`, `QdrantFilter.match.any`), пер-репо индексы и
+  графы в `McpContext` (env `REPOS` JSON, fallback на одиночный `PROJECT_ROOT`), MCP-tool
+  `list_repos` + `repos?`/`repo?`-параметры, структурные tools агрегируют по всем репо с префиксом
+  alias. Исправлена изоляция `IngestionService.deletePath` (projectId+repo+path). `bun run ci` зелёный.
+  План [015](docs/plans/015-multi-repo.md).
+- 🔄 Дальше: Prisma `Repository` + REST CRUD + индексация через очереди ([016](docs/plans/016-multi-repo-rest.md)),
+  публикация образов, OpenTelemetry-трейсинг, нормализация score, update_document, экспорт графа.

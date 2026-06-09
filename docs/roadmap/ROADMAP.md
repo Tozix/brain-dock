@@ -81,3 +81,13 @@
 - ⏭️ Далее: публикация образов, Swagger/OpenAPI, метрики/трейсинг, Redis-backed rate limit,
   документы (md/pdf/docx), multi-repo, e2e-CI с сервисами.
 - **План:** [007-production-readiness.md](../plans/007-production-readiness.md) (Done)
+
+## Multi-Repo (backlog) 🔄
+**Цель:** индексировать и искать сразу по нескольким репозиториям одного проекта.
+- ✅ Движок + MCP: `repo` (alias) в payload, фильтр `repos[]` (`SearchService`/`ContextEngine`/
+  `UnifiedSearch`), пер-репо индексы/графы в `McpContext`, tool `list_repos`, `repos?`/`repo?` в
+  tools, агрегация структурных tools с префиксом alias. Фикс изоляции `deletePath`
+  (projectId+repo+path). Конфиг репо через env `REPOS` (JSON).
+- ⏭️ Далее: Prisma `Repository` + REST CRUD + индексация через BullMQ + `repositoryId` (uuid),
+  мульти-репо watch.
+- **Планы:** [015-multi-repo.md](../plans/015-multi-repo.md) (Done) · [016-multi-repo-rest.md](../plans/016-multi-repo-rest.md) (Draft)

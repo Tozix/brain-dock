@@ -15,8 +15,11 @@ export interface SearchHit {
   payload: Record<string, unknown>;
 }
 
+/** A single match condition: an exact value, or "any of" a set (Qdrant `match.any`). */
+export type QdrantMatch = { value: string | number | boolean } | { any: Array<string | number> };
+
 export interface QdrantFilter {
-  must?: Array<{ key: string; match: { value: string | number | boolean } }>;
+  must?: Array<{ key: string; match: QdrantMatch }>;
 }
 
 /** Thin, typed wrapper over the Qdrant REST client used by the search/ingest layer. */
