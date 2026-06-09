@@ -60,3 +60,4 @@
 | [039](039-trace-propagation.md) | Context-propagation api→queue→worker | Observability | Done |
 | [040](040-mcp-rate-limit.md) | Rate limit для remote MCP (hardening) | Hosted | Done |
 | [041](041-e2e-verification-and-improvements.md) | Сквозная E2E-верификация hosted-стека + backlog улучшений | Verification | Done |
+| [042](042-vscode-extension.md) | VSCode-расширение (VEXP-подобная панель + Setup Agents для MCP) | Client | In progress |

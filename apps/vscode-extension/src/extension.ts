@@ -1,0 +1,148 @@
+import * as vscode from 'vscode';
+import { BrainDockClient } from './api/client';
+import { clearApiKey, getApiKey, readSettings, setProject, storeApiKey } from './config';
+import type { PanelState } from './panel/html';
+import { PanelProvider } from './panel/provider';
+import type { Project, Repository } from './util';
+
+const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
+export function activate(context: vscode.ExtensionContext): void {
+  const secrets = context.secrets;
+
+  const buildClient = async (): Promise<BrainDockClient | undefined> => {
+    const apiKey = await getApiKey(secrets);
+    return apiKey ? new BrainDockClient({ ...readSettings(), apiKey }) : undefined;
+  };
+
+  const findProject = (projects: Project[], key: string): Project | undefined =>
+    projects.find((p) => p.slug === key || p.id === key);
+
+  const loadState = async (): Promise<PanelState> => {
+    const s = readSettings();
+    const apiKey = await getApiKey(secrets);
+    const state: PanelState = {
+      configured: Boolean(apiKey),
+      connected: false,
+      serverUrl: s.serverUrl,
+      project: s.project,
+    };
+    if (!apiKey) return state;
+    const client = new BrainDockClient({ ...s, apiKey });
+    try {
+      const projects = await client.listProjects();
+      state.connected = true;
+      if (s.project) {
+        const proj = findProject(projects, s.project);
+        if (proj) state.repos = await client.listRepositories(proj.id);
+        state.status = await client.indexStatus();
+      }
+    } catch (err) {
+      state.error = errMsg(err);
+    }
+    return state;
+  };
+
+  const provider = new PanelProvider(context.extensionUri, loadState);
+  const refresh = () => provider.refresh();
+
+  const register = (id: string, fn: () => void | Promise<void>): void => {
+    context.subscriptions.push(vscode.commands.registerCommand(id, fn));
+  };
+
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(PanelProvider.viewId, provider),
+  );
+
+  register('brainDock.refresh', refresh);
+
+  register('brainDock.connect', async () => {
+    const key = await vscode.window.showInputBox({
+      title: 'brain-dock API key',
+      prompt: 'Paste your bd_… API key',
+      password: true,
+      ignoreFocusOut: true,
+    });
+    if (!key) return;
+    await storeApiKey(secrets, key.trim());
+    vscode.window.showInformationMessage('brain-dock: API key saved.');
+    await refresh();
+  });
+
+  register('brainDock.signOut', async () => {
+    await clearApiKey(secrets);
+    vscode.window.showInformationMessage('brain-dock: signed out.');
+    await refresh();
+  });
+
+  register('brainDock.openSettings', () => {
+    void vscode.commands.executeCommand('workbench.action.openSettings', 'brainDock');
+  });
+
+  register('brainDock.selectProject', async () => {
+    const client = await buildClient();
+    if (!client) {
+      vscode.window.showWarningMessage('brain-dock: set your API key first (Connect).');
+      return;
+    }
+    try {
+      const projects = await client.listProjects();
+      if (projects.length === 0) {
+        vscode.window.showInformationMessage(
+          'brain-dock: no projects yet — create one via the API.',
+        );
+        return;
+      }
+      const pick = await vscode.window.showQuickPick(
+        projects.map((p) => ({ label: p.slug, description: p.name, detail: p.id })),
+        { title: 'Select brain-dock project' },
+      );
+      if (!pick) return;
+      await setProject(pick.label);
+      await refresh();
+    } catch (err) {
+      vscode.window.showErrorMessage(`brain-dock: ${errMsg(err)}`);
+    }
+  });
+
+  register('brainDock.reindex', async () => {
+    const s = readSettings();
+    const client = await buildClient();
+    if (!client || !s.project) {
+      vscode.window.showWarningMessage('brain-dock: connect and select a project first.');
+      return;
+    }
+    try {
+      const proj = findProject(await client.listProjects(), s.project);
+      if (!proj) {
+        vscode.window.showErrorMessage('brain-dock: active project not found.');
+        return;
+      }
+      const repos = await client.listRepositories(proj.id);
+      if (repos.length === 0) {
+        vscode.window.showInformationMessage('brain-dock: no repositories to re-index.');
+        return;
+      }
+      let pick: Repository | undefined;
+      if (repos.length === 1) {
+        pick = repos[0];
+      } else {
+        const chosen = await vscode.window.showQuickPick(
+          repos.map((r) => ({ label: r.alias, description: r.root, id: r.id })),
+          { title: 'Re-index which repository?' },
+        );
+        pick = chosen ? repos.find((r) => r.id === chosen.id) : undefined;
+      }
+      if (!pick) return;
+      await client.reindex(proj.id, pick.id);
+      vscode.window.showInformationMessage(`brain-dock: re-index queued for ${pick.alias}.`);
+      await refresh();
+    } catch (err) {
+      vscode.window.showErrorMessage(`brain-dock: ${errMsg(err)}`);
+    }
+  });
+}
+
+export function deactivate(): void {
+  // nothing to dispose beyond context.subscriptions
+}

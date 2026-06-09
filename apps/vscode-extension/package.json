@@ -1,0 +1,109 @@
+{
+  "name": "brain-dock-vscode",
+  "displayName": "brain-dock",
+  "description": "Connect your AI agents (Claude Code, Cursor) to the brain-dock hosted MCP, and watch your code index from the sidebar.",
+  "version": "0.0.1",
+  "private": true,
+  "publisher": "braindock",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "brainDock",
+          "title": "brain-dock",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "brainDock": [
+        {
+          "type": "webview",
+          "id": "brainDock.panel",
+          "name": "brain-dock"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "brainDock.connect",
+        "title": "brain-dock: Connect (set API key)"
+      },
+      {
+        "command": "brainDock.signOut",
+        "title": "brain-dock: Sign out (clear API key)"
+      },
+      {
+        "command": "brainDock.refresh",
+        "title": "brain-dock: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "brainDock.selectProject",
+        "title": "brain-dock: Select project"
+      },
+      {
+        "command": "brainDock.reindex",
+        "title": "brain-dock: Force re-index"
+      },
+      {
+        "command": "brainDock.openSettings",
+        "title": "brain-dock: Open settings"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "brainDock.refresh",
+          "when": "view == brainDock.panel",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "brain-dock",
+      "properties": {
+        "brainDock.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "markdownDescription": "Base URL of the brain-dock REST API (without the `/api/v1` suffix)."
+        },
+        "brainDock.mcpUrl": {
+          "type": "string",
+          "default": "http://localhost:8080/mcp",
+          "markdownDescription": "URL of the brain-dock remote MCP endpoint (Streamable HTTP)."
+        },
+        "brainDock.project": {
+          "type": "string",
+          "default": "",
+          "description": "Active project (slug or id). Used as the X-Project header for MCP calls."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "bun esbuild.mjs --production",
+    "dev": "bun esbuild.mjs --watch",
+    "package": "vsce package --no-dependencies -o brain-dock.vsix",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.0"
+  }
+}
