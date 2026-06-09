@@ -103,7 +103,7 @@ export class ApiKeysService {
     const key = await this.resolveActive(rawKey);
     if (!key) return null;
     const user = await this.prisma.client.user.findUnique({ where: { id: key.userId } });
-    if (!user || !user.isActive) return null;
+    if (!user?.isActive) return null;
     return { id: user.id, email: user.email, role: user.role };
   }
 }

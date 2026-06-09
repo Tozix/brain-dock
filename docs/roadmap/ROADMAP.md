@@ -97,3 +97,20 @@
   инкрементальный реиндекс с `repo`+`repositoryId`). Проверено вживую.
 - ⏭️ Далее: кросс-репо граф, repositories в OpenAPI, горячее переподнятие watcher'ов.
 - **Планы:** [015](../plans/015-multi-repo.md) (Done) · [016](../plans/016-multi-repo-rest.md) (Done) · [017](../plans/017-multi-repo-watch.md) (Done)
+
+## Hosted MCP + наблюдаемость (backlog) ✅
+**Цель:** хостинговая модель (vexp.dev-style) — удалённый MCP по HTTP поверх серверного индекса.
+- ✅ Удалённый MCP по Streamable HTTP (`apps/mcp/src/http.ts`, `:8080/mcp`), auth по API-ключу,
+  per-key rate-limit, серверный индекс символов в Postgres (`CodeSymbol`/`CodeEdge`), remote
+  структурные/граф-tools без файлов пользователя, OTel context-propagation api→queue→worker.
+- **Планы:** [036](../plans/036-remote-mcp-http.md)…[040](../plans/040-mcp-rate-limit.md) (Done).
+
+## Сквозная верификация ✅
+**Цель:** доказать, что hosted-путь из [GUIDE.md](../GUIDE.md) работает end-to-end, не только в юнит-тестах.
+- ✅ Полный путь вживую на реальной инфре: REST-auth → API-ключ → проект/репозиторий → индексация
+  (воркер → 247 символов/86 рёбер в Postgres + векторы в Qdrant) → remote MCP по HTTP (все 23 tools
+  отдают корректные данные, auth+`X-Project`+rate-limit работают).
+- ✅ Все `RUN_E2E` e2e проходят против реальных сервисов (6 pass); Biome warnings 11 → 0; CI зелёный.
+- ⏭️ Далее (backlog P1–P3): git-подключение репозиториев, e2e для remote MCP по HTTP, Redis-backed
+  rate-limit MCP, прод-дефолт `ollama`, security-review, BM25/re-ranker, веб-UI/биллинг.
+- **План:** [041-e2e-verification-and-improvements.md](../plans/041-e2e-verification-and-improvements.md) (Done)

@@ -73,6 +73,7 @@ const projects = {
 
 // biome-ignore lint/suspicious/noExplicitAny: test doubles intentionally narrow the real types.
 const make = (prisma: any, q = fakeQueue()) => ({
+  // biome-ignore lint/suspicious/noExplicitAny: test doubles intentionally narrow the real types.
   service: new RepositoriesService(prisma, audit as any, projects as any, q.queue),
   jobs: q.jobs,
 });

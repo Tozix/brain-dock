@@ -647,7 +647,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
           : (repo ? ctx.graphs().filter((g) => g.repo === repo) : ctx.graphs()).find(({ graph }) =>
               graph.has(name),
             );
-        if (!resolved || !resolved.graph.has(name)) return text(`Symbol not found: ${name}`);
+        if (!resolved?.graph.has(name)) return text(`Symbol not found: ${name}`);
         const { graph } = resolved;
         const names = query(graph, name);
         if (names.length === 0) return text('(none)');

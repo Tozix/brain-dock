@@ -30,7 +30,7 @@ export async function resolveUser(
   if (key.expiresAt && key.expiresAt.getTime() < Date.now()) return null;
 
   const user = await prisma.user.findUnique({ where: { id: key.userId } });
-  if (!user || !user.isActive) return null;
+  if (!user?.isActive) return null;
 
   // Best-effort last-used stamp.
   await prisma.apiKey

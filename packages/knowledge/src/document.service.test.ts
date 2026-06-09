@@ -57,8 +57,8 @@ const doc = (over: Partial<Doc> = {}): Doc => ({
 describe('DocumentService.update', () => {
   it('returns null for a document outside the project', async () => {
     const { store } = fakeStore();
-    // biome-ignore lint/suspicious/noExplicitAny: prisma test double.
     const svc = new DocumentService(
+      // biome-ignore lint/suspicious/noExplicitAny: prisma test double.
       fakePrisma([doc()]) as any,
       new DeterministicEmbeddingProvider(64),
       store,
@@ -68,8 +68,8 @@ describe('DocumentService.update', () => {
 
   it('updates title only without dropping or re-embedding vectors', async () => {
     const { store, upserts, dropped } = fakeStore();
-    // biome-ignore lint/suspicious/noExplicitAny: prisma test double.
     const svc = new DocumentService(
+      // biome-ignore lint/suspicious/noExplicitAny: prisma test double.
       fakePrisma([doc()]) as any,
       new DeterministicEmbeddingProvider(64),
       store,
@@ -82,8 +82,8 @@ describe('DocumentService.update', () => {
 
   it('re-extracts, drops old vectors and re-embeds when content changes', async () => {
     const { store, upserts, dropped } = fakeStore();
-    // biome-ignore lint/suspicious/noExplicitAny: prisma test double.
     const svc = new DocumentService(
+      // biome-ignore lint/suspicious/noExplicitAny: prisma test double.
       fakePrisma([doc()]) as any,
       new DeterministicEmbeddingProvider(64),
       store,
