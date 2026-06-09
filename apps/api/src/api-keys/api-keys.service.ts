@@ -83,7 +83,7 @@ export class ApiKeysService {
     return { id, status: ApiKeyStatus.REVOKED };
   }
 
-  /** Resolves an incoming raw key to its active record (used by ApiKeyGuard). */
+  /** Resolves an incoming raw key to its active record (used by the auth guard). */
   async resolveActive(rawKey: string) {
     const key = await this.prisma.client.apiKey.findUnique({
       where: { keyHash: hashKey(rawKey) },
@@ -96,5 +96,14 @@ export class ApiKeysService {
       data: { lastUsedAt: new Date() },
     });
     return key;
+  }
+
+  /** Resolve a raw API key to its owner principal (active key + active user), or null. */
+  async resolvePrincipal(rawKey: string): Promise<AuthenticatedUser | null> {
+    const key = await this.resolveActive(rawKey);
+    if (!key) return null;
+    const user = await this.prisma.client.user.findUnique({ where: { id: key.userId } });
+    if (!user || !user.isActive) return null;
+    return { id: user.id, email: user.email, role: user.role };
   }
 }

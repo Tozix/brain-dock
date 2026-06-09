@@ -333,5 +333,9 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **MCP `find_*` расширены:** `find_guard`/`find_pipe`/`find_interceptor`/`find_resolver`/
   `find_repository` + `find_endpoint` (маршруты контроллеров). План [032](docs/plans/032-mcp-find-tools.md).
   (`find_prisma_model`/`find_env`/`find_config` отложены — нужна новая логика извлечения.)
-- 🔄 Дальше: API-key auth (пункт 2); e2e через HTTP и тесты воркеров (пункт 3); опц. трейсинг MCP,
-  context-propagation, нагрузочное тестирование.
+- ✅ **API-key аутентификация:** глобальный `AuthenticationGuard` принимает Bearer JWT **или**
+  `x-api-key` (кладёт принципала с ролью владельца); `ApiKeysService.resolvePrincipal`; удалены
+  старые `jwt-access.guard`/`api-key.guard`. Проверено вживую. План [033](docs/plans/033-api-key-auth.md).
+- 🔄 Дальше (пункт 3): e2e через NestJS-HTTP, тесты воркеров; опц. трейсинг MCP,
+  context-propagation api→queue→worker, нагрузочное тестирование; (пункт 2 хвост)
+  find_prisma_model/find_env/find_config, доп. воркеры (Embedding/Document/Sync/Cleanup).
