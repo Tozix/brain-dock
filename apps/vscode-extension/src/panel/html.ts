@@ -1,5 +1,6 @@
-// Renders the sidebar webview HTML. VEXP-like layout using VS Code theme variables; buttons post
-// their command id back to the extension host. All visible text goes through i18n (state.lang).
+// Renders the sidebar webview HTML. VEXP-like layout using VS Code theme variables. Buttons post
+// either a command id (data-cmd) or a panel action (data-action) back to the host. All visible text
+// goes through i18n (state.lang). Settings are edited inline in the panel — no VS Code settings UI.
 import type * as vscode from 'vscode';
 import { type Lang, t } from '../i18n';
 import type { IndexStatus, Repository, UsageSummary } from '../util';
@@ -9,7 +10,11 @@ export interface PanelState {
   configured: boolean;
   connected: boolean;
   serverUrl: string;
+  mcpUrl: string;
   project: string;
+  languageSetting: string;
+  hasKey: boolean;
+  settingsOpen: boolean;
   status?: IndexStatus;
   repos?: Repository[];
   usage?: UsageSummary;
@@ -17,7 +22,8 @@ export interface PanelState {
 }
 
 interface Action {
-  cmd: string;
+  cmd?: string;
+  action?: string;
   label: string;
   primary?: boolean;
 }
@@ -43,28 +49,64 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function button(action: Action): string {
-  const cls = action.primary ? 'action primary' : 'action';
-  return `<button class="${cls}" data-cmd="${action.cmd}">${escapeHtml(action.label)}</button>`;
+function button(a: Action): string {
+  const cls = a.primary ? 'action primary' : 'action';
+  const attr = a.cmd ? `data-cmd="${a.cmd}"` : `data-action="${a.action}"`;
+  return `<button class="${cls}" ${attr}>${escapeHtml(a.label)}</button>`;
+}
+
+function renderSettings(state: PanelState): string {
+  const L = state.lang;
+  const langOptions: Array<[string, string]> = [
+    ['auto', t(L, 'opt.langAuto')],
+    ['en', 'English'],
+    ['ru', 'Русский'],
+  ];
+  const options = langOptions
+    .map(
+      ([v, label]) =>
+        `<option value="${v}"${state.languageSetting === v ? ' selected' : ''}>${escapeHtml(label)}</option>`,
+    )
+    .join('');
+  const cancel = state.configured
+    ? button({ action: 'cancelSettings', label: t(L, 'btn.cancel') })
+    : '';
+  const keyHint = state.hasKey
+    ? `<div class="muted">🔑 ${escapeHtml(t(L, 'field.apiKeyKeep'))}</div>`
+    : '';
+  return `
+    <div class="section">
+      <div class="label">${t(L, 'label.settings')}</div>
+      <label class="fld">${escapeHtml(t(L, 'field.serverUrl'))}
+        <input id="f_serverUrl" value="${escapeHtml(state.serverUrl)}" spellcheck="false" /></label>
+      <label class="fld">${escapeHtml(t(L, 'field.mcpUrl'))}
+        <input id="f_mcpUrl" value="${escapeHtml(state.mcpUrl)}" spellcheck="false" /></label>
+      <label class="fld">${escapeHtml(t(L, 'field.project'))}
+        <input id="f_project" value="${escapeHtml(state.project)}" spellcheck="false" /></label>
+      <label class="fld">${escapeHtml(t(L, 'field.language'))}
+        <select id="f_language">${options}</select></label>
+      <label class="fld">${escapeHtml(t(L, 'field.apiKey'))}
+        <input id="f_apiKey" type="password" placeholder="bd_…" spellcheck="false" /></label>
+      ${keyHint}
+      ${button({ action: 'save', label: t(L, 'btn.save'), primary: true })}
+      ${cancel}
+    </div>`;
 }
 
 function renderStatus(state: PanelState): string {
   const L = state.lang;
-  if (!state.configured) {
-    return `<div class="hint">${escapeHtml(t(L, 'panel.notConnectedHint'))}</div>
-      ${button({ cmd: 'brainDock.connect', label: t(L, 'btn.connect'), primary: true })}
-      ${button({ cmd: 'brainDock.openSettings', label: t(L, 'btn.settings') })}`;
-  }
+  if (state.settingsOpen || !state.configured) return renderSettings(state);
   if (state.error) {
     return `<div class="error">${escapeHtml(state.error)}</div>
       <div class="hint">${escapeHtml(t(L, 'panel.serverHint', { url: state.serverUrl }))}</div>
       ${button({ cmd: 'brainDock.refresh', label: t(L, 'btn.retry'), primary: true })}
-      ${button({ cmd: 'brainDock.openSettings', label: t(L, 'btn.settings') })}
+      ${button({ action: 'toggleSettings', label: t(L, 'btn.settings') })}
       ${button({ cmd: 'brainDock.signOut', label: t(L, 'btn.signOut') })}`;
   }
   if (!state.project) {
     return `<div class="hint">${escapeHtml(t(L, 'panel.pickProjectHint'))}</div>
-      ${button({ cmd: 'brainDock.selectProject', label: t(L, 'btn.selectProject'), primary: true })}`;
+      ${button({ cmd: 'brainDock.selectProject', label: t(L, 'btn.selectProject'), primary: true })}
+      ${button({ action: 'toggleSettings', label: t(L, 'btn.settings') })}`;
   }
   return renderConnected(state);
 }
@@ -118,7 +160,7 @@ function renderConnected(state: PanelState): string {
       ${button({ cmd: 'brainDock.addRepository', label: `+ ${t(L, 'btn.addRepository')}` })}
       ${button({ cmd: 'brainDock.selectProject', label: `⌗ ${t(L, 'btn.switchProject')}` })}
       ${button({ cmd: 'brainDock.viewLogs', label: `≡ ${t(L, 'btn.viewLogs')}` })}
-      ${button({ cmd: 'brainDock.openSettings', label: `⚙ ${t(L, 'btn.settings')}` })}
+      ${button({ action: 'toggleSettings', label: `⚙ ${t(L, 'btn.settings')}` })}
     </div>
 
     ${repoRows ? `<div class="section"><div class="label">${t(L, 'label.repositories')}</div>${repoRows}</div>` : ''}`;
@@ -167,6 +209,11 @@ export function renderPanel(webview: vscode.Webview, state: PanelState): string 
   .role b { color: var(--vscode-foreground); }
   .repo { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; }
   .repo .dot { margin-top: 4px; }
+  .fld { display: block; margin: 6px 0; font-size: 11px; color: var(--vscode-descriptionForeground); }
+  .fld input, .fld select { display: block; width: 100%; box-sizing: border-box; margin-top: 3px;
+    padding: 4px 6px; font-size: 12px; color: var(--vscode-input-foreground);
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border, transparent); border-radius: 3px; }
   button.action { display: block; width: 100%; text-align: left; margin: 4px 0;
     padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;
     color: var(--vscode-foreground); background: var(--vscode-button-secondaryBackground); }
@@ -188,8 +235,23 @@ export function renderPanel(webview: vscode.Webview, state: PanelState): string 
   ${renderStatus(state)}
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
-    for (const btn of document.querySelectorAll('[data-cmd]')) {
-      btn.addEventListener('click', () => vscode.postMessage({ command: btn.dataset.cmd }));
+    const post = (m) => vscode.postMessage(m);
+    const val = (id) => { const e = document.getElementById(id); return e ? e.value : undefined; };
+    for (const el of document.querySelectorAll('[data-cmd]')) {
+      el.addEventListener('click', () => post({ command: el.dataset.cmd }));
+    }
+    for (const el of document.querySelectorAll('[data-action]')) {
+      el.addEventListener('click', () => {
+        const a = el.dataset.action;
+        if (a === 'save') {
+          post({ type: 'saveSettings', values: {
+            serverUrl: val('f_serverUrl'), mcpUrl: val('f_mcpUrl'), project: val('f_project'),
+            language: val('f_language'), apiKey: val('f_apiKey'),
+          } });
+        } else {
+          post({ type: a });
+        }
+      });
     }
   </script>
 </body>

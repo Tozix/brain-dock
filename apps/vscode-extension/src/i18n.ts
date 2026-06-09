@@ -24,6 +24,17 @@ export type MessageKey =
   | 'btn.addRepository'
   | 'btn.switchProject'
   | 'btn.viewLogs'
+  | 'btn.save'
+  | 'btn.cancel'
+  | 'field.serverUrl'
+  | 'field.mcpUrl'
+  | 'field.project'
+  | 'field.language'
+  | 'field.apiKey'
+  | 'field.apiKeyKeep'
+  | 'opt.langAuto'
+  | 'msg.settingsSaved'
+  | 'label.settings'
   | 'label.project'
   | 'label.index'
   | 'label.tokenSavings'
@@ -80,6 +91,17 @@ const en: Record<MessageKey, string> = {
   'btn.addRepository': 'Add / Connect Repository',
   'btn.switchProject': 'Switch Project',
   'btn.viewLogs': 'View Logs',
+  'btn.save': 'Save',
+  'btn.cancel': 'Cancel',
+  'field.serverUrl': 'Server URL (REST API)',
+  'field.mcpUrl': 'MCP URL',
+  'field.project': 'Project (slug or id)',
+  'field.language': 'Language',
+  'field.apiKey': 'API key',
+  'field.apiKeyKeep': 'Leave blank to keep the current key',
+  'opt.langAuto': 'Auto (VS Code)',
+  'msg.settingsSaved': 'Settings saved.',
+  'label.settings': 'SETTINGS',
   'label.project': 'PROJECT',
   'label.index': 'INDEX',
   'label.tokenSavings': 'TOKEN SAVINGS',
@@ -138,6 +160,17 @@ const ru: Record<MessageKey, string> = {
   'btn.addRepository': 'Добавить репозиторий',
   'btn.switchProject': 'Сменить проект',
   'btn.viewLogs': 'Показать логи',
+  'btn.save': 'Сохранить',
+  'btn.cancel': 'Отмена',
+  'field.serverUrl': 'URL сервера (REST API)',
+  'field.mcpUrl': 'URL MCP',
+  'field.project': 'Проект (slug или id)',
+  'field.language': 'Язык',
+  'field.apiKey': 'API-ключ',
+  'field.apiKeyKeep': 'Оставьте пустым, чтобы не менять ключ',
+  'opt.langAuto': 'Авто (VS Code)',
+  'msg.settingsSaved': 'Настройки сохранены.',
+  'label.settings': 'НАСТРОЙКИ',
   'label.project': 'ПРОЕКТ',
   'label.index': 'ИНДЕКС',
   'label.tokenSavings': 'ЭКОНОМИЯ ТОКЕНОВ',

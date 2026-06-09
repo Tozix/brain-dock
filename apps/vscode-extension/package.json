@@ -2,7 +2,7 @@
   "name": "brain-dock-vscode",
   "displayName": "brain-dock",
   "description": "Connect your AI agents (Claude Code, Cursor) to the brain-dock hosted MCP, and watch your code index from the sidebar.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "publisher": "braindock",
   "license": "MIT",

@@ -5,12 +5,13 @@ import {
   getApiKey,
   readSettings,
   resolveLang,
+  SECTION,
   setProject,
   storeApiKey,
 } from './config';
 import { t } from './i18n';
 import type { PanelState } from './panel/html';
-import { PanelProvider } from './panel/provider';
+import { PanelProvider, type SettingsValues } from './panel/provider';
 import { type AgentTarget, applyTarget, type McpServerConfig } from './setup/agents';
 import type { Project, Repository } from './util';
 
@@ -44,7 +45,11 @@ export function activate(context: vscode.ExtensionContext): void {
       configured: Boolean(apiKey),
       connected: false,
       serverUrl: s.serverUrl,
+      mcpUrl: s.mcpUrl,
       project: s.project,
+      languageSetting: vscode.workspace.getConfiguration(SECTION).get<string>('language') ?? 'auto',
+      hasKey: Boolean(apiKey),
+      settingsOpen: false,
     };
     if (!apiKey) return state;
     const client = new BrainDockClient({ ...s, apiKey });
@@ -63,7 +68,18 @@ export function activate(context: vscode.ExtensionContext): void {
     return state;
   };
 
-  const provider = new PanelProvider(context.extensionUri, loadState);
+  const saveSettings = async (v: SettingsValues): Promise<void> => {
+    const cfg = vscode.workspace.getConfiguration(SECTION);
+    const g = vscode.ConfigurationTarget.Global;
+    if (typeof v.serverUrl === 'string') await cfg.update('serverUrl', v.serverUrl.trim(), g);
+    if (typeof v.mcpUrl === 'string') await cfg.update('mcpUrl', v.mcpUrl.trim(), g);
+    if (typeof v.project === 'string') await cfg.update('project', v.project.trim(), g);
+    if (typeof v.language === 'string') await cfg.update('language', v.language, g);
+    if (v.apiKey?.trim()) await storeApiKey(secrets, v.apiKey.trim());
+    vscode.window.showInformationMessage(`brain-dock: ${t(resolveLang(), 'msg.settingsSaved')}`);
+  };
+
+  const provider = new PanelProvider(context.extensionUri, loadState, saveSettings);
   const refresh = () => provider.refresh();
 
   const register = (id: string, fn: () => void | Promise<void>): void => {

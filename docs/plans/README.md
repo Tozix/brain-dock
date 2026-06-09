@@ -62,3 +62,4 @@
 | [041](041-e2e-verification-and-improvements.md) | Сквозная E2E-верификация hosted-стека + backlog улучшений | Verification | Done |
 | [042](042-vscode-extension.md) | VSCode-расширение (VEXP-подобная панель + Setup Agents для MCP) | Client | Done |
 | [043](043-vscode-extension-polish.md) | VSCode-расширение: иконка мозга, i18n (ru/en), понятные ошибки | Client | Done |
+| [044](044-vscode-extension-inline-settings.md) | VSCode-расширение: настройки прямо в панели | Client | Done |
