@@ -40,19 +40,28 @@ bun --no-addons run apps/workers/src/index.ts                # index worker (Bul
 `EMBEDDER=deterministic` (default) runs fully offline — no Ollama needed; `EMBEDDER=ollama` uses
 real embeddings. The setting **must match across api/mcp/workers** (they share Qdrant collections).
 
-### MCP server (Claude Code / Cursor)
+### Connecting an MCP client (hosted model)
+brain-dock is a **hosted service**: the server (API + Qdrant + models + MCP) runs on a remote box
+in containers. An end user only gets an **API key** and points their MCP client at our **remote MCP
+endpoint** — nothing runs on their machine, only calls to our API (à la vexp.dev). Indexing happens
+server-side via the workers; the MCP serves each user's own projects, scoped by the key.
+
 ```json
 {
   "mcpServers": {
     "brain-dock": {
-      "command": "bun",
-      "args": ["apps/mcp/src/index.ts"],
-      "env": { "PROJECT_ROOT": "apps/api/src", "EMBEDDER": "ollama" }
+      "url": "https://<your-host>/mcp",
+      "headers": { "Authorization": "Bearer bd_<your-api-key>" }
     }
   }
 }
 ```
-Multi-repo: set `REPOS=[{"alias":"api","root":"./apps/api"}, …]`. Tools/resources — [docs/mcp](docs/mcp/README.md).
+The remote MCP runs over **Streamable HTTP** (`apps/mcp/src/http.ts`; in compose: the `mcp` service
+on `:8080`). The key authenticates the user (one key, many projects); `X-Project` selects the
+project. It serves the persisted tools (search / context / memory / knowledge / documents);
+structural/graph tools remain in the local stdio mode for now (they need a server-side symbol
+index). Local stdio mode for development/self-host: `bun run --cwd apps/mcp dev` with
+`PROJECT_ROOT`/`REPOS`. Details — [docs/mcp](docs/mcp/README.md).
 
 ## Test & verify
 ```bash

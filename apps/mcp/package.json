@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
+    "http": "bun run src/http.ts",
+    "http:dev": "bun run --watch src/http.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
   "dependencies": {
+    "@brain-dock/core": "workspace:*",
     "@brain-dock/db": "workspace:*",
     "@brain-dock/embedding": "workspace:*",
     "@brain-dock/graph": "workspace:*",

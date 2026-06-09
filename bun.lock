@@ -46,6 +46,7 @@
       "name": "@brain-dock/mcp",
       "version": "0.0.0",
       "dependencies": {
+        "@brain-dock/core": "workspace:*",
         "@brain-dock/db": "workspace:*",
         "@brain-dock/embedding": "workspace:*",
         "@brain-dock/graph": "workspace:*",

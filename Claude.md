@@ -341,6 +341,12 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   План [034](docs/plans/034-rest-http-e2e.md).
 - ✅ **Юнит-тесты воркера:** `processIndexJob` вынесена в отдельный файл (без bullmq) и покрыта
   тестами (проброс repo/repositoryId, ошибки). План [035](docs/plans/035-worker-unit-tests.md).
-- 🔄 Остаётся опционально: трейсинг MCP, context-propagation api→queue→worker, нагрузочное
+- ✅ **Хостинговый удалённый MCP (Streamable HTTP):** `apps/mcp/src/http.ts` (`Bun.serve`, сервис
+  `mcp` в compose на `:8080`) — auth по API-ключу (`Authorization: Bearer`, ключ = пользователь),
+  проект через заголовок `X-Project` (owner-scoped), персистентные tools (search/context/memory/
+  knowledge/documents) из Qdrant+Postgres. Пользователь локально ничего не запускает (модель
+  vexp.dev). Структурные/граф-tools — отдельный эпик (нужен серверный индекс символов). Проверено
+  вживую SDK-клиентом. План [036](docs/plans/036-remote-mcp-http.md).
+- 🔄 Остаётся опционально: серверный индекс символов для remote структурных/граф-tools; трейсинг MCP, context-propagation api→queue→worker, нагрузочное
   тестирование, nightly e2e с реальным Ollama; (пункт 2 хвост) `find_prisma_model`/`find_env`/
   `find_config` (нужен парс schema.prisma / скан process.env), доп. воркеры (Embedding/Document/Sync/Cleanup).
