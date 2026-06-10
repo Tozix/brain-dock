@@ -5,6 +5,10 @@ export interface RemotePrincipal {
   userId: string;
   email: string;
   role: string;
+  /** API-key id — the rate-limit bucket key (one bucket per key, not per user). */
+  keyId: string;
+  /** Per-key request cap override; null → use the server default. */
+  rateLimit: number | null;
 }
 
 export interface RemoteProject {
@@ -14,6 +18,9 @@ export interface RemoteProject {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Re-stamp `lastUsedAt` at most this often — avoids an UPDATE per request. */
+const LAST_USED_REFRESH_MS = 60_000;
 
 function hashKey(secret: string): string {
   return createHash('sha256').update(secret).digest('hex');
@@ -25,18 +32,28 @@ export async function resolveUser(
   rawKey: string,
 ): Promise<RemotePrincipal | null> {
   if (!rawKey) return null;
-  const key = await prisma.apiKey.findUnique({ where: { keyHash: hashKey(rawKey) } });
+  // Single round-trip: the key row with its owner included.
+  const key = await prisma.apiKey.findUnique({
+    where: { keyHash: hashKey(rawKey) },
+    include: { user: true },
+  });
   if (!key || key.status !== ApiKeyStatus.ACTIVE) return null;
   if (key.expiresAt && key.expiresAt.getTime() < Date.now()) return null;
+  if (!key.user.isActive) return null;
 
-  const user = await prisma.user.findUnique({ where: { id: key.userId } });
-  if (!user?.isActive) return null;
-
-  // Best-effort last-used stamp.
-  await prisma.apiKey
-    .update({ where: { id: key.id }, data: { lastUsedAt: new Date() } })
-    .catch(() => {});
-  return { userId: user.id, email: user.email, role: user.role };
+  // Best-effort last-used stamp: fire-and-forget (never blocks the request), throttled to 1/min.
+  if (!key.lastUsedAt || Date.now() - key.lastUsedAt.getTime() > LAST_USED_REFRESH_MS) {
+    void prisma.apiKey
+      .update({ where: { id: key.id }, data: { lastUsedAt: new Date() } })
+      .catch((e) => console.error('[mcp:auth] lastUsedAt update failed:', e?.message ?? e));
+  }
+  return {
+    userId: key.user.id,
+    email: key.user.email,
+    role: key.user.role,
+    keyId: key.id,
+    rateLimit: key.rateLimit,
+  };
 }
 
 /** Resolve `X-Project` (id or slug) to a project owned by the user, or null. */

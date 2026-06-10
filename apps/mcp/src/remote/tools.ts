@@ -1,11 +1,31 @@
 import { DOC_FORMATS, KNOWLEDGE_TYPES, MEMORY_TYPES } from '@brain-dock/knowledge';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { listUserProjects, type RemotePrincipal } from './auth';
 import type { RemoteServices } from './services';
 
 const NEED_PROJECT =
   'No project selected. Set the `X-Project` header (project id or slug) — call `list_projects` to see yours.';
+
+const BACKEND_UNAVAILABLE = 'backend unavailable, try again later';
+
+/**
+ * Wrap a tool handler: log the full error server-side, hand the client a generic message instead
+ * of a raw stack/driver error. Expected domain outcomes (NEED_PROJECT, "No results.", …) are
+ * returned by the handlers as text, so anything *thrown* here is infrastructure (Postgres/Qdrant/
+ * Ollama down) and must not leak internals.
+ */
+const guard =
+  <A>(tool: string, handler: (args: A) => Promise<CallToolResult>) =>
+  async (args: A): Promise<CallToolResult> => {
+    try {
+      return await handler(args);
+    } catch (error) {
+      console.error(`[mcp:tools] ${tool} failed:`, error);
+      return { content: [{ type: 'text' as const, text: BACKEND_UNAVAILABLE }], isError: true };
+    }
+  };
 
 export interface RemoteToolContext {
   principal: RemotePrincipal;
@@ -27,7 +47,9 @@ export function registerRemoteTools(
 
   // Every tool returns through `text(...)` exactly once — so this is our per-call usage hook.
   const text = (body: string) => {
-    void services.usage?.record(ctx.principal.userId, Math.ceil(body.length / 4)).catch(() => {});
+    void services.usage
+      .record(ctx.principal.userId, Math.ceil(body.length / 4))
+      .catch((e) => console.error('[mcp:usage] record failed:', e?.message ?? e));
     return { content: [{ type: 'text' as const, text: body }] };
   };
 
@@ -38,11 +60,11 @@ export function registerRemoteTools(
       description:
         'List the projects available to your API key. Use a slug/id as the X-Project header.',
     },
-    async () => {
+    guard('list_projects', async () => {
       const projects = await listUserProjects(services.prisma, ctx.principal.userId);
       if (projects.length === 0) return text('No projects yet.');
       return text(projects.map((p) => `${p.slug}  (${p.name})  id=${p.id}`).join('\n'));
-    },
+    }),
   );
 
   server.registerTool(
@@ -56,7 +78,7 @@ export function registerRemoteTools(
         repos: z.array(z.string()).optional().describe('Restrict to repository aliases'),
       },
     },
-    async ({ query, limit, repos }) => {
+    guard('search_code', async ({ query, limit, repos }) => {
       if (!project) return text(NEED_PROJECT);
       const results = await services.search.search(query, {
         projectId: project,
@@ -73,7 +95,7 @@ export function registerRemoteTools(
           )
           .join('\n'),
       );
-    },
+    }),
   );
 
   server.registerTool(
@@ -88,7 +110,7 @@ export function registerRemoteTools(
         repos: z.array(z.string()).optional(),
       },
     },
-    async ({ query, limit, maxChars, repos }) => {
+    guard('generate_context', async ({ query, limit, maxChars, repos }) => {
       if (!project) return text(NEED_PROJECT);
       const result = await services.context.buildContext(query, {
         projectId: project,
@@ -98,7 +120,7 @@ export function registerRemoteTools(
         maxChars: maxChars ?? 6000,
       });
       return text(result.text);
-    },
+    }),
   );
 
   server.registerTool(
@@ -112,7 +134,7 @@ export function registerRemoteTools(
         repos: z.array(z.string()).optional(),
       },
     },
-    async ({ query, limit, repos }) => {
+    guard('search_everywhere', async ({ query, limit, repos }) => {
       if (!project) return text(NEED_PROJECT);
       const results = await services.unified.search(query, {
         projectId: project,
@@ -124,7 +146,7 @@ export function registerRemoteTools(
       return text(
         results.map((r) => `${r.score.toFixed(3)}  [${r.source}] ${r.title} — ${r.ref}`).join('\n'),
       );
-    },
+    }),
   );
 
   server.registerTool(
@@ -138,11 +160,11 @@ export function registerRemoteTools(
         tags: z.array(z.string()).optional(),
       },
     },
-    async ({ content, type, tags }) => {
+    guard('remember', async ({ content, type, tags }) => {
       if (!project) return text(NEED_PROJECT);
       const item = await services.memory.remember({ projectId: project, content, type, tags });
       return text(`Remembered [${item.type}] ${item.id}`);
-    },
+    }),
   );
 
   server.registerTool(
@@ -152,14 +174,14 @@ export function registerRemoteTools(
       description: 'Semantic search over saved project memory.',
       inputSchema: { query: z.string(), limit: z.number().int().positive().max(50).optional() },
     },
-    async ({ query, limit }) => {
+    guard('search_memory', async ({ query, limit }) => {
       if (!project) return text(NEED_PROJECT);
       const hits = await services.memory.search(project, query, limit ?? 10);
       if (hits.length === 0) return text('No matching memories.');
       return text(
         hits.map((h) => `${h.score.toFixed(3)}  [${h.item.type}] ${h.item.content}`).join('\n'),
       );
-    },
+    }),
   );
 
   server.registerTool(
@@ -174,7 +196,7 @@ export function registerRemoteTools(
         tags: z.array(z.string()).optional(),
       },
     },
-    async ({ title, content, type, tags }) => {
+    guard('save_knowledge', async ({ title, content, type, tags }) => {
       if (!project) return text(NEED_PROJECT);
       const item = await services.knowledge.save({
         projectId: project,
@@ -184,7 +206,7 @@ export function registerRemoteTools(
         tags,
       });
       return text(`Saved knowledge [${item.type}] "${item.title}" ${item.id}`);
-    },
+    }),
   );
 
   server.registerTool(
@@ -194,14 +216,14 @@ export function registerRemoteTools(
       description: 'Semantic search over the knowledge base.',
       inputSchema: { query: z.string(), limit: z.number().int().positive().max(50).optional() },
     },
-    async ({ query, limit }) => {
+    guard('search_knowledge', async ({ query, limit }) => {
       if (!project) return text(NEED_PROJECT);
       const hits = await services.knowledge.search(project, query, limit ?? 10);
       if (hits.length === 0) return text('No matching knowledge.');
       return text(
         hits.map((h) => `${h.score.toFixed(3)}  [${h.item.type}] ${h.item.title}`).join('\n'),
       );
-    },
+    }),
   );
 
   server.registerTool(
@@ -217,7 +239,7 @@ export function registerRemoteTools(
         source: z.string().optional(),
       },
     },
-    async ({ title, content, format, source }) => {
+    guard('save_document', async ({ title, content, format, source }) => {
       if (!project) return text(NEED_PROJECT);
       const { document, chunks } = await services.documents.ingest({
         projectId: project,
@@ -227,7 +249,7 @@ export function registerRemoteTools(
         source,
       });
       return text(`Saved document "${document.title}" (${chunks} chunks) ${document.id}`);
-    },
+    }),
   );
 
   server.registerTool(
@@ -237,7 +259,7 @@ export function registerRemoteTools(
       description: 'Semantic search over ingested documents.',
       inputSchema: { query: z.string(), limit: z.number().int().positive().max(50).optional() },
     },
-    async ({ query, limit }) => {
+    guard('search_docs', async ({ query, limit }) => {
       if (!project) return text(NEED_PROJECT);
       const hits = await services.documents.search(project, query, limit ?? 10);
       if (hits.length === 0) return text('No matching documents.');
@@ -246,7 +268,7 @@ export function registerRemoteTools(
           .map((h) => `${h.score.toFixed(3)}  [${h.document.format}] ${h.document.title}`)
           .join('\n'),
       );
-    },
+    }),
   );
 
   // --- Structural / graph tools (served from the Postgres symbol index; no user files needed) ---
@@ -260,7 +282,7 @@ export function registerRemoteTools(
       description: 'Find indexed symbols whose name matches.',
       inputSchema: { name: z.string(), repos: z.array(z.string()).optional() },
     },
-    async ({ name, repos: rs }) => {
+    guard('find_symbol', async ({ name, repos: rs }) => {
       if (!project) return text(NEED_PROJECT);
       const rows = await services.symbols.findSymbols(project, { name, repos: repos(rs) });
       if (rows.length === 0) return text(`No symbol matching "${name}".`);
@@ -272,7 +294,7 @@ export function registerRemoteTools(
           })
           .join('\n'),
       );
-    },
+    }),
   );
 
   const roleTool = (tool: string, role: string, label: string) => {
@@ -283,12 +305,12 @@ export function registerRemoteTools(
         description: `List ${label.toLowerCase()} (optionally filtered by name).`,
         inputSchema: { name: z.string().optional(), repos: z.array(z.string()).optional() },
       },
-      async ({ name, repos: rs }) => {
+      guard(tool, async ({ name, repos: rs }) => {
         if (!project) return text(NEED_PROJECT);
         const rows = await services.symbols.findSymbols(project, { role, name, repos: repos(rs) });
         if (rows.length === 0) return text(`No ${role} found.`);
         return text(rows.map((s) => `${s.repo}/${s.file}:${s.startLine}  ${s.name}`).join('\n'));
-      },
+      }),
     );
   };
   roleTool('find_controller', 'controller', 'Controllers');
@@ -305,7 +327,7 @@ export function registerRemoteTools(
         'List HTTP endpoints (controller routes), optionally filtered by path substring.',
       inputSchema: { path: z.string().optional(), repos: z.array(z.string()).optional() },
     },
-    async ({ path, repos: rs }) => {
+    guard('find_endpoint', async ({ path, repos: rs }) => {
       if (!project) return text(NEED_PROJECT);
       const rows = await services.symbols.endpoints(project, { path, repos: repos(rs) });
       if (rows.length === 0) return text('No endpoints.');
@@ -317,7 +339,7 @@ export function registerRemoteTools(
           )
           .join('\n'),
       );
-    },
+    }),
   );
 
   server.registerTool(
@@ -327,7 +349,7 @@ export function registerRemoteTools(
       description: 'High-level stats: file/symbol counts and role breakdown.',
       inputSchema: { repos: z.array(z.string()).optional() },
     },
-    async ({ repos: rs }) => {
+    guard('summarize_project', async ({ repos: rs }) => {
       if (!project) return text(NEED_PROJECT);
       const s = await services.symbols.summary(project, repos(rs));
       const roleLines = Object.entries(s.roles)
@@ -343,7 +365,7 @@ export function registerRemoteTools(
           ...roleLines,
         ].join('\n'),
       );
-    },
+    }),
   );
 
   server.registerTool(
@@ -353,7 +375,7 @@ export function registerRemoteTools(
       description: 'Modules, controllers with routes, and dependency-injection edges.',
       inputSchema: { repos: z.array(z.string()).optional() },
     },
-    async ({ repos: rs }) => {
+    guard('get_architecture', async ({ repos: rs }) => {
       if (!project) return text(NEED_PROJECT);
       const scope = repos(rs);
       const [modules, endpoints, graph] = await Promise.all([
@@ -377,7 +399,7 @@ export function registerRemoteTools(
           ...edges.slice(0, 40).map((e) => `  ${e}`),
         ].join('\n'),
       );
-    },
+    }),
   );
 
   const graphTool = (
@@ -393,7 +415,7 @@ export function registerRemoteTools(
         description,
         inputSchema: { name: z.string(), repos: z.array(z.string()).optional() },
       },
-      async ({ name, repos: rs }) => {
+      guard(tool, async ({ name, repos: rs }) => {
         if (!project) return text(NEED_PROJECT);
         const graph = await services.symbols.graph(project, repos(rs));
         if (!graph.has(name)) return text(`Symbol not found: ${name}`);
@@ -411,7 +433,7 @@ export function registerRemoteTools(
             })
             .join('\n'),
         );
-      },
+      }),
     );
   };
   graphTool(
@@ -437,10 +459,10 @@ export function registerRemoteTools(
         repos: z.array(z.string()).optional(),
       },
     },
-    async ({ format, repos: rs }) => {
+    guard('export_graph', async ({ format, repos: rs }) => {
       if (!project) return text(NEED_PROJECT);
       const graph = await services.symbols.graph(project, repos(rs));
       return text(format === 'dot' ? graph.toDot() : JSON.stringify(graph.toJSON(), null, 2));
-    },
+    }),
   );
 }

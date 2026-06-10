@@ -1,5 +1,5 @@
 import { createPrismaClient, type PrismaClient } from '@brain-dock/db';
-import { createEmbedder, embedderConfigFromEnv } from '@brain-dock/embedding';
+import { createEmbedder } from '@brain-dock/embedding';
 import {
   DocumentService,
   KnowledgeService,
@@ -47,7 +47,11 @@ export function loadRemoteConfig(): RemoteConfig {
 /** Build the shared services once. All read/write scope by the projectId passed at call time. */
 export function buildRemoteServices(config: RemoteConfig): RemoteServices {
   if (!config.databaseUrl) throw new Error('DATABASE_URL is required for the remote MCP');
-  const embedder = createEmbedder(embedderConfigFromEnv());
+  const embedder = createEmbedder({
+    provider: config.embedder,
+    ollamaUrl: config.ollamaUrl,
+    model: config.embeddingModel,
+  });
   const store = new QdrantStore({ url: config.qdrantUrl });
   const prisma = createPrismaClient(config.databaseUrl);
   const search = new SearchService(embedder, store);

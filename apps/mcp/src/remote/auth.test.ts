@@ -6,32 +6,53 @@ type Key = {
   userId: string;
   status: string;
   expiresAt: Date | null;
+  lastUsedAt: Date | null;
+  rateLimit: number | null;
 };
+
+interface FakePrismaOpts {
+  key?: Key;
+  userActive?: boolean;
+  // biome-ignore lint/suspicious/noExplicitAny: minimal prisma double.
+  project?: any;
+  onKeyUpdate?: () => void;
+}
 
 /** Fake prisma returning preconfigured rows (the hash lookup itself is not under test here). */
 // biome-ignore lint/suspicious/noExplicitAny: minimal prisma double.
-function fakePrisma(opts: { key?: Key; userActive?: boolean; project?: any }): any {
+function fakePrisma(opts: FakePrismaOpts): any {
   return {
     apiKey: {
-      findUnique: async () => opts.key ?? null,
-      update: async () => {},
-    },
-    user: {
+      // resolveUser issues a single findUnique with `include: { user: true }`.
       findUnique: async () =>
         opts.key
           ? {
-              id: opts.key.userId,
-              email: 'u@x.io',
-              role: 'USER',
-              isActive: opts.userActive ?? true,
+              ...opts.key,
+              user: {
+                id: opts.key.userId,
+                email: 'u@x.io',
+                role: 'USER',
+                isActive: opts.userActive ?? true,
+              },
             }
           : null,
+      update: async () => {
+        opts.onKeyUpdate?.();
+        return {};
+      },
     },
     project: { findUnique: async () => opts.project ?? null },
   };
 }
 
-const active: Key = { id: 'k1', userId: 'u1', status: 'ACTIVE', expiresAt: null };
+const active: Key = {
+  id: 'k1',
+  userId: 'u1',
+  status: 'ACTIVE',
+  expiresAt: null,
+  lastUsedAt: null,
+  rateLimit: null,
+};
 
 describe('resolveUser', () => {
   it('returns null for empty / unknown keys', async () => {
@@ -49,9 +70,34 @@ describe('resolveUser', () => {
     expect(await resolveUser(fakePrisma({ key: active, userActive: false }), 'k')).toBeNull();
   });
 
-  it('resolves an active key to its owner principal', async () => {
-    const principal = await resolveUser(fakePrisma({ key: active }), 'k');
-    expect(principal).toEqual({ userId: 'u1', email: 'u@x.io', role: 'USER' });
+  it('resolves an active key to its owner principal with key id + rate limit', async () => {
+    const principal = await resolveUser(fakePrisma({ key: { ...active, rateLimit: 42 } }), 'k');
+    expect(principal).toEqual({
+      userId: 'u1',
+      email: 'u@x.io',
+      role: 'USER',
+      keyId: 'k1',
+      rateLimit: 42,
+    });
+  });
+
+  it('stamps lastUsedAt only when stale (fire-and-forget)', async () => {
+    let updates = 0;
+    const onKeyUpdate = () => {
+      updates += 1;
+    };
+
+    // Fresh stamp → no update.
+    await resolveUser(fakePrisma({ key: { ...active, lastUsedAt: new Date() }, onKeyUpdate }), 'k');
+    expect(updates).toBe(0);
+
+    // Stale stamp → one background update.
+    await resolveUser(
+      fakePrisma({ key: { ...active, lastUsedAt: new Date(0) }, onKeyUpdate }),
+      'k',
+    );
+    await Bun.sleep(0); // let the fire-and-forget promise settle
+    expect(updates).toBe(1);
   });
 });
 
