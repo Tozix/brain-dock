@@ -92,7 +92,8 @@ describe('RepositoryIndexer — extraction', () => {
     expect(ctrl.dependencies).toContain('CatsService');
     expect(ctrl.routes).toHaveLength(2);
     expect(ctrl.routes.map((r) => r.method).sort()).toEqual(['get', 'post']);
-    expect(ctrl.routes.find((r) => r.method === 'post')?.path).toBe(':id');
+    // Route paths include the @Controller prefix so endpoint search matches real URLs.
+    expect(ctrl.routes.find((r) => r.method === 'post')?.path).toBe('cats/:id');
   });
 
   it('records an injects relation from controller to service', () => {

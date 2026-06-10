@@ -44,3 +44,12 @@ change COLLECTION») вместо тихой порчи индекса. Реше
 В production реиндекс по `repository.root` по умолчанию **отключён** (`INDEX_SERVER_PATHS=false`) —
 hosted-путь это upload-индексация `POST /projects/:pid/repositories/:id/index` (VSCode-расширение
 делает её автоматически). Включайте флаг только для self-host, где код реально лежит на сервере.
+
+### 9. После смены `EMBEDDER` память/знания/документы отвечают ошибкой про размерность
+Коллекции `memory`/`knowledge`/`documents` имеют фиксированные имена, и при смене эмбеддера
+(например, deterministic 256d → ollama 768d) `ensureCollection` намеренно отказывается писать
+несравнимые векторы: `collection "memory" has vector size 256, but the embedder needs 768`.
+Postgres — источник истины, поэтому данные не теряются: удалите старые коллекции
+(`curl -X DELETE $QDRANT_URL/collections/memory` и т.д.) — новые создадутся под нужную
+размерность при первом сохранении. Старые записи останутся в БД, но выпадут из
+семантического поиска до повторного сохранения (re-embed-команда — в бэклоге).

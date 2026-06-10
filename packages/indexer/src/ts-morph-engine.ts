@@ -250,13 +250,20 @@ export class TsMorphEngine implements AstEngine {
   }
 
   private extractRoutes(cls: ClassDeclaration): RouteInfo[] {
+    // Full path = @Controller('prefix') + method decorator path, so find_endpoint can
+    // match what clients actually call (e.g. "projects/:projectId/repositories/:id").
+    const prefix = unquote(cls.getDecorator('Controller')?.getArguments()[0]?.getText());
     const routes: RouteInfo[] = [];
     for (const method of cls.getMethods()) {
       for (const dec of method.getDecorators()) {
         if (!HTTP_DECORATORS.has(dec.getName())) continue;
+        const sub = unquote(dec.getArguments()[0]?.getText());
         routes.push({
           method: dec.getName().toLowerCase(),
-          path: unquote(dec.getArguments()[0]?.getText()),
+          path: [prefix, sub]
+            .map((part) => part.replace(/^\/+|\/+$/g, ''))
+            .filter((part) => part.length > 0)
+            .join('/'),
           handler: method.getName(),
         });
       }
