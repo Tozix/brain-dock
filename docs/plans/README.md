@@ -70,3 +70,5 @@
 | [049](049-panel-period-selector-and-indexing-progress.md) | Панель: селектор периода + видимый прогресс индексации | Client | Done |
 | [050](050-ollama-embedding-truncation-and-dev-ollama.md) | Ollama-эмбеддинг: обрезка под контекст (прод-фикс поиска) + dev на ollama | Search | Done |
 | [051](051-audit-closure.md) | Закрытие полного аудита (102 находки: целостность, безопасность, тесты) | Hardening | Done |
+| [052](052-search-quality.md) | Качество поиска: eval-harness, префиксы nomic, суб-чанкинг, hybrid BM25+RRF | Search | Done |
+| [053](053-mcp-ux.md) | MCP UX: instructions, annotations, /mcp/{slug}, профиль, статус индексации, repo_map | Hosted | Done |
