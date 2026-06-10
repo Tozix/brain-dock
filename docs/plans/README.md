@@ -69,3 +69,4 @@
 | [048](048-native-vscode-mcp-registration.md) | Нативная регистрация MCP в VS Code (HTTP, Copilot agent mode) | Client | Done |
 | [049](049-panel-period-selector-and-indexing-progress.md) | Панель: селектор периода + видимый прогресс индексации | Client | Done |
 | [050](050-ollama-embedding-truncation-and-dev-ollama.md) | Ollama-эмбеддинг: обрезка под контекст (прод-фикс поиска) + dev на ollama | Search | Done |
+| [051](051-audit-closure.md) | Закрытие полного аудита (102 находки: целостность, безопасность, тесты) | Hardening | Done |
