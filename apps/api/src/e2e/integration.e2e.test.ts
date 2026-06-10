@@ -20,6 +20,22 @@ const DATABASE_URL = process.env.DATABASE_URL ?? '';
 // Unique per run so parallel/repeat runs don't collide; stamped from the clock at module load.
 const RUN = `e2e_${Date.now()}`;
 
+// Project-scoped tables now have FK constraints — rows must belong to a real user + project.
+// Deleting the user at the end exercises the cascades (project → items/symbols/edges).
+type PrismaClient = NonNullable<ReturnType<typeof createPrismaClient>>;
+async function createProjectFixture(prisma: PrismaClient, tag: string) {
+  const user = await prisma.user.create({
+    data: { email: `${tag}_${RUN}@e2e.local`, passwordHash: 'x', role: 'USER' },
+  });
+  const project = await prisma.project.create({
+    data: { name: `${tag} ${RUN}`, slug: `${tag}-${RUN}`.toLowerCase(), ownerId: user.id },
+  });
+  return {
+    projectId: project.id,
+    cleanup: () => prisma.user.delete({ where: { id: user.id } }).catch(() => {}),
+  };
+}
+
 e2e('RAG over real Qdrant', () => {
   const embedder = new DeterministicEmbeddingProvider(256);
   const store = new QdrantStore({ url: QDRANT_URL });
@@ -61,26 +77,33 @@ e2e('RAG over real Qdrant', () => {
 e2e('Project memory over real Postgres + Qdrant', () => {
   const embedder = new DeterministicEmbeddingProvider(256);
   const store = new QdrantStore({ url: QDRANT_URL });
-  const projectId = `mem_${RUN}`;
   const prisma = DATABASE_URL ? createPrismaClient(DATABASE_URL) : null;
   const memory = prisma ? new MemoryService(prisma, embedder, store) : null;
+  let fixture: Awaited<ReturnType<typeof createProjectFixture>> | null = null;
   let createdId: string | null = null;
 
+  beforeAll(async () => {
+    if (prisma) fixture = await createProjectFixture(prisma, 'mem');
+  });
+
   afterAll(async () => {
-    if (memory && createdId) await memory.delete(projectId, createdId).catch(() => {});
+    if (memory && fixture && createdId) {
+      await memory.delete(fixture.projectId, createdId).catch(() => {});
+    }
+    await fixture?.cleanup();
     await prisma?.$disconnect();
   });
 
   it('remembers and retrieves a memory by semantic search', async () => {
-    if (!memory) throw new Error('DATABASE_URL is required for the memory e2e test');
+    if (!memory || !fixture) throw new Error('DATABASE_URL is required for the memory e2e test');
     const item = await memory.remember({
-      projectId,
+      projectId: fixture.projectId,
       content: 'We deploy by building images on the server with docker compose, no registry.',
       type: 'DECISION',
     });
     createdId = item.id;
 
-    const hits = await memory.search(projectId, 'how do we deploy the app', 5);
+    const hits = await memory.search(fixture.projectId, 'how do we deploy the app', 5);
     expect(hits.some((h) => h.item.id === item.id)).toBe(true);
   });
 });
@@ -88,13 +111,20 @@ e2e('Project memory over real Postgres + Qdrant', () => {
 e2e('Server-side symbol index over real Postgres', () => {
   const prisma = DATABASE_URL ? createPrismaClient(DATABASE_URL) : null;
   const symbols = prisma ? new SymbolIndexService(prisma) : null;
-  // CodeSymbol.projectId is a uuid column.
-  const projectId = crypto.randomUUID();
+  let fixture: Awaited<ReturnType<typeof createProjectFixture>> | null = null;
+  let projectId = '';
   const repo = 'api';
 
+  beforeAll(async () => {
+    if (prisma) {
+      fixture = await createProjectFixture(prisma, 'sym');
+      projectId = fixture.projectId;
+    }
+  });
+
   afterAll(async () => {
-    await prisma?.codeSymbol.deleteMany({ where: { projectId } }).catch(() => {});
-    await prisma?.codeEdge.deleteMany({ where: { projectId } }).catch(() => {});
+    // Deleting the user cascades user → project → code_symbols/code_edges.
+    await fixture?.cleanup();
     await prisma?.$disconnect();
   });
 
