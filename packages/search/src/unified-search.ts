@@ -4,9 +4,9 @@ export type UnifiedSource = 'code' | 'memory' | 'knowledge' | 'document';
 
 export interface UnifiedResult {
   source: UnifiedSource;
-  /** Cross-source rank score: each source min-max normalized to [0,1] (see UnifiedSearchService). */
+  /** Cross-source rank score: weighted Reciprocal Rank Fusion, `w_src / (60 + rank)` (rank ≥ 1). */
   score: number;
-  /** The source's own raw score (cosine / hybrid) before normalization. */
+  /** The source's own raw score (cosine / hybrid) before fusion. */
   rawScore: number;
   title: string;
   snippet: string;
@@ -60,24 +60,34 @@ function emptyOnFailure<T>(source: UnifiedSource, promise: Promise<T[]>): Promis
   });
 }
 
-/** A unified result before cross-source normalization (carries only its source's raw score). */
+/** A unified result before cross-source fusion (carries only its source's raw score). */
 type RawResult = Omit<UnifiedResult, 'score'>;
 
+/** RRF dampening constant — the standard k=60 keeps deep ranks from vanishing entirely. */
+const RRF_K = 60;
+
+/** Source priors: code answers most queries; memory is the most situational. */
+const SOURCE_WEIGHTS: Record<UnifiedSource, number> = {
+  code: 1.0,
+  knowledge: 0.9,
+  document: 0.8,
+  memory: 0.7,
+};
+
 /**
- * Min-max normalize each source's scores to [0,1] so no source dominates merely because its
- * score scale is larger. A source whose hits are all equal (or single) maps to 1.0; ranking
- * then falls back to the raw score as a tie-break, keeping more-confident hits ahead.
+ * Weighted Reciprocal Rank Fusion: within each source, hits are ranked by their raw score and
+ * scored `w_src / (RRF_K + rank)` (rank starts at 1). Unlike min-max normalization, a source's
+ * single/equal-scored hit no longer jumps to 1.0 — only its *rank* and the source prior matter,
+ * so raw score scales never have to be comparable across sources.
  */
-function normalizeBySource(groups: RawResult[][]): UnifiedResult[] {
+function rrfBySource(groups: RawResult[][]): UnifiedResult[] {
   const out: UnifiedResult[] = [];
   for (const group of groups) {
-    if (group.length === 0) continue;
-    const scores = group.map((r) => r.rawScore);
-    const max = Math.max(...scores);
-    const min = Math.min(...scores);
-    const span = max - min;
-    for (const r of group) {
-      out.push({ ...r, score: span > 0 ? (r.rawScore - min) / span : 1 });
+    const ranked = [...group].sort((a, b) => b.rawScore - a.rawScore);
+    for (let i = 0; i < ranked.length; i++) {
+      const result = ranked[i];
+      if (!result) continue;
+      out.push({ ...result, score: SOURCE_WEIGHTS[result.source] / (RRF_K + i + 1) });
     }
   }
   return out;
@@ -141,8 +151,8 @@ export class UnifiedSearchService {
       })),
     ];
 
-    // Rank by normalized score; break ties with the raw score so confident hits stay ahead.
-    return normalizeBySource(groups)
+    // Rank by fused score; break ties with the raw score so confident hits stay ahead.
+    return rrfBySource(groups)
       .sort((a, b) => b.score - a.score || b.rawScore - a.rawScore)
       .slice(0, limit);
   }

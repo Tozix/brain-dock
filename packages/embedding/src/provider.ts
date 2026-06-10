@@ -7,6 +7,14 @@ export interface EmbeddingProvider {
   readonly model: string;
   /** Vector dimensionality — must match the Qdrant collection size. */
   readonly dimensions: number;
-  /** Embed a batch of texts; result[i] corresponds to texts[i]. */
+  /**
+   * Embed a batch of **documents** (indexing side); result[i] corresponds to texts[i].
+   * Asymmetric retrieval models (nomic-embed-text) apply a `search_document: ` task prefix.
+   */
   embed(texts: string[]): Promise<number[][]>;
+  /**
+   * Embed a **search query** (retrieval side). Asymmetric retrieval models apply a
+   * `search_query: ` task prefix; symmetric providers may delegate to {@link embed}.
+   */
+  embedQuery(text: string): Promise<number[]>;
 }

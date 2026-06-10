@@ -22,6 +22,13 @@ interface EmbedResponse {
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
+/**
+ * Task prefixes for asymmetric retrieval (nomic-embed-text is trained with them; omitting them
+ * degrades ranking). Documents and queries are embedded into the same space with different roles.
+ */
+const DOCUMENT_PREFIX = 'search_document: ';
+const QUERY_PREFIX = 'search_query: ';
+
 /** Embeddings via the local Ollama HTTP API (`POST /api/embed`). */
 export class OllamaEmbeddingProvider implements EmbeddingProvider {
   private readonly batchSize: number;
@@ -34,8 +41,9 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 
+  /** `+prefixed` marks vectors produced with task prefixes — distinguishable from older ones. */
   get model(): string {
-    return this.options.model;
+    return `${this.options.model}+prefixed`;
   }
 
   get dimensions(): number {
@@ -43,11 +51,22 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
   }
 
   async embed(texts: string[]): Promise<number[][]> {
+    return this.embedWithPrefix(texts, DOCUMENT_PREFIX);
+  }
+
+  async embedQuery(text: string): Promise<number[]> {
+    const [vector] = await this.embedWithPrefix([text], QUERY_PREFIX);
+    if (!vector) throw new Error(`Ollama embed returned no vector (model ${this.options.model})`);
+    return vector;
+  }
+
+  private async embedWithPrefix(texts: string[], prefix: string): Promise<number[][]> {
     const out: number[][] = [];
     for (let i = 0; i < texts.length; i += this.batchSize) {
+      // Truncate the content first, then prepend the task prefix — the prefix must survive whole.
       const input = texts
         .slice(i, i + this.batchSize)
-        .map((t) => (t.length > this.maxChars ? t.slice(0, this.maxChars) : t));
+        .map((t) => prefix + (t.length > this.maxChars ? t.slice(0, this.maxChars) : t));
       const response = await this.post(input);
       if (!response.ok) {
         throw new Error(`Ollama embed failed (${response.status}): ${await response.text()}`);

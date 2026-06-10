@@ -24,6 +24,7 @@
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
     "dev:stack": "bash scripts/dev-stack.sh",
+    "search:eval": "bun run packages/search/eval/eval.ts",
     "deploy": "docker compose --profile app up -d --build"
   },
   "engines": {

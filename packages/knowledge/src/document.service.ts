@@ -89,8 +89,8 @@ export class DocumentService {
   }
 
   async search(projectId: string, query: string, limit = 10): Promise<DocumentHit[]> {
-    const [vector] = await this.embedder.embed([query]);
-    if (!vector) return [];
+    const vector = await this.embedder.embedQuery(query);
+    if (vector.length === 0) return [];
 
     const hits = await this.store.search(COLLECTION, vector, {
       limit: limit * 3,

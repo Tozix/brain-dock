@@ -33,8 +33,7 @@ export class EmbeddedIndex {
 
   async search(query: string, projectId: string, limit: number): Promise<SearchHit[]> {
     await this.ensure();
-    const [vector] = await this.embedder.embed([query]);
-    if (!vector) return [];
+    const vector = await this.embedder.embedQuery(query);
     return this.store.search(this.collection, vector, {
       limit,
       filter: { must: [{ key: 'projectId', match: { value: projectId } }] },

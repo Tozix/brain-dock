@@ -5,7 +5,14 @@ import {
   RepositoryIndexer,
   sha256,
 } from '@brain-dock/indexer';
-import { isNotFoundError, QdrantStore, uuidFromHash, type VectorPoint } from '@brain-dock/storage';
+import {
+  type CollectionMode,
+  isNotFoundError,
+  QdrantStore,
+  uuidFromHash,
+  type VectorPoint,
+} from '@brain-dock/storage';
+import { bm25DocumentVector, tokenizeCode } from './tokenize';
 import { type ChunkPayload, DEFAULT_REPO } from './types';
 
 export interface IngestOptions {
@@ -54,10 +61,17 @@ export class IngestionService {
   async ingestIndex(index: RepositoryIndex, options: IngestOptions): Promise<IngestReport> {
     const repo = options.repo ?? DEFAULT_REPO;
     await this.store.ensureCollection(options.collection, this.embedder.dimensions);
+    const mode = await this.store.collectionMode(options.collection);
     const liveIds = new Set<string>();
     let chunks = 0;
     for (const file of index.files) {
-      const points = await this.embedFile(file, options.projectId, repo, options.repositoryId);
+      const points = await this.embedFile(
+        file,
+        options.projectId,
+        repo,
+        mode,
+        options.repositoryId,
+      );
       if (points.length > 0) {
         await this.store.upsert(options.collection, points);
         for (const point of points) liveIds.add(point.id);
@@ -96,6 +110,7 @@ export class IngestionService {
     const repo = options.repo ?? DEFAULT_REPO;
     const index = this.indexer.index(rootDir, { previous: options.previous, include: INCLUDE });
     await this.store.ensureCollection(options.collection, this.embedder.dimensions);
+    const mode = await this.store.collectionMode(options.collection);
 
     const previousByPath = new Map((options.previous?.files ?? []).map((f) => [f.path, f]));
     const currentPaths = new Set(index.files.map((f) => f.path));
@@ -107,7 +122,13 @@ export class IngestionService {
       if (previous && previous.hash === file.hash) continue; // unchanged — reuse vectors
       changedFiles++;
       await this.deletePath(options.collection, options.projectId, repo, file.path);
-      const points = await this.embedFile(file, options.projectId, repo, options.repositoryId);
+      const points = await this.embedFile(
+        file,
+        options.projectId,
+        repo,
+        mode,
+        options.repositoryId,
+      );
       if (points.length > 0) {
         await this.store.upsert(options.collection, points);
         chunks += points.length;
@@ -129,10 +150,13 @@ export class IngestionService {
     file: FileIndex,
     projectId: string,
     repo: string,
+    mode: CollectionMode,
     repositoryId?: string,
   ): Promise<VectorPoint[]> {
     if (file.chunks.length === 0) return [];
     const roleByKey = new Map(file.symbols.map((s) => [`${s.name}:${s.startLine}`, s.nestRole]));
+    // Sub-chunks of large classes carry `Class.method` symbols — fall back to the class role.
+    const roleByName = new Map(file.symbols.map((s) => [s.name, s.nestRole]));
     const vectors = await this.embedder.embed(file.chunks.map((c) => c.text));
     if (vectors.length !== file.chunks.length) {
       throw new Error(
@@ -152,13 +176,22 @@ export class IngestionService {
         path: file.path,
         symbol: chunk.symbol,
         kind: chunk.kind,
-        role: roleByKey.get(`${chunk.symbol}:${chunk.startLine}`) ?? 'none',
+        role:
+          roleByKey.get(`${chunk.symbol}:${chunk.startLine}`) ??
+          roleByName.get(chunk.symbol.split('.', 1)[0] ?? chunk.symbol) ??
+          'none',
         startLine: chunk.startLine,
         endLine: chunk.endLine,
         model: this.embedder.model,
         text: chunk.text.slice(0, 4000),
       };
-      points.push({ id: scopedPointId(projectId, repo, chunk.id), vector, payload });
+      points.push({
+        id: scopedPointId(projectId, repo, chunk.id),
+        vector,
+        // BM25 weights only matter (and are only stored) in hybrid collections.
+        ...(mode === 'hybrid' ? { sparse: bm25DocumentVector(tokenizeCode(chunk.text)) } : {}),
+        payload,
+      });
     }
     return points;
   }

@@ -1,4 +1,10 @@
-import { type ClassDeclaration, type Decorator, Project, type SourceFile } from 'ts-morph';
+import {
+  type ClassDeclaration,
+  type Decorator,
+  Project,
+  type SourceFile,
+  SyntaxKind,
+} from 'ts-morph';
 import type { AstEngine } from './ast-engine';
 import { sha256 } from './hash';
 import type {
@@ -26,6 +32,21 @@ const HTTP_DECORATORS = new Set([
 ]);
 
 const VIRTUAL_PATH = '__bd_index__.ts';
+
+/**
+ * Classes whose text exceeds this many characters are split into method-level chunks (with a
+ * `file > Class` breadcrumb) instead of one giant chunk — otherwise everything past the embedding
+ * model's input limit would never reach the index.
+ */
+export const SUBCHUNK_THRESHOLD = 6000;
+
+/** Fallback header size (lines) when a class header cannot be assembled from its members. */
+const HEADER_FALLBACK_LINES = 40;
+
+export interface TsMorphEngineOptions {
+  /** Max class text length (chars) before method-level sub-chunking kicks in. */
+  subchunkThreshold?: number;
+}
 
 function unquote(text: string | undefined): string {
   if (!text) return '';
@@ -66,8 +87,10 @@ function baseTypeName(text: string): string {
 
 export class TsMorphEngine implements AstEngine {
   private readonly project: Project;
+  private readonly subchunkThreshold: number;
 
-  constructor() {
+  constructor(options: TsMorphEngineOptions = {}) {
+    this.subchunkThreshold = options.subchunkThreshold ?? SUBCHUNK_THRESHOLD;
     this.project = new Project({
       useInMemoryFileSystem: true,
       skipAddingFilesFromTsConfig: true,
@@ -88,6 +111,7 @@ export class TsMorphEngine implements AstEngine {
       exported: boolean,
       node: { getStartLineNumber(): number; getEndLineNumber(): number; getText(): string },
       extra?: Partial<IndexedSymbol>,
+      emitChunk = true,
     ): void => {
       const startLine = node.getStartLineNumber();
       const endLine = node.getEndLineNumber();
@@ -102,6 +126,7 @@ export class TsMorphEngine implements AstEngine {
         dependencies: extra?.dependencies ?? [],
         routes: extra?.routes ?? [],
       });
+      if (!emitChunk) return;
       const text = node.getText();
       chunks.push({
         id: sha256(`${filePath}#${kind}:${name}:${startLine}`),
@@ -127,12 +152,17 @@ export class TsMorphEngine implements AstEngine {
 
       const routes = nestRole === 'controller' ? this.extractRoutes(cls) : [];
 
-      push('class', name, cls.isExported(), cls, {
-        nestRole,
-        decorators,
-        dependencies,
-        routes,
-      });
+      const text = cls.getText();
+      const oversized = text.length > this.subchunkThreshold;
+      push(
+        'class',
+        name,
+        cls.isExported(),
+        cls,
+        { nestRole, decorators, dependencies, routes },
+        !oversized,
+      );
+      if (oversized) chunks.push(...this.subchunkClass(filePath, name, cls, text));
 
       for (const dep of dependencies) relations.push({ from: name, to: dep, kind: 'injects' });
       const ext = cls.getExtends();
@@ -159,6 +189,64 @@ export class TsMorphEngine implements AstEngine {
     const imports = this.extractImports(sf);
 
     return { symbols, imports, relations, chunks };
+  }
+
+  /**
+   * Method-level chunks for a class too large to embed whole: one "header" chunk (class signature
+   * + fields/constructor) and one chunk per method, each carrying a `file > Class` breadcrumb so
+   * retrieval keeps the structural context. Chunk ids extend the regular scheme with the method
+   * name (+ start line), staying deterministic and unique.
+   */
+  private subchunkClass(
+    filePath: string,
+    className: string,
+    cls: ClassDeclaration,
+    text: string,
+  ): Chunk[] {
+    const breadcrumb = `${filePath} > ${className}`;
+    // The declaration line proper — getText() starts at the decorators, not at `class …`.
+    const lines = text.split('\n');
+    const signature = lines.find((l) => /\bclass\b/.test(l)) ?? lines[0] ?? '';
+    const classStart = cls.getStartLineNumber();
+    const out: Chunk[] = [];
+
+    // Header: decorators + signature + every non-method member (fields, constructor, accessors).
+    // If even that is oversized (giant literals), fall back to the first N lines of the class.
+    const decoratorParts = cls.getDecorators().map((d) => d.getText());
+    const memberParts = cls
+      .getMembers()
+      .filter((m) => m.getKind() !== SyntaxKind.MethodDeclaration)
+      .map((m) => m.getText());
+    let header = [...decoratorParts, signature, ...memberParts, '}'].join('\n');
+    if (header.length > this.subchunkThreshold) {
+      header = text.split('\n').slice(0, HEADER_FALLBACK_LINES).join('\n');
+    }
+    const headerText = `${breadcrumb}\n${header}`;
+    out.push({
+      id: sha256(`${filePath}#class:${className}:${classStart}:__header__`),
+      symbol: className,
+      kind: 'class',
+      startLine: classStart,
+      endLine: cls.getEndLineNumber(),
+      hash: sha256(headerText),
+      text: headerText,
+    });
+
+    for (const method of cls.getMethods()) {
+      const methodName = method.getName();
+      const startLine = method.getStartLineNumber();
+      const chunkText = `${breadcrumb}\n${signature}\n${method.getText()}`;
+      out.push({
+        id: sha256(`${filePath}#class:${className}:${classStart}:${methodName}:${startLine}`),
+        symbol: `${className}.${methodName}`,
+        kind: 'class',
+        startLine,
+        endLine: method.getEndLineNumber(),
+        hash: sha256(chunkText),
+        text: chunkText,
+      });
+    }
+    return out;
   }
 
   private extractRoutes(cls: ClassDeclaration): RouteInfo[] {

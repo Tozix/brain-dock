@@ -1,0 +1,175 @@
+{
+  "$schema_note": "Golden retrieval set for `bun run search:eval`. Each case: a natural query or exact identifier and the repo-relative files a good code search should surface in the top results.",
+  "cases": [
+    {
+      "query": "API key authentication",
+      "expectedPaths": [
+        "apps/api/src/auth/authentication.guard.ts",
+        "apps/mcp/src/remote/auth.ts",
+        "apps/api/src/api-keys/api-keys.service.ts"
+      ]
+    },
+    {
+      "query": "rate limiting fixed window",
+      "expectedPaths": ["apps/api/src/common/rate-limit.ts", "apps/mcp/src/remote/rate-limit.ts"]
+    },
+    {
+      "query": "qdrant vector store upsert",
+      "expectedPaths": ["packages/storage/src/qdrant-store.ts"]
+    },
+    {
+      "query": "parse pdf documents",
+      "expectedPaths": ["packages/knowledge/src/parsers.ts"]
+    },
+    {
+      "query": "JWT refresh token rotation",
+      "expectedPaths": ["apps/api/src/auth/auth.service.ts"]
+    },
+    {
+      "query": "BullMQ index queue producer",
+      "expectedPaths": [
+        "apps/api/src/repositories/bull-index-queue.ts",
+        "apps/workers/src/queues.ts"
+      ]
+    },
+    {
+      "query": "ensureCollection",
+      "expectedPaths": ["packages/storage/src/qdrant-store.ts"]
+    },
+    {
+      "query": "resolvePrincipal",
+      "expectedPaths": ["apps/api/src/api-keys/api-keys.service.ts"]
+    },
+    {
+      "query": "FixedWindowLimiter",
+      "expectedPaths": ["apps/api/src/common/rate-limit.ts", "apps/mcp/src/remote/rate-limit.ts"]
+    },
+    {
+      "query": "ollama embeddings HTTP api",
+      "expectedPaths": ["packages/embedding/src/ollama-provider.ts"]
+    },
+    {
+      "query": "deterministic offline embedding for tests",
+      "expectedPaths": ["packages/embedding/src/deterministic-provider.ts"]
+    },
+    {
+      "query": "hybrid search vector keyword ranking",
+      "expectedPaths": ["packages/search/src/search.ts"]
+    },
+    {
+      "query": "split text into chunks paragraphs overlap",
+      "expectedPaths": ["packages/knowledge/src/chunker.ts"]
+    },
+    {
+      "query": "ts-morph extract symbols decorators",
+      "expectedPaths": ["packages/indexer/src/ts-morph-engine.ts"]
+    },
+    {
+      "query": "incremental reindex only changed files",
+      "expectedPaths": ["packages/search/src/ingestion.ts", "packages/indexer/src/indexer.ts"]
+    },
+    {
+      "query": "prometheus metrics counters",
+      "expectedPaths": ["apps/api/src/metrics/metrics.service.ts"]
+    },
+    {
+      "query": "health readiness probe postgres redis",
+      "expectedPaths": ["apps/api/src/health/health.service.ts"]
+    },
+    {
+      "query": "zod environment variables validation",
+      "expectedPaths": ["apps/api/src/config/env.schema.ts"]
+    },
+    {
+      "query": "opentelemetry tracing setup",
+      "expectedPaths": [
+        "packages/core/src/observability/tracing.ts",
+        "apps/api/src/tracing/tracing.ts"
+      ]
+    },
+    {
+      "query": "audit log actor actions",
+      "expectedPaths": ["apps/api/src/audit/audit.service.ts"]
+    },
+    {
+      "query": "create project with unique slug",
+      "expectedPaths": ["apps/api/src/projects/projects.service.ts"]
+    },
+    {
+      "query": "register remote MCP tools",
+      "expectedPaths": ["apps/mcp/src/remote/tools.ts"]
+    },
+    {
+      "query": "search everywhere across sources merged ranking",
+      "expectedPaths": ["packages/search/src/unified-search.ts"]
+    },
+    {
+      "query": "context engine intent aware reranking",
+      "expectedPaths": ["packages/search/src/context-engine.ts", "packages/search/src/intent.ts"]
+    },
+    {
+      "query": "symbol dependency graph nodes edges",
+      "expectedPaths": ["packages/graph/src/symbol-graph.ts"]
+    },
+    {
+      "query": "uuidFromHash",
+      "expectedPaths": ["packages/storage/src/uuid.ts"]
+    },
+    {
+      "query": "scopedPointId",
+      "expectedPaths": ["packages/search/src/ingestion.ts"]
+    },
+    {
+      "query": "extractText document format docx",
+      "expectedPaths": ["packages/knowledge/src/parsers.ts"]
+    },
+    {
+      "query": "remember memory items semantic search",
+      "expectedPaths": ["packages/knowledge/src/memory.service.ts"]
+    },
+    {
+      "query": "knowledge items ADR save",
+      "expectedPaths": ["packages/knowledge/src/knowledge.service.ts"]
+    },
+    {
+      "query": "watch file changes debounce reindex",
+      "expectedPaths": ["apps/workers/src/watch-reindex.ts", "apps/workers/src/watch.ts"]
+    },
+    {
+      "query": "process index job in worker",
+      "expectedPaths": ["apps/workers/src/process-index-job.ts", "apps/workers/src/index-worker.ts"]
+    },
+    {
+      "query": "roles guard admin access",
+      "expectedPaths": ["apps/api/src/auth/roles.guard.ts"]
+    },
+    {
+      "query": "pagination page size query params",
+      "expectedPaths": ["apps/api/src/common/pagination.ts"]
+    },
+    {
+      "query": "http exception filter error response",
+      "expectedPaths": ["apps/api/src/common/http-exception.filter.ts"]
+    },
+    {
+      "query": "delete project vectors cleanup qdrant",
+      "expectedPaths": ["apps/api/src/projects/vector-cleanup.service.ts"]
+    },
+    {
+      "query": "EmbeddedIndex",
+      "expectedPaths": ["packages/knowledge/src/embedded-index.ts"]
+    },
+    {
+      "query": "SymbolIndexService",
+      "expectedPaths": ["packages/knowledge/src/symbol-index.service.ts"]
+    },
+    {
+      "query": "detectIntent",
+      "expectedPaths": ["packages/search/src/intent.ts"]
+    },
+    {
+      "query": "redis connection from url bullmq",
+      "expectedPaths": ["apps/workers/src/redis.ts"]
+    }
+  ]
+}

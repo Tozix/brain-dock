@@ -23,6 +23,12 @@ describe('DeterministicEmbeddingProvider', () => {
     expect(norm).toBeCloseTo(1, 5);
   });
 
+  it('embedQuery matches embed exactly (symmetric, no task prefixes)', async () => {
+    const [doc] = await provider.embed(['authentication service jwt']);
+    const query = await provider.embedQuery('authentication service jwt');
+    expect(query).toEqual(doc ?? []);
+  });
+
   it('ranks lexically similar text higher than unrelated text', async () => {
     const [query, related, unrelated] = await provider.embed([
       'jwt authentication token refresh',

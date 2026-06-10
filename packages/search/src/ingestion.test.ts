@@ -4,14 +4,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DeterministicEmbeddingProvider } from '@brain-dock/embedding';
 import { RepositoryIndexer } from '@brain-dock/indexer';
-import type { QdrantFilter, QdrantStore, VectorPoint } from '@brain-dock/storage';
+import type { CollectionMode, QdrantFilter, QdrantStore, VectorPoint } from '@brain-dock/storage';
 import { IngestionService, scopedPointId } from './ingestion';
 
 /** In-memory fake store recording upserted paths and deleted-by-path filters. */
 class FakeStore {
   upsertedPaths: string[][] = [];
   deletedPaths: string[] = [];
+  mode: CollectionMode = 'legacy';
   async ensureCollection(): Promise<void> {}
+  async collectionMode(): Promise<CollectionMode> {
+    return this.mode;
+  }
   async upsert(_name: string, points: VectorPoint[]): Promise<void> {
     this.upsertedPaths.push(points.map((p) => String((p.payload as { path: string }).path)));
   }
@@ -30,9 +34,17 @@ class FakeStore {
 /** Fake store with real point storage — enough to verify scoped orphan pruning. */
 class FakePointStore {
   points = new Map<string, Record<string, unknown>>();
+  vectors = new Map<string, Pick<VectorPoint, 'vector' | 'sparse'>>();
+  mode: CollectionMode = 'legacy';
   async ensureCollection(): Promise<void> {}
+  async collectionMode(): Promise<CollectionMode> {
+    return this.mode;
+  }
   async upsert(_name: string, pts: VectorPoint[]): Promise<void> {
-    for (const p of pts) this.points.set(p.id, p.payload);
+    for (const p of pts) {
+      this.points.set(p.id, p.payload);
+      this.vectors.set(p.id, { vector: p.vector, sparse: p.sparse });
+    }
   }
   async listPointIds(_name: string, options?: { filter?: QdrantFilter }): Promise<string[]> {
     const must = options?.filter?.must ?? [];
@@ -107,6 +119,41 @@ describe('IngestionService.ingestIndex — orphan pruning', () => {
       'r1:a.ts',
       'r2:b.ts',
     ]);
+  });
+});
+
+describe('IngestionService — vector format per collection mode', () => {
+  const index = () =>
+    new RepositoryIndexer().indexFiles('/repo', [
+      { path: 'auth.ts', content: 'export class AuthService { login() { return 1; } }\n' },
+    ]);
+
+  it('hybrid collections get dense + BM25 sparse vectors per point', async () => {
+    const store = new FakePointStore();
+    store.mode = 'hybrid';
+    const service = new IngestionService(
+      new DeterministicEmbeddingProvider(8),
+      store as unknown as QdrantStore,
+    );
+    await service.ingestIndex(index(), opts);
+
+    const point = [...store.vectors.values()][0];
+    expect(point?.vector).toHaveLength(8);
+    expect(point?.sparse?.indices.length).toBeGreaterThan(0);
+    expect(point?.sparse?.indices).toHaveLength(point?.sparse?.values.length ?? -1);
+  });
+
+  it('legacy collections keep the plain dense vector with no sparse part', async () => {
+    const store = new FakePointStore();
+    const service = new IngestionService(
+      new DeterministicEmbeddingProvider(8),
+      store as unknown as QdrantStore,
+    );
+    await service.ingestIndex(index(), opts);
+
+    const point = [...store.vectors.values()][0];
+    expect(point?.vector).toHaveLength(8);
+    expect(point?.sparse).toBeUndefined();
   });
 });
 

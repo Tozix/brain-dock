@@ -1,5 +1,6 @@
 import type { EmbeddingProvider } from '@brain-dock/embedding';
 import type { QdrantFilter, QdrantStore } from '@brain-dock/storage';
+import { bm25QueryVector, tokenizeCode } from './tokenize';
 import type { ChunkPayload, SearchResult } from './types';
 
 export interface QueryOptions {
@@ -12,6 +13,8 @@ export interface QueryOptions {
 
 const VECTOR_WEIGHT = 0.7;
 const KEYWORD_WEIGHT = 0.3;
+/** Dense candidates over-fetched for client-side re-ranking (legacy) / per-branch prefetch (hybrid). */
+const CANDIDATE_FACTOR = 3;
 
 function tokenize(text: string): Set<string> {
   return new Set(text.toLowerCase().match(/[a-z0-9_]+/g) ?? []);
@@ -29,20 +32,20 @@ function keywordScore(queryTokens: Set<string>, text: string): number {
 }
 
 /**
- * Hybrid retrieval (bridge implementation): vector similarity from Qdrant blended
- * with a lightweight keyword overlap score. Full BM25/AST/knowledge fusion is Phase 4.
+ * Hybrid retrieval. On hybrid collections: dense + BM25 sparse vectors fused server-side with RRF
+ * (Qdrant Query API) — BM25 covers exact-identifier matching, so no client-side keyword boost is
+ * applied. On legacy collections (single unnamed vector): dense search blended with a lightweight
+ * substring-overlap keyword score, exactly as before.
  */
 export class SearchService {
   constructor(
     private readonly embedder: EmbeddingProvider,
-    private readonly store: Pick<QdrantStore, 'search'>,
+    private readonly store: Pick<QdrantStore, 'search' | 'hybridQuery' | 'collectionMode'>,
   ) {}
 
   async search(query: string, options: QueryOptions): Promise<SearchResult[]> {
     const limit = options.limit ?? 10;
-    const vectors = await this.embedder.embed([query]);
-    const queryVector = vectors[0];
-    if (!queryVector) throw new Error('Failed to embed query');
+    const queryVector = await this.embedder.embedQuery(query);
 
     const filter: QdrantFilter = {
       must: [{ key: 'projectId', match: { value: options.projectId } }],
@@ -51,8 +54,21 @@ export class SearchService {
       filter.must?.push({ key: 'repo', match: { any: options.repos } });
     }
 
+    const mode = await this.store.collectionMode(options.collection);
+    const sparse = bm25QueryVector(tokenizeCode(query));
+    if (mode === 'hybrid' && sparse.indices.length > 0) {
+      const hits = await this.store.hybridQuery(options.collection, {
+        dense: queryVector,
+        sparse,
+        limit,
+        prefetchLimit: limit * CANDIDATE_FACTOR,
+        filter,
+      });
+      return hits.map((hit) => ({ ...(hit.payload as unknown as ChunkPayload), score: hit.score }));
+    }
+
     const hits = await this.store.search(options.collection, queryVector, {
-      limit: limit * 3,
+      limit: limit * CANDIDATE_FACTOR,
       filter,
     });
 

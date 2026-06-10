@@ -29,8 +29,34 @@ describe('OllamaEmbeddingProvider', () => {
     expect(out).toHaveLength(3);
     expect(calls).toHaveLength(2); // 3 inputs, batchSize 2 → 2 requests
     expect(calls[0]?.url).toContain('/api/embed');
-    expect(provider.model).toBe('nomic-embed-text');
+    expect(provider.model).toBe('nomic-embed-text+prefixed');
     expect(provider.dimensions).toBe(2);
+  });
+
+  it('prefixes documents with "search_document: " and queries with "search_query: "', async () => {
+    const inputs: string[][] = [];
+    globalThis.fetch = (async (_url: string, init: { body: string }) => {
+      const body = JSON.parse(init.body) as { input: string[] };
+      inputs.push(body.input);
+      return new Response(JSON.stringify({ embeddings: body.input.map(() => [0, 1]) }), {
+        status: 200,
+      });
+    }) as unknown as typeof fetch;
+
+    const provider = new OllamaEmbeddingProvider({
+      url: 'http://ollama',
+      model: 'nomic-embed-text',
+      dimensions: 2,
+    });
+    await provider.embed(['class AuthService {}', 'function login() {}']);
+    const query = await provider.embedQuery('jwt refresh');
+
+    expect(inputs[0]).toEqual([
+      'search_document: class AuthService {}',
+      'search_document: function login() {}',
+    ]);
+    expect(inputs[1]).toEqual(['search_query: jwt refresh']);
+    expect(query).toEqual([0, 1]);
   });
 
   it('throws a descriptive error on a non-ok response', async () => {
@@ -101,8 +127,11 @@ describe('OllamaEmbeddingProvider', () => {
     });
     const out = await provider.embed(['a'.repeat(5000), 'short']);
 
-    expect(sent[0]?.length).toBe(100);
-    expect(sent[1]).toBe('short');
+    // Content is truncated to maxChars first; the task prefix is prepended after and stays whole.
+    const prefix = 'search_document: ';
+    expect(sent[0]?.length).toBe(prefix.length + 100);
+    expect(sent[0]?.startsWith(prefix)).toBe(true);
+    expect(sent[1]).toBe(`${prefix}short`);
     expect(out).toHaveLength(2);
   });
 });

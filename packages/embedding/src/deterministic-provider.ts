@@ -15,6 +15,11 @@ export class DeterministicEmbeddingProvider implements EmbeddingProvider {
     return texts.map((text) => this.vectorize(text));
   }
 
+  /** Symmetric provider: queries embed exactly like documents (no task prefixes). */
+  async embedQuery(text: string): Promise<number[]> {
+    return this.vectorize(text);
+  }
+
   private vectorize(text: string): number[] {
     const vector = new Array<number>(this.dimensions).fill(0);
     const tokens = text.toLowerCase().match(/[a-z0-9_]+/g) ?? [];
