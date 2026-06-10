@@ -34,7 +34,7 @@ See [plan 042](https://github.com/Tozix/brain-dock/blob/main/docs/plans/042-vsco
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `brainDock.serverUrl` | `http://localhost:3000` | REST API base (without `/api/v1`). |
+| `brainDock.serverUrl` | `http://localhost:3100` | REST API base (without `/api/v1`). |
 | `brainDock.mcpUrl` | `http://localhost:8080/mcp` | Remote MCP endpoint. |
 | `brainDock.project` | — | Active project (slug/id) → `X-Project`. Stored per-workspace when a folder is open, so different windows can use different projects. |
 

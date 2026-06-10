@@ -21,7 +21,7 @@ export interface Settings {
 export function readSettings(): Settings {
   const cfg = vscode.workspace.getConfiguration(SECTION);
   return {
-    serverUrl: (cfg.get<string>('serverUrl') ?? 'http://localhost:3000').trim(),
+    serverUrl: (cfg.get<string>('serverUrl') ?? 'http://localhost:3100').trim(),
     mcpUrl: (cfg.get<string>('mcpUrl') ?? 'http://localhost:8080/mcp').trim(),
     project: (cfg.get<string>('project') ?? '').trim(),
   };

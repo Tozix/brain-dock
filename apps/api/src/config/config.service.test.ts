@@ -14,7 +14,7 @@ describe('ConfigService.parse', () => {
   it('applies documented defaults', () => {
     const env = ConfigService.parse(base);
     expect(env.NODE_ENV).toBe('development');
-    expect(env.API_PORT).toBe(3000);
+    expect(env.API_PORT).toBe(3100);
     expect(env.EMBEDDING_MODEL).toBe('nomic-embed-text');
   });
 

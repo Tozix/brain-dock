@@ -73,7 +73,7 @@ The end-to-end deploy + MCP-connection walkthrough lives in [docs/GUIDE.md](../d
 
 ```bash
 bun run infra:up && bun run db:migrate
-bun --no-addons run apps/api/src/main.ts        # REST API → http://localhost:3000  (Swagger: /api/v1/docs)
+bun --no-addons run apps/api/src/main.ts        # REST API → http://localhost:3100  (Swagger: /api/v1/docs)
 bun --no-addons run apps/workers/src/index.ts   # BullMQ index worker
 bun run apps/mcp/src/http.ts                     # hosted MCP → http://localhost:8080/mcp
 ```
@@ -97,7 +97,7 @@ Postgres → MCP serves context to the AI client**, scoped by user (API key) and
 
 ### Apps (`apps/*`)
 
-- **`api`** — NestJS 11 REST API (`:3000`, Swagger at `/api/v1/docs`). Owns auth (JWT access/refresh
+- **`api`** — NestJS 11 REST API (`:3100`, Swagger at `/api/v1/docs`). Owns auth (JWT access/refresh
   + API keys), users/projects/repositories, CRUD for memory/knowledge/documents, upload-and-index
   (`indexing`) and usage rollups (`usage`); triggers indexing by enqueuing BullMQ jobs. Modules under
   `src/`: `auth`, `api-keys`, `projects`, `repositories`, `indexing`, `usage`, `knowledge`, `audit`

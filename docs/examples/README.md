@@ -5,7 +5,7 @@
 ## Минимальный сценарий (curl): от регистрации до подключённого MCP
 
 ```bash
-API=http://localhost:3000/api/v1        # или https://api.example.com/api/v1
+API=http://localhost:3100/api/v1        # или https://api.example.com/api/v1
 
 # 1) Регистрация (первый пользователь автоматически становится SUPER_ADMIN)
 curl -s -X POST $API/auth/register -H 'content-type: application/json' \
@@ -46,4 +46,4 @@ curl -s http://localhost:8080/mcp/my-app -H "Authorization: Bearer $T" \
 
 Дальше внутри сессии Claude Code инструменты вызываются автоматически («через brain-dock найди
 сервис AuthService»). Справочник инструментов — [GUIDE.md §7](../GUIDE.md) и
-[../mcp/](../mcp/README.md); Swagger всего REST — `http://localhost:3000/api/v1/docs`.
+[../mcp/](../mcp/README.md); Swagger всего REST — `http://localhost:3100/api/v1/docs`.

@@ -127,13 +127,13 @@ services:
     env_file: .env
     environment:
       NODE_ENV: production
-      API_PORT: '3000'
+      API_PORT: '3100'
       DATABASE_URL: postgresql://${POSTGRES_USER:-brain_dock}:${POSTGRES_PASSWORD:-brain_dock}@postgres:5432/${POSTGRES_DB:-brain_dock}?schema=public
       REDIS_URL: redis://redis:6379
       QDRANT_URL: http://qdrant:6333
       OLLAMA_URL: http://ollama:11434
     ports:
-      - '3000:3000'
+      - '3100:3100'
     mem_limit: 1g
     logging: *default-logging
     healthcheck:
@@ -142,7 +142,7 @@ services:
         - CMD
         - bun
         - -e
-        - "fetch('http://localhost:3000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        - "fetch('http://localhost:3100/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       interval: 10s
       timeout: 5s
       retries: 10

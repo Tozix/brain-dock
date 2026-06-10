@@ -14,7 +14,7 @@ API-ключ, проиндексировать код и подключить **
 
 | Сервис | Порт (по умолчанию) | Назначение |
 |---|---|---|
-| **API** (`apps/api`) | `3000` | REST: пользователи, API-ключи, проекты, репозитории, память/знания/документы, запуск индексации. Swagger: `/api/v1/docs` |
+| **API** (`apps/api`) | `3100` | REST: пользователи, API-ключи, проекты, репозитории, память/знания/документы, запуск индексации. Swagger: `/api/v1/docs` |
 | **MCP** (`apps/mcp/src/http.ts`) | `8080` | Удалённый MCP по Streamable HTTP — сюда подключаются AI-клиенты. Путь `/mcp` |
 | **Workers** (`apps/workers`) | — | Фоновая индексация (BullMQ): код → эмбеддинги (Qdrant) + символьный граф (Postgres) |
 | Postgres / Qdrant / Redis / Ollama | `15432 / 16333 / 16379 / 11434` | Инфраструктура (Docker Compose) |
@@ -52,17 +52,17 @@ docker exec brain-dock-ollama ollama pull nomic-embed-text
 ```bash
 set -a; source .env; set +a
 export EMBEDDER=deterministic            # offline/быстро; для качества семантики → ollama
-export API_PORT=3000 MCP_HTTP_PORT=8080
+export API_PORT=3100 MCP_HTTP_PORT=8080
 
-bun --no-addons run apps/api/src/main.ts        # REST API     → http://localhost:3000
+bun --no-addons run apps/api/src/main.ts        # REST API     → http://localhost:3100
 bun --no-addons run apps/workers/src/index.ts   # index worker
 bun run apps/mcp/src/http.ts                     # remote MCP   → http://localhost:8080/mcp
 ```
 
 > `--no-addons` обязателен для api/workers (BullMQ тянет нативный модуль, несовместимый с Bun без
-> этого флага). Если порт `3000` занят — задайте другой `API_PORT`.
+> этого флага). Если порт `3100` занят — задайте другой `API_PORT`.
 
-Проверка: `curl localhost:3000/health/ready` → `{"status":"ok",…}`, `curl localhost:8080/health` → `ok`.
+Проверка: `curl localhost:3100/health/ready` → `{"status":"ok",…}`, `curl localhost:8080/health` → `ok`.
 
 ### 2.2. Вариант B — всё в Docker (как на проде, но локально)
 
@@ -70,7 +70,7 @@ bun run apps/mcp/src/http.ts                     # remote MCP   → http://local
 cp .env.example .env             # для dev дефолтные секреты подойдут
 bun run deploy                   # = docker compose --profile app up -d --build
 ```
-Поднимется инфра + `migrate` (применит миграции) + `api` (3000) + `workers` + `mcp` (8080).
+Поднимется инфра + `migrate` (применит миграции) + `api` (3100) + `workers` + `mcp` (8080).
 
 ---
 
@@ -104,15 +104,15 @@ bun run deploy        # docker compose --profile app up -d --build
 ```
 - Образы **собираются на сервере** (registry не используется).
 - Миграции применяются автоматически one-shot сервисом `migrate` **до** старта API.
-- Поднимаются: `api` (`:3000`), `mcp` (`:8080`), `workers`, инфра.
+- Поднимаются: `api` (`:3100`), `mcp` (`:8080`), `workers`, инфра.
 
 ### 3.3. Reverse-proxy + TLS (рекомендуется)
 
-Спрячьте `:8080` (MCP) и `:3000` (API) за nginx/Caddy с HTTPS. Пример Caddy:
+Спрячьте `:8080` (MCP) и `:3100` (API) за nginx/Caddy с HTTPS. Пример Caddy:
 
 ```
 mcp.example.com   { reverse_proxy localhost:8080 }
-api.example.com   { reverse_proxy localhost:3000 }
+api.example.com   { reverse_proxy localhost:3100 }
 ```
 Тогда клиенты подключаются к `https://mcp.example.com/mcp`. CORS не нужен (MCP-клиенты — не браузеры).
 
@@ -141,7 +141,7 @@ api.example.com   { reverse_proxy localhost:3000 }
 ## 4. Создание пользователя и API-ключа (токена)
 
 ```bash
-API=http://localhost:3000/api/v1     # или https://api.example.com/api/v1
+API=http://localhost:3100/api/v1     # или https://api.example.com/api/v1
 
 # 1) Регистрация. ПЕРВЫЙ зарегистрированный пользователь автоматически становится SUPER_ADMIN.
 curl -s -X POST $API/auth/register -H 'content-type: application/json' \
@@ -163,7 +163,7 @@ curl -s -X POST $API/api-keys -H "authorization: Bearer $ACC" \
 
 ```bash
 T=bd_…           # ваш API-ключ
-API=http://localhost:3000/api/v1
+API=http://localhost:3100/api/v1
 
 # Проект
 curl -s -X POST $API/projects -H "x-api-key: $T" -H 'content-type: application/json' \
@@ -188,7 +188,7 @@ curl -s -X POST $API/projects/$PID/repositories/$RID/reindex -H "x-api-key: $T"
 curl -s $API/projects/$PID/repositories/$RID/status -H "x-api-key: $T"
 ```
 
-Полная REST-документация (Swagger UI): `http://localhost:3000/api/v1/docs`.
+Полная REST-документация (Swagger UI): `http://localhost:3100/api/v1/docs`.
 Профиль проекта (markdown ≤4КБ, подмешивается первым блоком в `generate_context`):
 `GET`/`PUT $API/projects/$PID/profile`.
 

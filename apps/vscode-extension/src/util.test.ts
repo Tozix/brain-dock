@@ -25,7 +25,7 @@ describe('slugify', () => {
 
 describe('normalizeBase', () => {
   it('strips trailing slashes and whitespace', () => {
-    expect(normalizeBase('http://localhost:3000/')).toBe('http://localhost:3000');
+    expect(normalizeBase('http://localhost:3100/')).toBe('http://localhost:3100');
     expect(normalizeBase('  https://api.example.com///  ')).toBe('https://api.example.com');
   });
 });

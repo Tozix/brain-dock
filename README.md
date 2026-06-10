@@ -41,7 +41,7 @@ bun run infra:up                # Postgres, Qdrant, Redis, Ollama (docker compos
 bun run db:migrate              # apply Prisma migrations
 docker exec brain-dock-ollama ollama pull nomic-embed-text   # only if EMBEDDER=ollama
 
-bun run --cwd apps/api dev      # API on http://localhost:3000  (/api/v1/docs = Swagger UI)
+bun run --cwd apps/api dev      # API on http://localhost:3100  (/api/v1/docs = Swagger UI)
 bun --no-addons run apps/workers/src/index.ts                # index worker (BullMQ)
 ```
 
@@ -78,7 +78,7 @@ bun run ci          # db:generate → Biome → typecheck → bun test (unit, no
 set -a; source .env; set +a
 RUN_E2E=1 bun test apps/api/src/e2e
 bash scripts/smoke-rest.sh      # REST smoke: register → project → memory → search
-curl -s localhost:3000/health/ready   # readiness: db / qdrant / redis probes
+curl -s localhost:3100/health/ready   # readiness: db / qdrant / redis probes
 ```
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the unit suite plus an `e2e` job
 with real service containers.

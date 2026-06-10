@@ -11,8 +11,8 @@
 
 cd "$(dirname "$0")/.." || exit 1
 
-# Dev ports default to 3100/8080 and intentionally OVERRIDE any API_PORT/MCP_HTTP_PORT from .env
-# (which uses a prod-style :3000 that often clashes locally). Capture any pre-run override first.
+# Dev ports default to 3100/8080 and intentionally OVERRIDE any API_PORT/MCP_HTTP_PORT from .env.
+# Port 3000 is banned in this project (clashes locally). Capture any pre-run override first.
 DEV_API_PORT="${API_PORT:-3100}"
 DEV_MCP_PORT="${MCP_HTTP_PORT:-8080}"
 set -a

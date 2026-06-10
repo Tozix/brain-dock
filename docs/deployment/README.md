@@ -20,7 +20,7 @@ Docker / Docker Compose, окружения и инфраструктура. Loc
 |---|---|
 | `migrate` | one-shot: `prisma migrate deploy` до старта `api`/`mcp` (`service_completed_successfully`) |
 | `ollama-pull` | one-shot: скачивает `nomic-embed-text` в контейнер ollama |
-| `api` | REST API на `:3000` |
+| `api` | REST API на `:3100` |
 | `workers` | BullMQ index-worker |
 | `mcp` | удалённый MCP по **Streamable HTTP** на `:8080`, путь `/mcp` (или `/mcp/{slug}`) |
 
@@ -45,7 +45,7 @@ cp .env.example .env
 bun install
 bun run infra:up
 bun run db:migrate
-bun run --cwd apps/api dev    # API на http://localhost:3000
+bun run --cwd apps/api dev    # API на http://localhost:3100
 ```
 
 Модель эмбеддингов Ollama тянется отдельно (после старта контейнера):
@@ -84,7 +84,7 @@ migrate: service_completed_successfully`); запускать `db:deploy` вру
 > старте**, если `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` — дефолтные из `.env.example` или короче
 > 32 символов. Сгенерировать: `openssl rand -base64 48`.
 В compose `environment` перекрывает `.env` сетевыми DNS-адресами (`postgres`/`redis`/`qdrant`/
-`ollama`), т.к. URL в `.env` указывают на host-порты. API публикуется на `3000:3000`,
+`ollama`), т.к. URL в `.env` указывают на host-порты. API публикуется на `3100:3100`,
 удалённый MCP (Streamable HTTP) — на `8080:8080` (путь `/mcp` или `/mcp/{slug}`); их рекомендуется
 прятать за reverse-proxy с TLS (см. [GUIDE.md §3.3](../GUIDE.md)). Stdio-режим MCP остаётся для
 локальной разработки/self-host — его запускает сам MCP-клиент.

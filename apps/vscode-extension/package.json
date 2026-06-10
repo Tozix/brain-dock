@@ -107,7 +107,7 @@
       "properties": {
         "brainDock.serverUrl": {
           "type": "string",
-          "default": "http://localhost:3000",
+          "default": "http://localhost:3100",
           "markdownDescription": "Base URL of the brain-dock REST API (without the `/api/v1` suffix)."
         },
         "brainDock.mcpUrl": {

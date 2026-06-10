@@ -7,7 +7,7 @@
 # Usage: PORT=3100 bash scripts/smoke.sh
 set -euo pipefail
 
-PORT="${PORT:-3000}"
+PORT="${PORT:-3100}"
 BASE="http://127.0.0.1:${PORT}"
 API="${BASE}/api/v1"
 

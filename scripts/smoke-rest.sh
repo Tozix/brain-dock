@@ -3,7 +3,7 @@
 # Requires infra up + migrated DB. Usage: PORT=3100 bash scripts/smoke-rest.sh
 set -euo pipefail
 
-PORT="${PORT:-3000}"
+PORT="${PORT:-3100}"
 API="http://127.0.0.1:${PORT}/api/v1"
 
 API_PORT="${PORT}" RATE_LIMIT_MAX="${RATE_LIMIT_MAX:-1000}" EMBEDDER="${EMBEDDER:-deterministic}" \
