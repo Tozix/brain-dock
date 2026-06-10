@@ -8,16 +8,23 @@
 - **Ingestion** (`@brain-dock/search` `IngestionService`): индексирует репозиторий (`@brain-dock/indexer`),
   эмбеддит чанки, апсертит точки в Qdrant. Payload: `projectId, path, symbol, kind, role,
   startLine, endLine, model, text`. Point id — UUID из sha256 чанка (стабильные апсерты).
-- **Хранилище** (`@brain-dock/storage` `QdrantStore`): `ensureCollection`/`upsert`/`search`,
-  distance Cosine, изоляция проектов фильтром по `projectId`.
-- **Поиск** (`SearchService`): vector similarity (Qdrant) + лёгкий keyword-boost
-  (`0.7·vector + 0.3·keyword`). Коллекция `code`.
+- **Хранилище** (`@brain-dock/storage` `QdrantStore`): `ensureCollection`/`upsert`/`search`/
+  `hybridQuery`, distance Cosine, изоляция проектов фильтром по `projectId` (+ payload-индексы
+  `projectId` (is_tenant) / `repo` / `path`). Новые коллекции создаются в **hybrid-формате**:
+  named dense-вектор + sparse **BM25**-вектор (`modifier: idf`); legacy-коллекции (один безымянный
+  dense) продолжают работать в dense-only режиме до реиндекса.
+- **Поиск** (`SearchService`, план [052](../plans/052-search-quality.md)): на hybrid-коллекциях —
+  dense + sparse BM25 со слиянием **server-side RRF** (Qdrant Query API), code-aware токенизатор
+  (`tokenizeCode`: camelCase/snake_case-разбиение); на legacy — vector similarity + лёгкий
+  keyword-boost (`0.7·vector + 0.3·keyword`). Запросы эмбеддятся через `embedQuery`
+  (task-префикс `search_query:` у nomic; см. [../embedding/](../embedding/README.md)).
 - **Воркер** (`apps/workers` `IndexWorker`, BullMQ): очередь `brain-dock-index`, job
   `{projectId, rootDir, collection}` → ingestion.
 
 ### Проверено вживую (на `apps/api`, 27 файлов / 32 чанка)
 - Deterministic-провайдер и **реальный Ollama `nomic-embed-text`** дают релевантную выдачу
-  на запрос «jwt access token authentication guard» (топ — `JwtAccessGuard`, `AuthController`, `AuthService`).
+  на запрос «jwt access token authentication guard» (топ — auth-guard, `AuthController`,
+  `AuthService`; сейчас guard называется `AuthenticationGuard`, план 033).
 - BullMQ работает на Bun (см. [../backend/bun-nestjs-notes.md](../backend/bun-nestjs-notes.md) §BullMQ).
 
 Демо: `bun apps/workers/src/rag-demo.ts ["query"]` (`EMBEDDER=ollama` — реальная модель).
@@ -40,12 +47,20 @@ dedupe → compress → assemble`.
 
 ## Unified Search (готово) — `search_everywhere`
 `UnifiedSearchService`: один запрос по code + memory + knowledge + documents, объединённый
-ранжированный список. Источники имеют разные шкалы score (code = `0.7·vector + 0.3·keyword`,
-остальные = сырой cosine), поэтому score **нормализуется min-max внутри каждого источника** в
-`[0,1]`, а слияние идёт по нормализованному значению с tie-break по `rawScore` (сильные хиты
-лидируют среди равных). Падающий источник не валит весь запрос. План —
-[../plans/020-score-normalization.md](../plans/020-score-normalization.md).
+ранжированный список. Источники имеют несравнимые шкалы score, поэтому слияние идёт по
+**Reciprocal Rank Fusion** (RRF, `k=60`) с весами источников: каждый результат получает
+`w_src / (k + rank)` — ранги вместо сырых score, ни один источник не доминирует из-за своей
+шкалы (заменило min-max-нормализацию из плана
+[020](../plans/020-score-normalization.md); `rawScore` сохранён для отображения).
+Падающий источник не валит весь запрос. План — [052](../plans/052-search-quality.md).
 
-### Далее (за рамками Phase 4)
-Полноценный BM25/full-text, графовое расширение (DI-соседи через `packages/graph`),
-knowledge-слияние, обучаемый re-ranker. Отдаётся клиентам через MCP — [план 004](../plans/004-mcp-server.md).
+## Качество поиска: eval-harness (план [052](../plans/052-search-quality.md))
+`packages/search/eval/` — golden-set запросов (`golden.json`) + `bun run search:eval`
+(метрики nDCG@10 / MRR / Recall@5). Результат плана 052: nDCG@10 0.543→**0.620**,
+MRR 0.551→**0.561**, Recall@5 0.604→**0.813**, полных промахов 14→3. Помог и суб-чанкинг крупных
+классов в индексаторе (порог 6000 символов, чанки методов с breadcrumb `file > Class`).
+
+### Далее
+Графовое расширение retrieval (DI-соседи через `packages/graph` уже подмешиваются в
+`generate_context`), knowledge-слияние, обучаемый re-ranker, change-coupling —
+см. [backlog](../roadmap/ROADMAP.md#дальше-backlog).

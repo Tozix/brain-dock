@@ -34,13 +34,13 @@
 **Out:** сам поиск/индексация (планы 002–003); UI администрирования.
 
 ## Этапы
-- [ ] Каркас `apps/mcp`, транспорт, аутентификация по API-ключу.
-- [ ] Реализовать tools поиска поверх Hybrid Search (план 003).
-- [ ] Tools памяти/документов (`remember`, `*_document`) поверх Knowledge/Memory.
-- [ ] `summarize_project` / `get_architecture` / `generate_context`.
-- [ ] Resources & prompts; контракты и примеры в docs/mcp, docs/examples.
-- [ ] Тесты: контрактные на каждый tool, e2e через MCP-клиент.
-- [ ] Обновить ROADMAP, Claude.md.
+- [x] Каркас `apps/mcp`, транспорт, аутентификация по API-ключу.
+- [x] Реализовать tools поиска поверх Hybrid Search (план 003).
+- [x] Tools памяти/документов (`remember`, `*_document`) поверх Knowledge/Memory.
+- [x] `summarize_project` / `get_architecture` / `generate_context`.
+- [x] Resources & prompts; контракты и примеры в docs/mcp, docs/examples.
+- [x] Тесты: контрактные на каждый tool, e2e через MCP-клиент.
+- [x] Обновить ROADMAP, Claude.md.
 
 ## Риски
 - Совместимость MCP-клиентов. → Тестировать на реальном клиенте (Claude Code) рано.

@@ -21,10 +21,16 @@
 - `EmbeddedIndex`: общий хелпер (embed → Qdrant upsert/search с фильтром по `projectId`).
 
 ## Доступ через MCP (см. [../mcp/](../mcp/README.md))
-`remember`, `search_memory`, `list_memory`, `save_knowledge`, `search_knowledge`.
-Требуют `DATABASE_URL` (иначе tools возвращают подсказку). Проверено вживую через MCP-клиент:
-`remember` → `search_memory` находит семантически; `save_knowledge` → `search_knowledge`.
+- Память: `remember`, `search_memory`, `list_memory`, `update_memory`, `delete_memory`.
+- Знания: `save_knowledge`, `search_knowledge`, `update_knowledge`, `delete_knowledge`.
+- Документы: `save_document`, `search_docs`, `list_documents`, `update_document`, `delete_document`.
+- Объединённый поиск: `search_everywhere` (code + memory + knowledge + documents, RRF).
+
+Требуют `DATABASE_URL` (иначе tools возвращают подсказку). Update/delete чистят и Postgres, и
+векторы в Qdrant; всё доступно и по REST (`/projects/:pid/{memory,knowledge,documents}` + unified
+`/projects/:pid/search`) — см. [../api/](../api/README.md). Пакет также содержит серверный
+**`SymbolIndexService`** (символьный индекс для remote MCP) и `UsageService` (`mcp_usage_daily`).
 
 ## Далее
-Документы (md/pdf/docx-инжест), update/delete, REST API, теги-фильтры, дедуп/слияние записей,
-объединённый поиск (code + knowledge + memory) в Context Engine.
+Теги-фильтры, дедуп/слияние записей, TTL/архивация памяти —
+см. [backlog](../roadmap/ROADMAP.md#дальше-backlog).

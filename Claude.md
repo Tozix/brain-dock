@@ -9,8 +9,11 @@
 > - Реестр решений (ADR): [docs/adr/README.md](docs/adr/README.md)
 > - Реестр планов: [docs/plans/README.md](docs/plans/README.md)
 
-**Статус:** Iteration 0 — подготовка проекта (документация и планы). Бизнес-логика ещё не пишется.
-**Дата последнего обновления:** 2026-06-09.
+**Статус:** продукт работает end-to-end в hosted-модели (удалённый MCP по HTTP поверх серверного
+индекса; клиенты — Claude Code/Cursor/VSCode-расширение). Все планы **000–053 — Done**
+(см. [docs/plans/README.md](docs/plans/README.md)); дальнейшее — в
+[backlog](docs/roadmap/ROADMAP.md#дальше-backlog).
+**Дата последнего обновления:** 2026-06-10.
 
 ---
 
@@ -30,7 +33,7 @@
 - **AST-индексатор** — извлекает символы (controllers, services, modules, DTO, classes,
   functions, Prisma models, routes, guards, pipes …), а не «слепые» чанки.
 - **Embedding Engine** — полностью локальный (Ollama), за единым интерфейсом `EmbeddingProvider`.
-- **Background Workers** — embedding/index/document/sync/cleanup, инкрементальная индексация.
+- **Background Workers** — BullMQ index-worker + watch-реиндекс, инкрементальная индексация.
 - **Multi-Project / Multi-Repository** — полная изоляция индексов, документов, памяти.
 - **Auth & Administration** — JWT + refresh, API-ключи (создаёт только Super Admin), RBAC, rate limit, audit log.
 
@@ -88,8 +91,9 @@ User Query → Intent Detection → Hybrid Search → ReRanking → Compression 
 единый интерфейс `EmbeddingProvider`.
 
 ### Vector Storage (Qdrant collections)
-`projects`, `repositories`, `code`, `functions`, `classes`, `documents`,
-`architecture`, `knowledge`, `memory`, `conversations`, `symbols`.
+Фактически 4 коллекции: **код** (имя из env `COLLECTION`, по умолчанию `code`), `memory`,
+`knowledge`, `documents`. Новые коллекции создаются в hybrid-формате (named dense + sparse BM25,
+server-side RRF — план 052); изоляция пользователей/проектов — фильтром по `projectId` в payload.
 
 ## 5. Правила разработки (ГЛАВНОЕ ПРАВИЛО)
 
@@ -119,7 +123,8 @@ User Query → Intent Detection → Hybrid Search → ReRanking → Compression 
 Clean Architecture, DDD, SOLID, KISS, DRY, YAGNI, Composition over Inheritance, Dependency Injection.
 
 ### Проверка перед каждым commit
-Типизация · Линтер (Biome) · Тесты (Vitest) · Сборка · Архитектурные нарушения · Дублирование кода.
+Типизация · Линтер (Biome) · Тесты (`bun:test`) · Сборка · Архитектурные нарушения · Дублирование кода.
+Единый локальный прогон: `bun run ci`.
 
 ### Общение
 Любые уточняющие вопросы — **на русском**, с развёрнутым объяснением каждого варианта и явной рекомендацией
@@ -139,25 +144,26 @@ Clean Architecture, DDD, SOLID, KISS, DRY, YAGNI, Composition over Inheritance, 
 
 ```
 apps/
-  api/         # REST API (NestJS)
-  mcp/         # MCP-сервер
-  workers/     # фоновые воркеры (embedding/index/document/sync/cleanup)
+  api/               # REST API (NestJS)
+  mcp/               # MCP-сервер: hosted Streamable HTTP (src/http.ts) + локальный stdio (src/index.ts)
+  workers/           # BullMQ index-worker + watch/watch-all реиндекс
+  vscode-extension/  # клиент: панель статуса/usage, Connect по API-ключу, Setup Agents
 packages/
-  sdk/         # клиентский SDK
-  core/        # доменное ядро, общие абстракции
-  knowledge/   # Knowledge Base
-  search/      # Hybrid Search + ReRank + Compression
-  embedding/   # EmbeddingProvider и реализации
-  indexer/     # AST-индексатор
-  graph/       # Knowledge Graph
-  storage/     # Qdrant/Postgres адаптеры
-  shared/      # общие утилиты, типы, Zod-схемы
+  shared/      # общие утилиты, типы, Zod-схемы (leaf)
+  core/        # сквозная инфраструктура (OTel-трейсинг, порт IndexQueue, …)
+  db/          # Prisma-клиент (generated) + pg driver adapter
+  indexer/     # AST-индексатор (ts-morph) + CLI
+  graph/       # граф зависимостей символов (SymbolGraph)
+  embedding/   # EmbeddingProvider и реализации (ollama/deterministic)
+  storage/     # Qdrant-стор (hybrid dense+BM25)
+  search/      # Hybrid Search + Context Engine + unified search (+ eval/)
+  knowledge/   # memory/knowledge/documents + SymbolIndexService + UsageService
 prisma/        # схема и миграции
 docs/          # вся документация (см. docs/README.md)
 ```
 
-> `apps/{api,mcp,workers}` и `packages/{shared,core,db,indexer,embedding,storage,search,knowledge,graph}` — все рабочие.
-> `prisma/` — схема + миграции. AST-индексатор — [docs/architecture/indexer.md](docs/architecture/indexer.md);
+> **4 приложения и 9 пакетов — все рабочие.** `prisma/` — схема + миграции.
+> AST-индексатор — [docs/architecture/indexer.md](docs/architecture/indexer.md);
 > RAG/Context Engine — [docs/rag/](docs/rag/); MCP — [docs/mcp/](docs/mcp/);
 > особенности Bun (NestJS, BullMQ) — [docs/backend/bun-nestjs-notes.md](docs/backend/bun-nestjs-notes.md).
 
@@ -188,14 +194,19 @@ docs/          # вся документация (см. docs/README.md)
 
 ## 12. Правила тестирования
 
-Для каждого нового модуля: **Unit + Integration + E2E** (Vitest).
+Для каждого нового модуля: **Unit + Integration + E2E** (`bun:test`, Vitest-совместимый API —
+ADR-0002; интеграционные против реальных сервисов — под `RUN_E2E=1`).
 Тесты — часть DoD; критические пути (индексация, поиск, MCP-tools) покрываются обязательно.
 
 ## 13. Правила работы с очередями (BullMQ + Redis)
 
-- Воркеры: `EmbeddingWorker`, `IndexWorker`, `DocumentWorker`, `SyncWorker`, `CleanupWorker`.
+- Фактический набор: **`IndexWorker`** (очередь `brain-dock-index`: индексация → Qdrant + Postgres,
+  статусы `Repository.indexStatus`) + watch-воркеры `watch.ts`/`watch-all.ts` (инкрементальный
+  реиндекс по fs-событиям). Доп. воркеры (Document/Sync/Cleanup) — добавлять по мере надобности.
 - Задачи идемпотентны; повторы и backoff настраиваются явно; прогресс/ошибки логируются.
-- Тяжёлая работа (embedding, индексация) — только через очереди, не в HTTP-обработчиках.
+- Тяжёлая работа (embedding, индексация) — через очереди, не в HTTP-обработчиках. Исключение —
+  upload-индексация (`POST …/repositories/:id/index`): выполняется синхронно в запросе с жёстким
+  бюджетом `INDEX_UPLOAD_MAX_TOTAL_BYTES`; вынос в очередь — в backlog.
 
 ## 14. Правила работы с embedding
 
@@ -205,11 +216,16 @@ docs/          # вся документация (см. docs/README.md)
 
 ## 15. Правила работы с MCP
 
-- Полностью совместимый MCP-сервер: tools / resources / prompts.
-- Планируемые tools: `search_code`, `search_docs`, `search_everywhere`, `find_symbol`, `find_class`,
-  `find_function`, `find_controller`, `find_service`, `find_module`, `find_prisma_model`, `find_endpoint`,
-  `find_config`, `find_env`, `remember`, `save_document`, `update_document`, `delete_document`,
-  `summarize_project`, `get_architecture`, `generate_context`.
+- Полностью совместимый MCP-сервер: tools / resources / prompts; `instructions` сервера и
+  `readOnlyHint`-аннотации на read-only tools (план 053).
+- Реализованные tools (hosted HTTP — 28, локальный stdio — 36): `list_projects`, `search_code`,
+  `generate_context`, `search_everywhere`, `repo_map`, `find_symbol`,
+  `find_controller`/`find_service`/`find_module`/`find_guard`/`find_repository` (stdio — ещё
+  pipe/interceptor/resolver), `find_endpoint`, `summarize_project`, `get_architecture`,
+  `find_dependencies`/`find_dependents`/`impact`, `export_graph`, `remember`/`search_memory`,
+  `save_knowledge`/`search_knowledge`, `save_document`/`search_docs`,
+  `get_project_profile`/`update_project_profile`, `index_status`, `trigger_reindex`
+  (+ CRUD-tools в stdio). Отложено: `find_prisma_model`/`find_env`/`find_config`.
 - Контракты tools документируются в [docs/mcp/](docs/mcp/).
 
 ## 16. Производительность
@@ -219,22 +235,27 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 
 ## 17. Roadmap (кратко)
 
-Полная версия — [docs/roadmap/ROADMAP.md](docs/roadmap/ROADMAP.md).
+Полная версия — [docs/roadmap/ROADMAP.md](docs/roadmap/ROADMAP.md). **Все фазы завершены**
+(планы 000–053 Done):
 
-- **Phase 0 — Bootstrap (текущая):** документация, планы, ADR. Без кода.
-- **Phase 1 — Foundation:** монорепо (Turborepo + Bun workspaces), Docker Compose, Prisma, базовый NestJS, Auth.
-- **Phase 2 — Indexer:** AST-индексатор, символы, чанки, инкрементальная индексация.
-- **Phase 3 — Embedding & Storage:** EmbeddingProvider (Ollama), Qdrant-коллекции, воркеры.
-- **Phase 4 — Hybrid Search & Context Engine.**
-- **Phase 5 — MCP Server:** tools/resources/prompts.
-- **Phase 6 — Knowledge Base & Project Memory.**
-- **Phase 7 — Multi-Project/Repo, Admin, API-keys, hardening.**
+- ✅ **Phase 0–7:** bootstrap → foundation → indexer → embedding/storage → context engine →
+  MCP server → knowledge/memory → multi-project/REST/hardening.
+- ✅ **Production readiness:** CI + e2e-CI, Dockerfiles, деплой сборкой на сервере, OTel-трейсинг.
+- ✅ **Multi-Repo:** движок, БД/REST, watch, кросс-репо граф.
+- ✅ **Hosted MCP:** Streamable HTTP, серверный символьный индекс, remote структурные tools,
+  per-key rate limit; сквозная верификация (план 041).
+- ✅ **VSCode extension** (042–045, 047–049), **upload-индексация** (046),
+  **фиксы эмбеддингов** (050), **hardening/закрытие аудита** (051), **качество поиска** (052),
+  **MCP UX** (053).
+- ⬜ **Дальше:** git-подключение реп, веб-UI/биллинг, Redis rate-limit MCP, ротация
+  refresh-токенов, pino, бэкапы, очередь для upload-индексации, change-coupling —
+  [backlog](docs/roadmap/ROADMAP.md#дальше-backlog).
 
 ## 18. Текущий статус проекта
 
 - ✅ Репозиторий инициализирован, `.gitignore` (Node/TS) на месте.
 - ✅ Зафиксированы решения: Bun-runtime + NestJS, Turborepo + Bun workspaces (ADR-0001).
-- ✅ **Iteration 0:** созданы `Claude.md`, структура `/docs`, ROADMAP, планы 000–004.
+- ✅ **Bootstrap (Phase 0):** созданы `Claude.md`, структура `/docs`, ROADMAP, планы 000–004.
 - ✅ Архитектура подтверждена; правило Context7 + latest stable.
 - ✅ **Phase 1 (Foundation) завершена:** монорепо (Turbo 2.9 + bun workspaces), Docker Compose,
   Prisma 7 (миграция `init`), NestJS на Bun (`/health`), auth-скелет (JWT/refresh/RBAC/API-keys/audit).
@@ -361,6 +382,38 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
 - ✅ **Rate limit remote MCP:** per-key fixed-window на `/mcp` (после auth, ключ = владелец),
   `429`+`Retry-After`; конфиг `MCP_RATE_LIMIT_MAX`/`_WINDOW_MS`. Проверено вживую (`200×3 → 429×3`).
   План [040](docs/plans/040-mcp-rate-limit.md).
-- 🔄 Остаётся опционально: Redis-backed общий лимит MCP, трейсинг самого MCP-HTTP, нагрузочное
-  тестирование, nightly e2e с реальным Ollama; (пункт 2 хвост) `find_prisma_model`/`find_env`/
-  `find_config` (нужен парс schema.prisma / скан process.env), доп. воркеры (Embedding/Document/Sync/Cleanup).
+- ✅ **Сквозная верификация (план 041):** полный hosted-путь вживую на реальной инфре — REST-auth →
+  API-ключ → проект/репозиторий → индексация (воркер → символы в Postgres + векторы в Qdrant) →
+  remote MCP по HTTP (все tools, auth+`X-Project`+rate-limit); все `RUN_E2E` e2e зелёные.
+- ✅ **VSCode-расширение (планы 042–045, 047–049):** `apps/vscode-extension` — панель (статус
+  индекса, Token Savings, период Today/7/30/90, прогресс индексации), Connect по API-ключу
+  (SecretStorage), авто-проект из workspace, **Setup Agents** (Claude Code/Cursor; атомарная
+  запись конфигов), нативная регистрация MCP.
+- ✅ **Upload-индексация (план 046):** `POST /projects/:pid/repositories/:id/index` — файлы в теле
+  запроса, индексация без серверного пути и git; бюджет `INDEX_UPLOAD_MAX_TOTAL_BYTES`;
+  `INDEX_SERVER_PATHS=false` в prod закрывает реиндекс по пути. + `GET /usage` (`McpUsageDaily`).
+- ✅ **Фиксы эмбеддингов (план 050):** усечение входа Ollama до контекста модели (`maxChars`,
+  фикс 400 при индексации).
+- ✅ **Hardening / закрытие аудита — 102 находки (план 051):** FK + ON DELETE CASCADE
+  (+ `project_id` → uuid) и чистка Qdrant при удалении проекта; глобальный exception filter
+  `{code,message,details?}`; пагинация `take`/`skip`; `GET /audit` (ADMIN+); `TRUST_PROXY`,
+  security-заголовки, `CORS_ORIGINS`, `METRICS_TOKEN`, HS256-pin; Qdrant point id скоупирован
+  `projectId:repo` (фикс кросс-тенант перезаписи), reindex чистит осиротевшие точки; MCP HTTP —
+  generic-ошибки, 405/413/504, IP-лимит, per-key `ApiKey.rateLimit`, graceful shutdown, e2e по
+  HTTP; compose — запиненные образы, healthchecks, 127.0.0.1-биндинги, лог-ротация, mem-лимиты,
+  `USER bun`; тесты 155 → 353 pass.
+- ✅ **Качество поиска (план 052):** `embedQuery` + nomic task-префиксы
+  (`search_document:`/`search_query:`); суб-чанкинг крупных классов (порог 6000, breadcrumb
+  `file > Class`); hybrid-коллекции Qdrant (named dense + sparse BM25 idf, server-side RRF,
+  code-aware токенизатор; legacy — dense-only до реиндекса); payload-индексы; `search_everywhere`
+  на RRF; eval-harness `packages/search/eval` (`bun run search:eval`) — nDCG@10 0.543→0.620,
+  MRR 0.551→0.561, Recall@5 0.604→0.813, промахи 14→3.
+- ✅ **MCP UX (план 053):** `instructions` на обоих транспортах; `readOnlyHint` на read-only tools;
+  выбор проекта URL-путём `/mcp/{slug-or-id}` (приоритетнее `X-Project`); новые tools —
+  `get_project_profile`/`update_project_profile` (`Project.profile` ≤4КБ, подмешивается в
+  `generate_context`), `index_status`, `trigger_reindex` (дедуп), `repo_map` (Personalized
+  PageRank); REST `GET`/`PUT /projects/:id/profile`, `GET …/repositories/:id/status`; статусы
+  `Repository.indexStatus` (QUEUED/INDEXING/READY/FAILED) пишут воркер и upload-путь.
+- ⬜ Backlog: git-подключение реп, веб-UI/биллинг, Redis rate-limit MCP, ротация refresh-токенов,
+  pino, бэкапы (pg_dump + Qdrant snapshots), очередь для upload-индексации, change-coupling,
+  `find_prisma_model`/`find_env`/`find_config` — [ROADMAP](docs/roadmap/ROADMAP.md#дальше-backlog).

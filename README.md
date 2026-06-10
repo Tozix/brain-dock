@@ -6,7 +6,13 @@ decisions) and serves it to AI clients over MCP and a REST API.
 
 - **MCP server** — compatible with Claude Code, Cursor, VS Code (tools / resources / prompts).
 - **REST API** — versioned `/api/v1`, OpenAPI 3.1 + Swagger UI.
-- **Hybrid search** — vector (Qdrant) + keyword + AST roles + intent-aware re-ranking.
+- **Hybrid search** — dense vectors (Qdrant) + sparse **BM25** fused server-side with **RRF**,
+  AST roles + intent-aware re-ranking.
+- **Repo map** — the most important symbols of a repository (Personalized PageRank over the
+  symbol graph) within a token budget.
+- **Project profile** — a pinned markdown "core memory" block injected into generated context.
+- **Index status** — QUEUED/INDEXING/READY/FAILED lifecycle per repository (MCP `index_status`,
+  REST `/status`).
 - **Knowledge & memory** — long-term project memory, knowledge base, documents (md/pdf/docx…).
 - **Multi-repo** — index and search across several repositories per project.
 - **Local-first** — embeddings via Ollama; nothing leaves the machine.
@@ -21,7 +27,7 @@ Bun · NestJS · Prisma 7 + PostgreSQL · Qdrant · Redis + BullMQ · Ollama · 
 `bun:test`. See [ADR-0001](docs/adr/0001-stack-selection.md).
 
 ```
-apps/      api (REST) · mcp (MCP server) · workers (BullMQ + watch)
+apps/      api (REST) · mcp (MCP server) · workers (BullMQ + watch) · vscode-extension (client)
 packages/  indexer · embedding · storage · search · knowledge · graph · core · shared · db
 ```
 
@@ -52,15 +58,15 @@ server-side via the workers; the MCP serves each user's own projects, scoped by 
 {
   "mcpServers": {
     "brain-dock": {
-      "url": "https://<your-host>/mcp",
+      "url": "https://<your-host>/mcp/<project-slug>",
       "headers": { "Authorization": "Bearer bd_<your-api-key>" }
     }
   }
 }
 ```
 The remote MCP runs over **Streamable HTTP** (`apps/mcp/src/http.ts`; in compose: the `mcp` service
-on `:8080`). The key authenticates the user (one key, many projects); `X-Project` selects the
-project. It serves search / context / memory / knowledge / documents **and** the structural/graph tools
+on `:8080`). The key authenticates the user (one key, many projects); the project is selected by the
+`/mcp/{slug-or-id}` URL segment or the `X-Project` header (the URL wins). It serves search / context / memory / knowledge / documents **and** the structural/graph tools
 (`find_*`, `get_architecture`, `impact`, `export_graph`) from a server-side symbol index that the
 workers populate on indexing — no user files needed. Local stdio mode for development/self-host:
 `bun run --cwd apps/mcp dev` with `PROJECT_ROOT`/`REPOS`. Details — [docs/mcp](docs/mcp/README.md).
@@ -79,10 +85,13 @@ with real service containers.
 
 ## Deploy
 Build on the server (no image registry): `bun run deploy`
-(`docker compose --profile app up -d --build`) + one-off `db:deploy`.
-See [docs/deployment](docs/deployment/README.md).
+(`docker compose --profile app up -d --build`) — migrations run automatically via the one-shot
+`migrate` service before `api`/`mcp` start. See [docs/deployment](docs/deployment/README.md).
 
 ## Observability
-- **Metrics:** Prometheus at `GET /metrics`.
+- **Metrics:** Prometheus at `GET /metrics` (optionally protected by `METRICS_TOKEN`).
 - **Tracing (opt-in):** OpenTelemetry, `OTEL_TRACES_EXPORTER=none|console|otlp` (api + workers).
+
+## License
+[MIT](LICENSE).
 </content>

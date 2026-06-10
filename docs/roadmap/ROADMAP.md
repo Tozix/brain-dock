@@ -75,16 +75,16 @@
   документы (md/pdf/docx), Swagger/OpenAPI, update/delete для knowledge.
 - **План:** [006-multiproject-rest-hardening.md](../plans/006-multiproject-rest-hardening.md) (Done)
 
-## Production readiness (backlog) 🔄
+## Production readiness ✅
 - ✅ CI (GitHub Actions): Biome + typecheck + тесты на push/PR.
 - ✅ Dockerfiles для `apps/{api,mcp,workers}`; образ API собран и проверен (`/health` 200 в контейнере).
 - ✅ Деплой сборкой на сервере (без registry): `bun run deploy` =
   `docker compose --profile app up -d --build` (api+workers за профилем `app`). Публикация
   образов в registry **снята** — вернуться к ней только при multi-node/k8s ([план 025](../plans/025-deploy-build-on-server.md)).
-- ⏭️ Далее: OpenTelemetry-трейсинг, e2e-CI с сервисами.
+- ✅ OpenTelemetry-трейсинг (opt-in, api+workers, [026](../plans/026-otel-tracing.md)/[028](../plans/028-otel-workers.md)) и e2e-CI с реальными сервисами ([027](../plans/027-e2e-ci.md)).
 - **План:** [007-production-readiness.md](../plans/007-production-readiness.md) (Done)
 
-## Multi-Repo (backlog) 🔄
+## Multi-Repo ✅
 **Цель:** индексировать и искать сразу по нескольким репозиториям одного проекта.
 - ✅ Движок + MCP: `repo` (alias) в payload, фильтр `repos[]` (`SearchService`/`ContextEngine`/
   `UnifiedSearch`), пер-репо индексы/графы в `McpContext`, tool `list_repos`, `repos?`/`repo?` в
@@ -95,10 +95,11 @@
   (`IndexQueue`-порт в `@brain-dock/core`, продьюсер в API). Проверено вживую (409, CRUD, очередь в Redis).
 - ✅ Мульти-репо watch-воркер `watch-all` (читает `Repository` из БД, по watcher'у на репо,
   инкрементальный реиндекс с `repo`+`repositoryId`). Проверено вживую.
-- ⏭️ Далее: кросс-репо граф, repositories в OpenAPI, горячее переподнятие watcher'ов.
+- ✅ Кросс-репо граф ([023](../plans/023-cross-repo-graph.md)), repositories в OpenAPI
+  ([021](../plans/021-repositories-openapi.md)), горячее переподнятие watcher'ов ([024](../plans/024-watch-resubscribe.md)).
 - **Планы:** [015](../plans/015-multi-repo.md) (Done) · [016](../plans/016-multi-repo-rest.md) (Done) · [017](../plans/017-multi-repo-watch.md) (Done)
 
-## Hosted MCP + наблюдаемость (backlog) ✅
+## Hosted MCP + наблюдаемость ✅
 **Цель:** хостинговая модель (vexp.dev-style) — удалённый MCP по HTTP поверх серверного индекса.
 - ✅ Удалённый MCP по Streamable HTTP (`apps/mcp/src/http.ts`, `:8080/mcp`), auth по API-ключу,
   per-key rate-limit, серверный индекс символов в Postgres (`CodeSymbol`/`CodeEdge`), remote
@@ -111,6 +112,74 @@
   (воркер → 247 символов/86 рёбер в Postgres + векторы в Qdrant) → remote MCP по HTTP (все 23 tools
   отдают корректные данные, auth+`X-Project`+rate-limit работают).
 - ✅ Все `RUN_E2E` e2e проходят против реальных сервисов (6 pass); Biome warnings 11 → 0; CI зелёный.
-- ⏭️ Далее (backlog P1–P3): git-подключение репозиториев, e2e для remote MCP по HTTP, Redis-backed
-  rate-limit MCP, прод-дефолт `ollama`, security-review, BM25/re-ranker, веб-UI/биллинг.
 - **План:** [041-e2e-verification-and-improvements.md](../plans/041-e2e-verification-and-improvements.md) (Done)
+
+## Client — VSCode extension ✅
+**Цель:** клиент-«одна кнопка»: подключение к hosted brain-dock без ручного редактирования конфигов.
+- ✅ `apps/vscode-extension`: боковая панель (статус индекса, Token Savings, период Today/7/30/90),
+  Connect по API-ключу (SecretStorage), выбор/автосоздание проекта из workspace, **Setup Agents**
+  (прописывает remote MCP в Claude Code/Cursor; атомарная запись конфигов), нативная регистрация MCP,
+  Force Re-index с видимым прогрессом.
+- **Планы:** [042](../plans/042-vscode-extension.md) · [043](../plans/043-vscode-extension-polish.md) ·
+  [044](../plans/044-vscode-extension-inline-settings.md) · [045](../plans/045-vscode-auto-project-from-workspace.md) ·
+  [047](../plans/047-vexp-like-panel-honest-usage.md) · [048](../plans/048-native-vscode-mcp-registration.md) ·
+  [049](../plans/049-panel-period-selector-and-indexing-progress.md) (все Done)
+
+## Indexing from uploads ✅
+**Цель:** hosted-индексация без доступа к файловой системе сервера и без git.
+- ✅ `POST /projects/:pid/repositories/:id/index` — клиент выгружает файлы (контент в теле),
+  сервер индексирует их напрямую; VSCode-расширение делает это автоматически. Бюджет
+  `INDEX_UPLOAD_MAX_TOTAL_BYTES`; реиндекс по серверному пути в prod закрыт `INDEX_SERVER_PATHS=false`.
+- **План:** [046-index-uploaded-files-no-git.md](../plans/046-index-uploaded-files-no-git.md) (Done)
+
+## Search/Embedding fixes ✅
+- ✅ Ollama-эмбеддинги: усечение входа до контекста модели (`maxChars`, фикс 400 при индексации);
+  dev-режим с реальным Ollama.
+- **План:** [050-ollama-embedding-truncation-and-dev-ollama.md](../plans/050-ollama-embedding-truncation-and-dev-ollama.md) (Done)
+
+## Hardening / закрытие аудита ✅
+**Цель:** закрыть 102 находки аудита (безопасность, надёжность, эксплуатация).
+- ✅ Prisma: FK + ON DELETE CASCADE (memory/knowledge/documents/code_symbols/code_edges/mcp_usage_daily),
+  индекс `audit_logs(created_at)`; удаление проекта чистит Qdrant-точки.
+- ✅ API: глобальный exception filter `{code,message,details?}`, пагинация `take`/`skip`,
+  `GET /audit` (ADMIN+), `TRUST_PROXY`, security-заголовки + `CORS_ORIGINS`, `/metrics` за
+  `METRICS_TOKEN`, HS256-pin, `INDEX_SERVER_PATHS`, лимиты контента, компенсация двойной записи.
+- ✅ Qdrant point id скоупирован `projectId:repo` (фикс кросс-тенант перезаписи); полный reindex
+  вычищает осиротевшие точки.
+- ✅ MCP HTTP: generic-ошибки клиенту, таймаут → 504, pre-auth IP-лимит, лимит тела → 413,
+  per-key rate limit (`ApiKey.rateLimit`), graceful shutdown, e2e по HTTP.
+- ✅ Compose: запиненные образы, healthchecks, 127.0.0.1-биндинги, лог-ротация, mem-лимиты, `USER bun`.
+- ✅ Тесты: 155 → 353 pass.
+- **План:** [051-audit-closure.md](../plans/051-audit-closure.md) (Done)
+
+## Search quality ✅
+**Цель:** измеримо поднять качество поиска по коду.
+- ✅ `embedQuery` + task-префиксы nomic (`search_document:`/`search_query:`); суб-чанкинг крупных
+  классов (порог 6000, breadcrumb `file > Class`); hybrid-коллекции Qdrant (named dense + sparse BM25
+  idf, server-side RRF, code-aware токенизатор; legacy — dense-only до реиндекса); payload-индексы;
+  `search_everywhere` на RRF; eval-harness `packages/search/eval` (`bun run search:eval`).
+- ✅ Метрики eval: nDCG@10 0.543→**0.620**, MRR 0.551→**0.561**, Recall@5 0.604→**0.813**, промахи 14→3.
+- **План:** [052-search-quality.md](../plans/052-search-quality.md) (Done)
+
+## MCP UX ✅
+**Цель:** сделать hosted MCP удобным «из коробки» для AI-клиентов.
+- ✅ `instructions` сервера (оба транспорта), `readOnlyHint`-аннотации (авто-одобрение в клиентах),
+  переписанные описания tools; выбор проекта URL-путём `/mcp/{slug-or-id}` (приоритетнее `X-Project`).
+- ✅ Новые tools: `get_project_profile`/`update_project_profile` (профиль ≤4КБ, подмешивается в
+  `generate_context`), `index_status`, `trigger_reindex` (дедуп при QUEUED/INDEXING), `repo_map`
+  (Personalized PageRank по `CodeSymbol`/`CodeEdge` под токен-бюджет; есть и в локальном stdio MCP).
+- ✅ REST: `GET`/`PUT /projects/:id/profile`, `GET …/repositories/:id/status`; Prisma:
+  `Project.profile`, `Repository.indexStatus`/`indexError`/`lastIndexedAt`/`indexedFileCount`/`symbolCount`.
+- **План:** [053-mcp-ux.md](../plans/053-mcp-ux.md) (Done)
+
+---
+
+## Дальше (backlog)
+- Git-подключение репозиториев (clone/pull вместо upload/серверного пути).
+- Веб-UI и биллинг (кабинет пользователя, тарифы по usage).
+- Redis-backed rate limit для MCP (общий между инстансами).
+- Ротация refresh-токенов.
+- Структурное логирование (pino).
+- Бэкапы: pg_dump + Qdrant snapshots (автоматизация).
+- Очередь для upload-индексации (сейчас — синхронно в запросе).
+- Change-coupling (co-changed files) в контексте.

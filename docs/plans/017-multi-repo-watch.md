@@ -23,9 +23,9 @@
 
 ## Этапы
 - [x] `WatchOptions.repo`/`repositoryId` + проброс в `ingestIncremental`.
-- [ ] `watch-targets.ts` (+ unit-тест `repositoriesToWatchTargets`).
-- [ ] `watch-all.ts` (entry: Postgres → таргеты → по watcher'у на репо).
-- [ ] workers deps (`@brain-dock/db`); docs (roadmap/Claude.md/backend); CI + commit/push.
+- [x] `watch-targets.ts` (+ unit-тест `repositoriesToWatchTargets`).
+- [x] `watch-all.ts` (entry: Postgres → таргеты → по watcher'у на репо).
+- [x] workers deps (`@brain-dock/db`); docs (roadmap/Claude.md/backend); CI + commit/push.
 
 ## Риски
 - fs.watch/таймеры трудно тестировать детерминированно → тестируем чистый маппинг, не сам watcher.
