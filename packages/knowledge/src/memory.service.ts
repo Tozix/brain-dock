@@ -30,10 +30,16 @@ export class MemoryService {
         tags: input.tags ?? [],
       },
     });
-    await this.index.upsert(item.id, item.content, {
-      projectId: item.projectId,
-      type: item.type,
-    });
+    try {
+      await this.index.upsert(item.id, item.content, {
+        projectId: item.projectId,
+        type: item.type,
+      });
+    } catch (error) {
+      // Compensate the failed vector write: drop the orphaned row so the two stores stay in sync.
+      await this.prisma.memoryItem.deleteMany({ where: { id: item.id } }).catch(() => {});
+      throw error;
+    }
     return item;
   }
 
@@ -64,10 +70,18 @@ export class MemoryService {
     if (updated.count === 0) return null;
     const item = await this.prisma.memoryItem.findUnique({ where: { id } });
     if (item) {
-      await this.index.upsert(item.id, item.content, {
-        projectId: item.projectId,
-        type: item.type,
-      });
+      try {
+        await this.index.upsert(item.id, item.content, {
+          projectId: item.projectId,
+          type: item.type,
+        });
+      } catch (error) {
+        // The row is already updated — surface that search results may lag behind.
+        throw new Error(
+          `memory updated but vector index may be stale: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
+        );
+      }
     }
     return item;
   }
@@ -78,10 +92,12 @@ export class MemoryService {
     return deleted.count > 0;
   }
 
-  async list(projectId: string): Promise<MemoryItem[]> {
+  async list(projectId: string, page?: { take?: number; skip?: number }): Promise<MemoryItem[]> {
     return await this.prisma.memoryItem.findMany({
       where: { projectId },
       orderBy: { createdAt: 'desc' },
+      take: page?.take,
+      skip: page?.skip,
     });
   }
 }

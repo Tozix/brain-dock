@@ -26,6 +26,7 @@ export class FixedWindowLimiter {
   hit(key: string, now: number): RateLimitDecision {
     const window = this.windows.get(key);
     if (!window || now >= window.resetAt) {
+      // Lazy cleanup: an expired window is replaced in place.
       const resetAt = now + this.windowMs;
       this.windows.set(key, { count: 1, resetAt });
       return { allowed: true, remaining: this.max - 1, resetAt };
@@ -37,6 +38,13 @@ export class FixedWindowLimiter {
       resetAt: window.resetAt,
     };
   }
+
+  /** Drop expired windows of keys that stopped hitting (lazy cleanup misses them). */
+  sweep(now: number): void {
+    for (const [key, window] of this.windows) {
+      if (now >= window.resetAt) this.windows.delete(key);
+    }
+  }
 }
 
 /** Per-process limiter (wraps FixedWindowLimiter behind the async RateLimiter interface). */
@@ -45,6 +53,9 @@ export class InMemoryRateLimiter implements RateLimiter {
 
   constructor(max: number, windowMs: number) {
     this.limiter = new FixedWindowLimiter(max, windowMs);
+    // Periodic sweep (once per window) so idle keys don't accumulate; unref'd to
+    // never keep the process alive on its own.
+    setInterval(() => this.limiter.sweep(Date.now()), windowMs).unref?.();
   }
 
   async hit(key: string, now: number): Promise<RateLimitDecision> {

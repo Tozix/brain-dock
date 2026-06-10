@@ -48,10 +48,12 @@ export class ApiKeysService {
     return { id: created.id, name: created.name, prefix, key: secret };
   }
 
-  async listForUser(userId: string) {
+  async listForUser(userId: string, page?: { take: number; skip: number }) {
     return await this.prisma.client.apiKey.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+      take: page?.take ?? 100,
+      skip: page?.skip ?? 0,
       select: {
         id: true,
         name: true,
@@ -91,10 +93,12 @@ export class ApiKeysService {
     if (!key || key.status !== ApiKeyStatus.ACTIVE) return null;
     if (key.expiresAt && key.expiresAt.getTime() < Date.now()) return null;
 
-    await this.prisma.client.apiKey.update({
-      where: { id: key.id },
-      data: { lastUsedAt: new Date() },
-    });
+    // Refresh lastUsedAt at most once a minute, off the request's hot path (fire-and-forget).
+    if (Date.now() - (key.lastUsedAt?.getTime() ?? 0) > 60_000) {
+      this.prisma.client.apiKey
+        .update({ where: { id: key.id }, data: { lastUsedAt: new Date() } })
+        .catch(console.error);
+    }
     return key;
   }
 

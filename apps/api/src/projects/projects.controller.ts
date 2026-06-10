@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import type { AuthenticatedUser } from '../common/auth-user';
 import { CurrentUser } from '../common/current-user.decorator';
+import { type PaginationDto, paginationSchema } from '../common/pagination';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { type CreateProjectDto, createProjectSchema } from './projects.dto';
 import { ProjectsService } from './projects.service';
@@ -18,17 +19,20 @@ export class ProjectsController {
   }
 
   @Get()
-  list(@CurrentUser() user: AuthenticatedUser) {
-    return this.projects.list(user);
+  list(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(paginationSchema)) page: PaginationDto,
+  ) {
+    return this.projects.list(user, page);
   }
 
   @Get(':id')
-  get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  get(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.projects.getOwned(user, id);
   }
 
   @Delete(':id')
-  remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  remove(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.projects.remove(user, id);
   }
 }

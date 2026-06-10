@@ -31,11 +31,17 @@ export class KnowledgeService {
         tags: input.tags ?? [],
       },
     });
-    await this.index.upsert(item.id, `${item.title}\n\n${item.content}`, {
-      projectId: item.projectId,
-      type: item.type,
-      title: item.title,
-    });
+    try {
+      await this.index.upsert(item.id, `${item.title}\n\n${item.content}`, {
+        projectId: item.projectId,
+        type: item.type,
+        title: item.title,
+      });
+    } catch (error) {
+      // Compensate the failed vector write: drop the orphaned row so the two stores stay in sync.
+      await this.prisma.knowledgeItem.deleteMany({ where: { id: item.id } }).catch(() => {});
+      throw error;
+    }
     return item;
   }
 
@@ -71,11 +77,19 @@ export class KnowledgeService {
     if (updated.count === 0) return null;
     const item = await this.prisma.knowledgeItem.findUnique({ where: { id } });
     if (item) {
-      await this.index.upsert(item.id, `${item.title}\n\n${item.content}`, {
-        projectId: item.projectId,
-        type: item.type,
-        title: item.title,
-      });
+      try {
+        await this.index.upsert(item.id, `${item.title}\n\n${item.content}`, {
+          projectId: item.projectId,
+          type: item.type,
+          title: item.title,
+        });
+      } catch (error) {
+        // The row is already updated — surface that search results may lag behind.
+        throw new Error(
+          `knowledge updated but vector index may be stale: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
+        );
+      }
     }
     return item;
   }
@@ -86,10 +100,12 @@ export class KnowledgeService {
     return deleted.count > 0;
   }
 
-  async list(projectId: string): Promise<KnowledgeItem[]> {
+  async list(projectId: string, page?: { take?: number; skip?: number }): Promise<KnowledgeItem[]> {
     return await this.prisma.knowledgeItem.findMany({
       where: { projectId },
       orderBy: { createdAt: 'desc' },
+      take: page?.take,
+      skip: page?.skip,
     });
   }
 }

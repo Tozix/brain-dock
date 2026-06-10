@@ -63,6 +63,7 @@ model User {
   projects  Project[]
   apiKeys   ApiKey[]
   auditLogs AuditLog[]
+  mcpUsage  McpUsageDaily[]
 
   @@map("users")
 }
@@ -76,8 +77,13 @@ model Project {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  owner        User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  repositories Repository[]
+  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  repositories   Repository[]
+  memoryItems    MemoryItem[]
+  knowledgeItems KnowledgeItem[]
+  documents      Document[]
+  codeSymbols    CodeSymbol[]
+  codeEdges      CodeEdge[]
 
   @@index([ownerId])
   @@map("projects")
@@ -123,12 +129,14 @@ model ApiKey {
 
 model MemoryItem {
   id        String     @id @default(uuid()) @db.Uuid
-  projectId String     @map("project_id")
+  projectId String     @map("project_id") @db.Uuid
   type      MemoryType @default(NOTE)
   content   String
   tags      String[]
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@map("memory_items")
@@ -136,7 +144,7 @@ model MemoryItem {
 
 model KnowledgeItem {
   id        String        @id @default(uuid()) @db.Uuid
-  projectId String        @map("project_id")
+  projectId String        @map("project_id") @db.Uuid
   type      KnowledgeType @default(NOTE)
   title     String
   content   String
@@ -144,19 +152,23 @@ model KnowledgeItem {
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
 
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   @@index([projectId])
   @@map("knowledge_items")
 }
 
 model Document {
   id        String    @id @default(uuid()) @db.Uuid
-  projectId String    @map("project_id")
+  projectId String    @map("project_id") @db.Uuid
   title     String
   format    DocFormat @default(MD)
   source    String?
   content   String
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@map("documents")
@@ -178,6 +190,8 @@ model CodeSymbol {
   routes    Json?
   createdAt DateTime @default(now()) @map("created_at")
 
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   @@index([projectId, repo])
   @@index([projectId, role])
   @@index([projectId, name])
@@ -193,6 +207,8 @@ model CodeEdge {
   // injects | extends | implements | imports
   kind      String
   createdAt DateTime @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId, repo])
   @@index([projectId, fromName])
@@ -214,6 +230,7 @@ model AuditLog {
 
   @@index([actorId])
   @@index([action])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
@@ -225,6 +242,8 @@ model McpUsageDaily {
   day          DateTime @db.Date
   calls        Int      @default(0)
   tokensServed Int      @default(0) @map("tokens_served")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, day])
   @@index([userId])

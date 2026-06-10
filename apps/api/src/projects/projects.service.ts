@@ -9,12 +9,14 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/auth-user';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateProjectDto } from './projects.dto';
+import { VectorCleanupService } from './vector-cleanup.service';
 
 @Injectable()
 export class ProjectsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly vectors: VectorCleanupService,
   ) {}
 
   async create(user: AuthenticatedUser, dto: CreateProjectDto) {
@@ -38,10 +40,12 @@ export class ProjectsService {
     return project;
   }
 
-  async list(user: AuthenticatedUser) {
+  async list(user: AuthenticatedUser, page?: { take: number; skip: number }) {
     return await this.prisma.client.project.findMany({
       where: { ownerId: user.id },
       orderBy: { createdAt: 'desc' },
+      take: page?.take ?? 100,
+      skip: page?.skip ?? 0,
     });
   }
 
@@ -57,6 +61,8 @@ export class ProjectsService {
 
   async remove(user: AuthenticatedUser, id: string) {
     await this.getOwned(user, id);
+    // Postgres rows are removed by FK cascades; vectors need an explicit purge.
+    await this.vectors.purgeProject(id);
     await this.prisma.client.project.delete({ where: { id } });
     await this.audit.log({
       actorId: user.id,

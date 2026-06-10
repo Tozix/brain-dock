@@ -1,8 +1,15 @@
 import type { IndexQueue } from '@brain-dock/core';
 import { CODE_COLLECTION } from '@brain-dock/search';
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/auth-user';
+import { ConfigService } from '../config/config.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProjectsService } from '../projects/projects.service';
 import { INDEX_QUEUE_PORT } from './index-queue';
@@ -16,6 +23,7 @@ export class RepositoriesService {
     private readonly audit: AuditService,
     private readonly projects: ProjectsService,
     @Inject(INDEX_QUEUE_PORT) private readonly queue: IndexQueue,
+    private readonly config: ConfigService,
   ) {}
 
   async create(user: AuthenticatedUser, projectId: string, dto: CreateRepositoryDto) {
@@ -43,11 +51,13 @@ export class RepositoriesService {
     return repository;
   }
 
-  async list(user: AuthenticatedUser, projectId: string) {
+  async list(user: AuthenticatedUser, projectId: string, page?: { take: number; skip: number }) {
     await this.projects.getOwned(user, projectId);
     return this.prisma.client.repository.findMany({
       where: { projectId },
       orderBy: { createdAt: 'desc' },
+      take: page?.take ?? 100,
+      skip: page?.skip ?? 0,
     });
   }
 
@@ -93,6 +103,13 @@ export class RepositoriesService {
 
   /** Enqueue an indexing job for the repository (consumed by the index worker). */
   async reindex(user: AuthenticatedUser, projectId: string, id: string) {
+    // `root` is a server-side filesystem path; letting clients trigger reads of arbitrary
+    // server paths is gated (off by default in production).
+    if (!this.config.env.INDEX_SERVER_PATHS) {
+      throw new ForbiddenException(
+        'server-path indexing disabled; use file upload (POST .../index)',
+      );
+    }
     const repository = await this.get(user, projectId, id);
     await this.queue.enqueue({
       projectId,

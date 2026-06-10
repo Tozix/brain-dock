@@ -61,6 +61,8 @@ export class AuthService {
     try {
       const payload = await this.jwt.verifyAsync<{ sub: string }>(refreshToken, {
         secret: this.config.env.JWT_REFRESH_SECRET,
+        // Pin the algorithm: never accept tokens signed with anything but HS256.
+        algorithms: ['HS256'],
       });
       sub = payload.sub;
     } catch {

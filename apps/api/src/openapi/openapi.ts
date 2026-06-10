@@ -27,6 +27,22 @@ const body = (name: string) => ({
 });
 const PUBLIC: { security: [] } = { security: [] };
 
+// Optional list pagination, shared by every collection GET.
+const PAGE_PARAMS = [
+  {
+    name: 'take',
+    in: 'query',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 200, default: 100 },
+  },
+  {
+    name: 'skip',
+    in: 'query',
+    required: false,
+    schema: { type: 'integer', minimum: 0, default: 0 },
+  },
+];
+
 /** Build the brain-dock OpenAPI 3.1 document from the live Zod schemas. */
 export function buildOpenApiDocument(): Record<string, unknown> {
   return {
@@ -139,7 +155,40 @@ export function buildOpenApiDocument(): Record<string, unknown> {
         get: {
           tags: ['api-keys'],
           summary: 'List own keys',
+          parameters: [...PAGE_PARAMS],
           responses: { '200': { description: 'Keys' } },
+        },
+      },
+      '/api/v1/audit': {
+        get: {
+          tags: ['audit'],
+          summary: 'List audit log (ADMIN/SUPER_ADMIN)',
+          parameters: [
+            ...PAGE_PARAMS,
+            {
+              name: 'actor',
+              in: 'query',
+              required: false,
+              schema: { type: 'string', format: 'uuid' },
+            },
+            { name: 'action', in: 'query', required: false, schema: { type: 'string' } },
+            {
+              name: 'from',
+              in: 'query',
+              required: false,
+              schema: { type: 'string', format: 'date-time' },
+            },
+            {
+              name: 'to',
+              in: 'query',
+              required: false,
+              schema: { type: 'string', format: 'date-time' },
+            },
+          ],
+          responses: {
+            '200': { description: 'Audit entries (newest first)' },
+            '403': { description: 'Forbidden' },
+          },
         },
       },
       '/api/v1/projects': {
@@ -152,6 +201,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
         get: {
           tags: ['projects'],
           summary: 'List own projects',
+          parameters: [...PAGE_PARAMS],
           responses: { '200': { description: 'Projects' } },
         },
       },
@@ -191,6 +241,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           summary: 'List repositories',
           parameters: [
             { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            ...PAGE_PARAMS,
           ],
           responses: { '200': { description: 'Repositories' } },
         },
@@ -254,6 +305,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           summary: 'List memory',
           parameters: [
             { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            ...PAGE_PARAMS,
           ],
           responses: { '200': { description: 'Memory items' } },
         },
@@ -305,6 +357,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           summary: 'List knowledge',
           parameters: [
             { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            ...PAGE_PARAMS,
           ],
           responses: { '200': { description: 'Knowledge items' } },
         },
@@ -359,6 +412,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           summary: 'List documents',
           parameters: [
             { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            ...PAGE_PARAMS,
           ],
           responses: { '200': { description: 'Documents' } },
         },

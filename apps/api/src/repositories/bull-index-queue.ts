@@ -15,7 +15,16 @@ export class BullIndexQueue implements IndexQueue {
   private readonly queue: Queue<IndexJob>;
 
   constructor(redisUrl: string) {
-    this.queue = new Queue<IndexJob>(INDEX_QUEUE, { connection: redisConnection(redisUrl) });
+    this.queue = new Queue<IndexJob>(INDEX_QUEUE, {
+      connection: redisConnection(redisUrl),
+      // Retry transient failures with backoff; cap kept history so Redis doesn't grow unbounded.
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: { count: 1000 },
+        removeOnFail: { count: 5000 },
+      },
+    });
   }
 
   async enqueue(job: IndexJob): Promise<void> {

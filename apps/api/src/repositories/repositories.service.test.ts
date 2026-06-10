@@ -71,10 +71,13 @@ const projects = {
   },
 };
 
+/** Config double: server-path reindexing enabled (the dev default). */
+const config = { env: { INDEX_SERVER_PATHS: true } };
+
 // biome-ignore lint/suspicious/noExplicitAny: test doubles intentionally narrow the real types.
 const make = (prisma: any, q = fakeQueue()) => ({
   // biome-ignore lint/suspicious/noExplicitAny: test doubles intentionally narrow the real types.
-  service: new RepositoriesService(prisma, audit as any, projects as any, q.queue),
+  service: new RepositoriesService(prisma, audit as any, projects as any, q.queue, config as any),
   jobs: q.jobs,
 });
 

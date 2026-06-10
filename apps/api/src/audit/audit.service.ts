@@ -28,4 +28,32 @@ export class AuditService {
       },
     });
   }
+
+  /** Newest-first audit entries, optionally filtered by actor/action/time range. */
+  async list(filter: {
+    actorId?: string;
+    action?: string;
+    from?: Date;
+    to?: Date;
+    take: number;
+    skip: number;
+  }) {
+    return await this.prisma.client.auditLog.findMany({
+      where: {
+        ...(filter.actorId ? { actorId: filter.actorId } : {}),
+        ...(filter.action ? { action: filter.action } : {}),
+        ...(filter.from || filter.to
+          ? {
+              createdAt: {
+                ...(filter.from ? { gte: filter.from } : {}),
+                ...(filter.to ? { lte: filter.to } : {}),
+              },
+            }
+          : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: filter.take,
+      skip: filter.skip,
+    });
+  }
 }

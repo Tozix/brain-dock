@@ -54,6 +54,8 @@ export class AuthenticationGuard implements CanActivate {
     try {
       const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, {
         secret: this.config.env.JWT_ACCESS_SECRET,
+        // Pin the algorithm: never accept tokens signed with anything but HS256.
+        algorithms: ['HS256'],
       });
       return { id: payload.sub, email: payload.email, role: payload.role };
     } catch {

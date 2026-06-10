@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { HttpExceptionFilter } from './common/http-exception.filter';
 import { InMemoryRateLimiter, RATE_LIMITER, RedisRateLimiter } from './common/rate-limit';
 import { RateLimitGuard } from './common/rate-limit.guard';
 import { ConfigModule } from './config/config.module';
@@ -49,6 +50,8 @@ import { UsageModule } from './usage/usage.module';
     },
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_INTERCEPTOR, useClass: TracingInterceptor },
+    // Uniform error envelope: every error leaves as { code, message, details? }.
+    { provide: APP_FILTER, useClass: HttpExceptionFilter },
   ],
 })
 export class AppModule {}

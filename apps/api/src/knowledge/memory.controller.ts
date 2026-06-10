@@ -6,12 +6,14 @@ import {
   Get,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
 } from '@nestjs/common';
 import type { AuthenticatedUser } from '../common/auth-user';
 import { CurrentUser } from '../common/current-user.decorator';
+import { type PaginationDto, paginationSchema } from '../common/pagination';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { ProjectsService } from '../projects/projects.service';
 import { type CreateMemoryDto, createMemorySchema } from './knowledge.dto';
@@ -26,7 +28,7 @@ export class MemoryController {
   @Post()
   async create(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('projectId') projectId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
     @Body(new ZodValidationPipe(createMemorySchema)) dto: CreateMemoryDto,
   ) {
     await this.projects.getOwned(user, projectId);
@@ -34,15 +36,19 @@ export class MemoryController {
   }
 
   @Get()
-  async list(@CurrentUser() user: AuthenticatedUser, @Param('projectId') projectId: string) {
+  async list(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Query(new ZodValidationPipe(paginationSchema)) page: PaginationDto,
+  ) {
     await this.projects.getOwned(user, projectId);
-    return this.memory.list(projectId);
+    return this.memory.list(projectId, page);
   }
 
   @Get('search')
   async search(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('projectId') projectId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
     @Query('q') q: string,
   ) {
     await this.projects.getOwned(user, projectId);
@@ -52,8 +58,8 @@ export class MemoryController {
   @Patch(':id')
   async update(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('projectId') projectId: string,
-    @Param('id') id: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateMemorySchema)) dto: UpdateMemoryInput,
   ) {
     await this.projects.getOwned(user, projectId);
@@ -65,8 +71,8 @@ export class MemoryController {
   @Delete(':id')
   async remove(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('projectId') projectId: string,
-    @Param('id') id: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     await this.projects.getOwned(user, projectId);
     if (!(await this.memory.delete(projectId, id))) throw new NotFoundException('Memory not found');

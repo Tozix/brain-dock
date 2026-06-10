@@ -43,8 +43,14 @@ export class DocumentService {
       },
     });
 
-    const chunks = await this.embedDocument(document, text);
-    return { document, chunks };
+    try {
+      const chunks = await this.embedDocument(document, text);
+      return { document, chunks };
+    } catch (error) {
+      // Compensate the failed vector write: drop the orphaned row so the two stores stay in sync.
+      await this.prisma.document.deleteMany({ where: { id: document.id } }).catch(() => {});
+      throw error;
+    }
   }
 
   /** Chunk + embed a document's text into Qdrant. Returns the number of chunks written. */
@@ -147,8 +153,16 @@ export class DocumentService {
 
       if (contentChanged) {
         await this.dropVectors(id);
-        const chunks = await this.embedDocument(document, text);
-        return { document, chunks };
+        try {
+          const chunks = await this.embedDocument(document, text);
+          return { document, chunks };
+        } catch (error) {
+          // The row is already updated — surface that search results may lag behind.
+          throw new Error(
+            `document updated but vector index may be stale: ${error instanceof Error ? error.message : String(error)}`,
+            { cause: error },
+          );
+        }
       }
       return { document, chunks: chunkText(text).length };
     }
@@ -161,10 +175,12 @@ export class DocumentService {
     return deleted.count > 0;
   }
 
-  async list(projectId: string): Promise<Document[]> {
+  async list(projectId: string, page?: { take?: number; skip?: number }): Promise<Document[]> {
     return await this.prisma.document.findMany({
       where: { projectId },
       orderBy: { createdAt: 'desc' },
+      take: page?.take,
+      skip: page?.skip,
     });
   }
 }
