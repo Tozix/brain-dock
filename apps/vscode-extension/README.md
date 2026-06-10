@@ -13,10 +13,22 @@ your code index, and wire your AI agents (Claude Code, Cursor) to the remote MCP
   brain-dock tools automatically. Pick the targets in the UI.
 - **Actions** — Force Re-index, Generate Context Capsule, Add / Connect Repository, switch project,
   View Logs, Settings.
-- **Token Savings** — per-user MCP usage (calls + tokens served, with an estimated saving) over the
-  last 30 days, served by `GET /api/v1/usage`.
+- **Usage** — the USAGE section shows per-user MCP usage (calls + tokens served, via
+  `GET /api/v1/usage`) for a selectable period (Today / 7 / 30 / 90 days). When the server cannot
+  report usage, the panel shows `—` and the error is logged to the output channel.
 
 See [plan 042](https://github.com/Tozix/brain-dock/blob/main/docs/plans/042-vscode-extension.md).
+
+## Notes & limitations
+
+- `brainDock.reindex` (Force Re-index) and `brainDock.indexWorkspace` are intentionally the same
+  operation — both command ids are kept so existing keybindings keep working.
+- **Multi-root workspaces**: only the *first* workspace folder is indexed; the extension shows a
+  one-time warning per workspace. Add the other folders via "Add / Connect Repository" if needed.
+- Workspace upload is budgeted: files over 512 KB are skipped and the total upload is capped at
+  40 MB (you get a warning when the cap is hit).
+- On the first open of a folder the extension asks before creating a project and uploading files
+  ("Index this folder in Brain Dock?"); answering **Never** opts that workspace out permanently.
 
 ## Settings
 
@@ -24,7 +36,7 @@ See [plan 042](https://github.com/Tozix/brain-dock/blob/main/docs/plans/042-vsco
 |---|---|---|
 | `brainDock.serverUrl` | `http://localhost:3000` | REST API base (without `/api/v1`). |
 | `brainDock.mcpUrl` | `http://localhost:8080/mcp` | Remote MCP endpoint. |
-| `brainDock.project` | — | Active project (slug/id) → `X-Project`. |
+| `brainDock.project` | — | Active project (slug/id) → `X-Project`. Stored per-workspace when a folder is open, so different windows can use different projects. |
 
 The API key is stored in VS Code **SecretStorage**, never in settings.
 

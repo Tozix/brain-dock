@@ -9,26 +9,25 @@ export type MessageKey =
   | 'status.connected'
   | 'status.error'
   | 'status.connecting'
-  | 'panel.notConnectedHint'
   | 'panel.pickProjectHint'
   | 'panel.serverHint'
-  | 'btn.connect'
   | 'btn.settings'
   | 'btn.retry'
   | 'btn.signOut'
-  | 'btn.selectProject'
-  | 'btn.change'
   | 'btn.setupAgents'
   | 'btn.reindex'
-  | 'btn.generateContext'
   | 'btn.addRepository'
-  | 'btn.switchProject'
   | 'btn.viewLogs'
   | 'btn.indexWorkspace'
   | 'msg.noWorkspace'
   | 'progress.provisioning'
   | 'progress.uploading'
   | 'msg.workspaceReady'
+  | 'msg.autoIndexAsk'
+  | 'btn.autoIndexYes'
+  | 'btn.autoIndexNever'
+  | 'msg.uploadTruncated'
+  | 'msg.multiRootOnlyFirst'
   | 'btn.save'
   | 'btn.cancel'
   | 'field.serverUrl'
@@ -42,15 +41,10 @@ export type MessageKey =
   | 'label.settings'
   | 'label.project'
   | 'label.index'
-  | 'label.tokenSavings'
   | 'label.actions'
   | 'label.repositories'
   | 'metric.symbols'
   | 'metric.files'
-  | 'metric.repos'
-  | 'metric.estSaved'
-  | 'metric.avgSaving'
-  | 'metric.calls'
   | 'metric.edges'
   | 'idx.symbols'
   | 'idx.edges'
@@ -64,11 +58,9 @@ export type MessageKey =
   | 'msg.apiKeySaved'
   | 'msg.signedOut'
   | 'msg.connectFirst'
-  | 'msg.selectProjectFirst'
+  | 'msg.setApiKeyFirst'
   | 'msg.noProjects'
   | 'msg.projectNotFound'
-  | 'msg.noRepos'
-  | 'msg.reindexQueued'
   | 'msg.repoAdded'
   | 'msg.reindexNow'
   | 'msg.setupWrote'
@@ -76,7 +68,6 @@ export type MessageKey =
   | 'prompt.apiKeyTitle'
   | 'prompt.apiKeyPrompt'
   | 'prompt.selectProject'
-  | 'prompt.reindexWhich'
   | 'prompt.setupTitle'
   | 'prompt.contextTitle'
   | 'prompt.contextPrompt'
@@ -91,26 +82,26 @@ const en: Record<MessageKey, string> = {
   'status.connected': 'connected',
   'status.error': 'error',
   'status.connecting': 'connecting…',
-  'panel.notConnectedHint': 'Not connected. Set your API key to begin.',
   'panel.pickProjectHint': 'Connected. Pick a project to load its index.',
   'panel.serverHint': 'Server: {url} — make sure it points at the brain-dock API.',
-  'btn.connect': 'Connect (set API key)',
   'btn.settings': 'Settings',
   'btn.retry': 'Retry',
   'btn.signOut': 'Sign out',
-  'btn.selectProject': 'Select project',
-  'btn.change': 'change',
   'btn.setupAgents': 'Setup Agents',
   'btn.reindex': 'Force Re-index',
-  'btn.generateContext': 'Generate Context Capsule',
   'btn.addRepository': 'Add / Connect Repository',
-  'btn.switchProject': 'Switch Project',
   'btn.viewLogs': 'View Logs',
   'btn.indexWorkspace': 'Index this workspace',
   'msg.noWorkspace': 'Open a folder in VS Code first.',
   'progress.provisioning': 'brain-dock: setting up the project…',
   'progress.uploading': 'uploading {n} files…',
   'msg.workspaceReady': 'Project {name} is indexing.',
+  'msg.autoIndexAsk': 'Index this folder in Brain Dock?',
+  'btn.autoIndexYes': 'Yes',
+  'btn.autoIndexNever': 'Never',
+  'msg.uploadTruncated':
+    'Upload limit of {mb} MB reached — indexing the first {n} files; the rest were skipped.',
+  'msg.multiRootOnlyFirst': 'Multi-root workspace: only the first folder ({name}) is indexed.',
   'btn.save': 'Save',
   'btn.cancel': 'Cancel',
   'field.serverUrl': 'Server URL (REST API)',
@@ -124,15 +115,10 @@ const en: Record<MessageKey, string> = {
   'label.settings': 'SETTINGS',
   'label.project': 'PROJECT',
   'label.index': 'INDEX',
-  'label.tokenSavings': 'TOKEN SAVINGS',
   'label.actions': 'ACTIONS',
   'label.repositories': 'REPOSITORIES',
   'metric.symbols': 'symbols',
   'metric.files': 'files',
-  'metric.repos': 'repos',
-  'metric.estSaved': 'est. saved',
-  'metric.avgSaving': 'avg saving',
-  'metric.calls': 'calls',
   'metric.edges': 'edges',
   'idx.symbols': 'Symbols',
   'idx.edges': 'Edges',
@@ -146,11 +132,9 @@ const en: Record<MessageKey, string> = {
   'msg.apiKeySaved': 'API key saved.',
   'msg.signedOut': 'Signed out.',
   'msg.connectFirst': 'Connect and select a project first.',
-  'msg.selectProjectFirst': 'Set your API key first (Connect).',
+  'msg.setApiKeyFirst': 'Set your API key first (Connect).',
   'msg.noProjects': 'No projects yet — create one via the API.',
   'msg.projectNotFound': 'Active project not found.',
-  'msg.noRepos': 'No repositories yet.',
-  'msg.reindexQueued': 'Re-index queued for {name}.',
   'msg.repoAdded': 'Added repository {name}.',
   'msg.reindexNow': 'Re-index now',
   'msg.setupWrote':
@@ -159,7 +143,6 @@ const en: Record<MessageKey, string> = {
   'prompt.apiKeyTitle': 'brain-dock API key',
   'prompt.apiKeyPrompt': 'Paste your bd_… API key',
   'prompt.selectProject': 'Select brain-dock project',
-  'prompt.reindexWhich': 'Re-index which repository?',
   'prompt.setupTitle': 'Setup Agents — write the brain-dock MCP config',
   'prompt.contextTitle': 'Generate context',
   'prompt.contextPrompt': 'Describe the task or question to assemble context for',
@@ -175,26 +158,26 @@ const ru: Record<MessageKey, string> = {
   'status.connected': 'подключено',
   'status.error': 'ошибка',
   'status.connecting': 'подключение…',
-  'panel.notConnectedHint': 'Не подключено. Укажите API-ключ, чтобы начать.',
   'panel.pickProjectHint': 'Подключено. Выберите проект, чтобы загрузить индекс.',
   'panel.serverHint': 'Сервер: {url} — проверьте, что он указывает на API brain-dock.',
-  'btn.connect': 'Подключиться (ввести API-ключ)',
   'btn.settings': 'Настройки',
   'btn.retry': 'Повторить',
   'btn.signOut': 'Выйти',
-  'btn.selectProject': 'Выбрать проект',
-  'btn.change': 'сменить',
   'btn.setupAgents': 'Настроить агентов',
   'btn.reindex': 'Переиндексировать',
-  'btn.generateContext': 'Собрать контекст',
   'btn.addRepository': 'Добавить репозиторий',
-  'btn.switchProject': 'Сменить проект',
   'btn.viewLogs': 'Показать логи',
   'btn.indexWorkspace': 'Проиндексировать эту папку',
   'msg.noWorkspace': 'Сначала откройте папку в VS Code.',
   'progress.provisioning': 'brain-dock: настраиваю проект…',
   'progress.uploading': 'загружаю {n} файлов…',
   'msg.workspaceReady': 'Проект {name} индексируется.',
+  'msg.autoIndexAsk': 'Проиндексировать эту папку в Brain Dock?',
+  'btn.autoIndexYes': 'Да',
+  'btn.autoIndexNever': 'Никогда',
+  'msg.uploadTruncated':
+    'Достигнут лимит выгрузки {mb} МБ — индексируются первые {n} файлов, остальные пропущены.',
+  'msg.multiRootOnlyFirst': 'Multi-root workspace: индексируется только первая папка ({name}).',
   'btn.save': 'Сохранить',
   'btn.cancel': 'Отмена',
   'field.serverUrl': 'URL сервера (REST API)',
@@ -208,15 +191,10 @@ const ru: Record<MessageKey, string> = {
   'label.settings': 'НАСТРОЙКИ',
   'label.project': 'ПРОЕКТ',
   'label.index': 'ИНДЕКС',
-  'label.tokenSavings': 'ЭКОНОМИЯ ТОКЕНОВ',
   'label.actions': 'ДЕЙСТВИЯ',
   'label.repositories': 'РЕПОЗИТОРИИ',
   'metric.symbols': 'символов',
   'metric.files': 'файлов',
-  'metric.repos': 'репозиториев',
-  'metric.estSaved': 'сэкономлено≈',
-  'metric.avgSaving': 'ср. экономия',
-  'metric.calls': 'вызовов',
   'metric.edges': 'рёбер',
   'idx.symbols': 'Символы',
   'idx.edges': 'Рёбра',
@@ -230,11 +208,9 @@ const ru: Record<MessageKey, string> = {
   'msg.apiKeySaved': 'API-ключ сохранён.',
   'msg.signedOut': 'Вы вышли.',
   'msg.connectFirst': 'Сначала подключитесь и выберите проект.',
-  'msg.selectProjectFirst': 'Сначала введите API-ключ (Подключиться).',
+  'msg.setApiKeyFirst': 'Сначала введите API-ключ (Подключиться).',
   'msg.noProjects': 'Проектов пока нет — создайте через API.',
   'msg.projectNotFound': 'Активный проект не найден.',
-  'msg.noRepos': 'Репозиториев пока нет.',
-  'msg.reindexQueued': 'Переиндексация поставлена в очередь для {name}.',
   'msg.repoAdded': 'Репозиторий {name} добавлен.',
   'msg.reindexNow': 'Переиндексировать сейчас',
   'msg.setupWrote':
@@ -243,7 +219,6 @@ const ru: Record<MessageKey, string> = {
   'prompt.apiKeyTitle': 'API-ключ brain-dock',
   'prompt.apiKeyPrompt': 'Вставьте ваш ключ bd_…',
   'prompt.selectProject': 'Выберите проект brain-dock',
-  'prompt.reindexWhich': 'Какой репозиторий переиндексировать?',
   'prompt.setupTitle': 'Настроить агентов — записать MCP-конфиг brain-dock',
   'prompt.contextTitle': 'Собрать контекст',
   'prompt.contextPrompt': 'Опишите задачу или вопрос, под который собрать контекст',

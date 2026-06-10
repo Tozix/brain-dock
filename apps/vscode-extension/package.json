@@ -118,6 +118,7 @@
         "brainDock.project": {
           "type": "string",
           "default": "",
+          "scope": "resource",
           "description": "Active project (slug or id). Used as the X-Project header for MCP calls."
         },
         "brainDock.language": {

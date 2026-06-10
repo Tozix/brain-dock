@@ -1,6 +1,6 @@
 import { basename } from 'node:path';
 import * as vscode from 'vscode';
-import { BrainDockClient } from './api/client';
+import { ApiError, BrainDockClient } from './api/client';
 import {
   clearApiKey,
   getApiKey,
@@ -15,14 +15,30 @@ import { registerMcpProvider } from './mcp-provider';
 import type { PanelState } from './panel/html';
 import { PanelProvider, type SettingsValues } from './panel/provider';
 import { type AgentTarget, applyTarget, type McpServerConfig } from './setup/agents';
-import { type FileContent, type Project, slugify } from './util';
+import {
+  classifyUpload,
+  type FileContent,
+  findProject,
+  pickProject,
+  slugify,
+  UPLOAD_BUDGET_BYTES,
+} from './util';
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
-// Read the workspace's TypeScript sources (respecting common ignores + size cap) to upload for
-// server-side indexing — no git or server-side path required.
-async function collectWorkspaceFiles(folder: vscode.WorkspaceFolder): Promise<FileContent[]> {
-  const exclude = '**/{node_modules,dist,.turbo,.git,generated,coverage,.vexp,out}/**';
+// workspaceState keys
+const AUTO_INDEX_CONSENT_KEY = 'brainDock.autoIndexConsent'; // 'yes' | 'never'
+const MULTI_ROOT_WARNED_KEY = 'brainDock.multiRootWarned';
+
+interface CollectResult {
+  files: FileContent[];
+  truncated: boolean;
+}
+
+// Read the workspace's TypeScript sources (respecting common ignores + per-file and total size
+// budgets) to upload for server-side indexing — no git or server-side path required.
+async function collectWorkspaceFiles(folder: vscode.WorkspaceFolder): Promise<CollectResult> {
+  const exclude = '**/{node_modules,dist,build,out,.next,.turbo,.git,generated,coverage,.vexp}/**';
   const uris = await vscode.workspace.findFiles(
     new vscode.RelativePattern(folder, '**/*.{ts,tsx}'),
     exclude,
@@ -30,18 +46,25 @@ async function collectWorkspaceFiles(folder: vscode.WorkspaceFolder): Promise<Fi
   );
   const decoder = new TextDecoder();
   const files: FileContent[] = [];
+  let totalBytes = 0;
+  let truncated = false;
   for (const uri of uris) {
     const rel = vscode.workspace.asRelativePath(uri, false).split('\\').join('/');
-    if (rel.endsWith('.d.ts')) continue;
     try {
       const bytes = await vscode.workspace.fs.readFile(uri);
-      if (bytes.byteLength > 512 * 1024) continue;
+      const verdict = classifyUpload(rel, bytes.byteLength, totalBytes);
+      if (verdict === 'skip') continue;
+      if (verdict === 'stop') {
+        truncated = true;
+        break;
+      }
+      totalBytes += bytes.byteLength;
       files.push({ path: rel, content: decoder.decode(bytes) });
     } catch {
       // unreadable file — skip
     }
   }
-  return files;
+  return { files, truncated };
 }
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -64,9 +87,6 @@ export function activate(context: vscode.ExtensionContext): void {
     return apiKey ? new BrainDockClient({ ...readSettings(), apiKey }) : undefined;
   };
 
-  const findProject = (projects: Project[], key: string): Project | undefined =>
-    projects.find((p) => p.slug === key || p.id === key);
-
   const loadState = async (periodDays: number): Promise<PanelState> => {
     const s = readSettings();
     const apiKey = await getApiKey(secrets);
@@ -88,7 +108,11 @@ export function activate(context: vscode.ExtensionContext): void {
     try {
       const projects = await client.listProjects();
       state.connected = true;
-      state.usage = await client.getUsage(periodDays).catch(() => undefined);
+      // Usage is non-critical: on failure log it and let the panel show "—" instead of zeros.
+      state.usage = await client.getUsage(periodDays).catch((err: unknown) => {
+        output.appendLine(`[usage] failed: ${errMsg(err)}`);
+        return undefined;
+      });
       if (s.project) {
         const proj = findProject(projects, s.project);
         if (proj) state.repos = await client.listRepositories(proj.id);
@@ -105,7 +129,8 @@ export function activate(context: vscode.ExtensionContext): void {
     const g = vscode.ConfigurationTarget.Global;
     if (typeof v.serverUrl === 'string') await cfg.update('serverUrl', v.serverUrl.trim(), g);
     if (typeof v.mcpUrl === 'string') await cfg.update('mcpUrl', v.mcpUrl.trim(), g);
-    if (typeof v.project === 'string') await cfg.update('project', v.project.trim(), g);
+    // The active project is per-workspace (multiple windows must not clobber each other).
+    if (typeof v.project === 'string') await setProject(v.project.trim());
     if (typeof v.language === 'string') await cfg.update('language', v.language, g);
     if (v.apiKey?.trim()) await storeApiKey(secrets, v.apiKey.trim());
     vscode.window.showInformationMessage(`brain-dock: ${t(resolveLang(), 'msg.settingsSaved')}`);
@@ -128,21 +153,29 @@ export function activate(context: vscode.ExtensionContext): void {
   // repository (root = the folder path the local worker reads), set it active, and index.
   const ensureWorkspaceProject = async (forceReindex: boolean, notify = true): Promise<void> => {
     const lang = resolveLang();
-    const ws = vscode.workspace.workspaceFolders?.[0];
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    const ws = folders[0];
     if (!ws) {
       if (notify) vscode.window.showInformationMessage(`brain-dock: ${t(lang, 'msg.noWorkspace')}`);
       return;
     }
+    // Multi-root is not supported — only the first folder is indexed. Warn once per workspace.
+    if (folders.length > 1 && !context.workspaceState.get<boolean>(MULTI_ROOT_WARNED_KEY)) {
+      void context.workspaceState.update(MULTI_ROOT_WARNED_KEY, true);
+      vscode.window.showWarningMessage(
+        `brain-dock: ${t(lang, 'msg.multiRootOnlyFirst', { name: ws.name })}`,
+      );
+    }
     const client = await buildClient();
     if (!client) {
-      if (notify)
-        vscode.window.showWarningMessage(`brain-dock: ${t(lang, 'msg.selectProjectFirst')}`);
+      if (notify) vscode.window.showWarningMessage(`brain-dock: ${t(lang, 'msg.setApiKeyFirst')}`);
       return;
     }
     const root = ws.uri.fsPath;
     const folder = ws.name || basename(root) || 'workspace';
     const slug = slugify(folder);
     const configuredProject = readSettings().project;
+    provider.setError(undefined);
     provider.setBusy(t(lang, 'progress.provisioning'));
     try {
       await vscode.window.withProgress(
@@ -151,12 +184,13 @@ export function activate(context: vscode.ExtensionContext): void {
           const projects = await client.listProjects();
           // Reuse the selected project if it still exists; only fall back to the folder-name slug
           // (creating a project) when nothing is configured — avoids spawning duplicate projects.
-          let proj = configuredProject ? findProject(projects, configuredProject) : undefined;
-          proj ??= findProject(projects, slug);
+          let proj = pickProject(projects, configuredProject, slug);
           if (!proj) {
             try {
               proj = await client.createProject(folder, slug);
-            } catch {
+            } catch (err) {
+              // Only a slug conflict warrants a retry with a random suffix.
+              if (!(err instanceof ApiError) || err.status !== 409) throw err;
               proj = await client.createProject(
                 folder,
                 `${slug}-${Math.random().toString(36).slice(2, 6)}`,
@@ -173,7 +207,15 @@ export function activate(context: vscode.ExtensionContext): void {
           }
           if (created || forceReindex) {
             output.appendLine('[index] collecting workspace files…');
-            const files = await collectWorkspaceFiles(ws);
+            const { files, truncated } = await collectWorkspaceFiles(ws);
+            if (truncated) {
+              const warn = t(lang, 'msg.uploadTruncated', {
+                mb: Math.round(UPLOAD_BUDGET_BYTES / (1024 * 1024)),
+                n: files.length,
+              });
+              output.appendLine(`[index] ${warn}`);
+              if (notify) vscode.window.showWarningMessage(`brain-dock: ${warn}`);
+            }
             const msg = t(lang, 'progress.uploading', { n: files.length });
             progress.report({ message: msg });
             provider.setBusy(msg);
@@ -191,12 +233,20 @@ export function activate(context: vscode.ExtensionContext): void {
         );
       }
     } catch (err) {
-      fail(err);
+      if (notify) {
+        fail(err);
+      } else {
+        // Background run (startup auto-index): no popups — log + surface in the panel instead.
+        output.appendLine(`[error] ${errMsg(err)}`);
+        provider.setError(errMsg(err));
+      }
     } finally {
       provider.setBusy(undefined);
     }
   };
 
+  // `indexWorkspace` and `reindex` (below) are deliberately the same implementation — both ids are
+  // kept so existing user keybindings keep working.
   register('brainDock.indexWorkspace', () => ensureWorkspaceProject(true));
 
   register('brainDock.connect', async () => {
@@ -227,7 +277,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const lang = resolveLang();
     const client = await buildClient();
     if (!client) {
-      vscode.window.showWarningMessage(`brain-dock: ${t(lang, 'msg.selectProjectFirst')}`);
+      vscode.window.showWarningMessage(`brain-dock: ${t(lang, 'msg.setApiKeyFirst')}`);
       return;
     }
     try {
@@ -365,12 +415,32 @@ export function activate(context: vscode.ExtensionContext): void {
   register('brainDock.viewLogs', () => output.show());
 
   // On startup, adopt the open folder as the project (unless brainDock.autoProject = false).
+  // Creating a server-side project + uploading the folder is invasive, so ask once per workspace
+  // first; "Never" permanently opts this workspace out.
   void (async () => {
     const autoProject =
       vscode.workspace.getConfiguration(SECTION).get<boolean>('autoProject') ?? true;
     if (!autoProject) return;
     if (!vscode.workspace.workspaceFolders?.length) return;
     if (!(await getApiKey(secrets))) return;
+    const consent = context.workspaceState.get<string>(AUTO_INDEX_CONSENT_KEY);
+    if (consent === 'never') return;
+    if (consent !== 'yes') {
+      const lang = resolveLang();
+      const yes = t(lang, 'btn.autoIndexYes');
+      const never = t(lang, 'btn.autoIndexNever');
+      const choice = await vscode.window.showInformationMessage(
+        `brain-dock: ${t(lang, 'msg.autoIndexAsk')}`,
+        yes,
+        never,
+      );
+      if (choice === never) {
+        await context.workspaceState.update(AUTO_INDEX_CONSENT_KEY, 'never');
+        return;
+      }
+      if (choice !== yes) return; // dismissed — ask again next startup
+      await context.workspaceState.update(AUTO_INDEX_CONSENT_KEY, 'yes');
+    }
     await ensureWorkspaceProject(false, false);
   })();
 }

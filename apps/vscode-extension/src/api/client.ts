@@ -18,6 +18,27 @@ export interface ClientOptions {
   project: string;
 }
 
+const REQUEST_TIMEOUT_MS = 15_000;
+const INDEX_TIMEOUT_MS = 120_000; // file upload + server-side indexing is legitimately slow
+
+/** HTTP-level failure: carries the status so callers can branch (e.g. retry only on 409). */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+/** "GET /projects → 404 Not Found: {...body excerpt...}" */
+async function httpError(prefix: string, res: Response): Promise<ApiError> {
+  const body = (await res.text().catch(() => '')).trim();
+  const detail = body ? `: ${body.slice(0, 300)}` : '';
+  return new ApiError(`${prefix} → ${res.status} ${res.statusText}${detail}`, res.status);
+}
+
 export class BrainDockClient {
   private readonly base: string;
 
@@ -47,6 +68,7 @@ export class BrainDockClient {
       'POST',
       `/projects/${projectId}/repositories/${repoId}/index`,
       { files },
+      INDEX_TIMEOUT_MS,
     );
   }
 
@@ -70,13 +92,19 @@ export class BrainDockClient {
     return this.callTool('generate_context', { query });
   }
 
-  private async rest<T>(method: string, path: string, body?: unknown): Promise<T> {
+  private async rest<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    timeoutMs: number = REQUEST_TIMEOUT_MS,
+  ): Promise<T> {
     const res = await fetch(`${this.base}${path}`, {
       method,
       headers: { 'x-api-key': this.opts.apiKey, 'content-type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
     });
-    if (!res.ok) throw new Error(`${method} ${path} → ${res.status} ${res.statusText}`);
+    if (!res.ok) throw await httpError(`${method} ${path}`, res);
     return (await res.json()) as T;
   }
 
@@ -96,8 +124,9 @@ export class BrainDockClient {
         method: 'tools/call',
         params: { name, arguments: args },
       }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    if (!res.ok) throw new Error(`MCP ${name} → ${res.status} ${res.statusText}`);
+    if (!res.ok) throw await httpError(`MCP ${name}`, res);
     return toolText(await res.text());
   }
 }

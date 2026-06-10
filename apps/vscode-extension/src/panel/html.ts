@@ -172,8 +172,8 @@ function renderConnected(state: PanelState): string {
         <span class="label">${t(L, 'label.usage')}</span>
         <select id="f_period" class="period">${periodOpts}</select>
       </div>
-      ${kv(t(L, 'usage.calls'), String(u?.calls ?? 0))}
-      ${kv(t(L, 'usage.tokens'), fmtCompact(u?.tokensServed ?? 0))}
+      ${kv(t(L, 'usage.calls'), u ? String(u.calls) : '—')}
+      ${kv(t(L, 'usage.tokens'), u ? fmtCompact(u.tokensServed) : '—')}
     </div>
 
     <div class="section">

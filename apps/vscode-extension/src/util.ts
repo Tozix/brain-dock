@@ -39,9 +39,54 @@ export interface UsageSummary {
   tokensServed: number;
 }
 
+/** Total upload budget for one workspace index run (sum of file sizes). */
+export const UPLOAD_BUDGET_BYTES = 40 * 1024 * 1024;
+/** Per-file size cap — bigger files are generated/bundled artifacts, not source. */
+export const MAX_FILE_BYTES = 512 * 1024;
+
 /** Strip trailing slashes from a base URL so path joins stay clean. */
 export function normalizeBase(url: string): string {
   return url.trim().replace(/\/+$/, '');
+}
+
+/** Find a project by slug or id. */
+export function findProject(projects: Project[], key: string): Project | undefined {
+  return projects.find((p) => p.slug === key || p.id === key);
+}
+
+/**
+ * Pick the project to (re)use: the configured one if it still exists, else one matching the
+ * folder-name slug. Returns undefined when a new project must be created.
+ */
+export function pickProject(
+  projects: Project[],
+  configured: string | undefined,
+  slug: string,
+): Project | undefined {
+  return (
+    (configured ? findProject(projects, configured) : undefined) ?? findProject(projects, slug)
+  );
+}
+
+/** Skip declaration files and minified/bundled artifacts — noise for the index. */
+export function isIndexablePath(rel: string): boolean {
+  return !rel.endsWith('.d.ts') && !rel.endsWith('.min.js');
+}
+
+/**
+ * Decide what to do with a candidate upload given the bytes collected so far:
+ * `skip` (non-indexable or oversized file), `stop` (shared budget exhausted) or `add`.
+ */
+export function classifyUpload(
+  rel: string,
+  bytes: number,
+  totalBytes: number,
+  budgetBytes: number = UPLOAD_BUDGET_BYTES,
+  maxFileBytes: number = MAX_FILE_BYTES,
+): 'add' | 'skip' | 'stop' {
+  if (!isIndexablePath(rel) || bytes > maxFileBytes) return 'skip';
+  if (totalBytes + bytes > budgetBytes) return 'stop';
+  return 'add';
 }
 
 /** Turn a folder name into a server-safe slug/alias (`^[a-z0-9-]+$`). Falls back to "workspace". */
@@ -87,12 +132,13 @@ export function toolText(raw: string): string {
 /** Parse the human-readable `summarize_project` text into structured counts. */
 export function parseSummary(text: string): IndexStatus {
   const status: IndexStatus = { files: 0, symbols: 0, edges: 0, repos: [], roles: {} };
-  const repos = text.match(/^Repositories \(\d+\):\s*(.+)$/m);
-  if (repos?.[1]) {
-    status.repos = repos[1]
+  const repos = text.match(/^Repositories \((\d+)\):\s*(.+)$/m);
+  // Trust the count in parentheses: "(0): (none — reindex first)" must not yield a fake repo name.
+  if (repos?.[1] && repos[2] && Number(repos[1]) > 0) {
+    status.repos = repos[2]
       .split(',')
       .map((r) => r.trim())
-      .filter(Boolean);
+      .filter((r) => /^[A-Za-z0-9._-]+$/.test(r));
   }
   const files = text.match(/^Files:\s*(\d+)/m);
   if (files?.[1]) status.files = Number(files[1]);

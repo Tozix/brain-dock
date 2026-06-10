@@ -58,21 +58,50 @@ export function configPathFor(
   }
 }
 
-/** Read + parse a JSON config, tolerating absence/garbage by returning an empty object. */
+/**
+ * Read + parse a JSON config. Missing or empty files yield `{}`; an existing file that does not
+ * parse to a JSON object throws — we must never silently replace a user's config with `{}`.
+ */
 export function readJsonSafe(file: string): Record<string, unknown> {
+  let raw: string;
   try {
-    const raw = fs.readFileSync(file, 'utf8').trim();
-    if (!raw) return {};
-    const parsed: unknown = JSON.parse(raw);
-    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
+    raw = fs.readFileSync(file, 'utf8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {};
+    throw err;
   }
+  if (!raw.trim()) return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      `${file} exists but is not valid JSON — fix or back it up first (not overwriting it).`,
+    );
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`${file} does not contain a JSON object — not overwriting it.`);
+  }
+  return parsed as Record<string, unknown>;
 }
 
+/** Atomic write (tmp + rename) so a crash can't truncate the config; new files are 0o600 (API key inside). */
 function writeJson(file: string, data: unknown): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, `${JSON.stringify(data, null, 2)}\n`);
+  let mode = 0o600;
+  try {
+    mode = fs.statSync(file).mode & 0o777; // preserve existing permissions
+  } catch {
+    // new file — keep the restrictive default
+  }
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, { mode });
+  try {
+    fs.renameSync(tmp, file);
+  } catch (err) {
+    fs.rmSync(tmp, { force: true });
+    throw err;
+  }
 }
 
 /** Write the brain-dock server into the target's config, returning the file path written. */

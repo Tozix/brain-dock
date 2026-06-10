@@ -28,9 +28,12 @@ export function readSettings(): Settings {
 }
 
 export async function setProject(project: string): Promise<void> {
-  await vscode.workspace
-    .getConfiguration(SECTION)
-    .update('project', project, vscode.ConfigurationTarget.Global);
+  // Per-workspace when a folder is open so multiple VS Code windows don't clobber each other;
+  // Global is only the fallback for an empty window.
+  const target = vscode.workspace.workspaceFolders?.length
+    ? vscode.ConfigurationTarget.Workspace
+    : vscode.ConfigurationTarget.Global;
+  await vscode.workspace.getConfiguration(SECTION).update('project', project, target);
 }
 
 export function getApiKey(secrets: vscode.SecretStorage): Thenable<string | undefined> {
