@@ -1,4 +1,5 @@
 export {
+  isNotFoundError,
   type QdrantFilter,
   type QdrantMatch,
   QdrantStore,

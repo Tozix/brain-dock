@@ -1,6 +1,11 @@
 import type { EmbeddingProvider } from '@brain-dock/embedding';
-import { type FileIndex, type RepositoryIndex, RepositoryIndexer } from '@brain-dock/indexer';
-import { QdrantStore, uuidFromHash, type VectorPoint } from '@brain-dock/storage';
+import {
+  type FileIndex,
+  type RepositoryIndex,
+  RepositoryIndexer,
+  sha256,
+} from '@brain-dock/indexer';
+import { isNotFoundError, QdrantStore, uuidFromHash, type VectorPoint } from '@brain-dock/storage';
 import { type ChunkPayload, DEFAULT_REPO } from './types';
 
 export interface IngestOptions {
@@ -26,6 +31,14 @@ export interface IncrementalReport extends IngestReport {
 
 const INCLUDE = (p: string) => !p.includes('.test.') && !p.includes('.spec.');
 
+/**
+ * Point id scoped by tenant: the chunk id alone is repo-relative, so without the scope the same
+ * file path in two projects/repos would collide on one Qdrant point and overwrite each other.
+ */
+export function scopedPointId(projectId: string, repo: string, chunkId: string): string {
+  return uuidFromHash(sha256(`${projectId}:${repo}:${chunkId}`));
+}
+
 /** Pipeline: index a repo → embed each chunk → upsert into Qdrant. */
 export class IngestionService {
   constructor(
@@ -41,15 +54,38 @@ export class IngestionService {
   async ingestIndex(index: RepositoryIndex, options: IngestOptions): Promise<IngestReport> {
     const repo = options.repo ?? DEFAULT_REPO;
     await this.store.ensureCollection(options.collection, this.embedder.dimensions);
+    const liveIds = new Set<string>();
     let chunks = 0;
     for (const file of index.files) {
       const points = await this.embedFile(file, options.projectId, repo, options.repositoryId);
       if (points.length > 0) {
         await this.store.upsert(options.collection, points);
+        for (const point of points) liveIds.add(point.id);
         chunks += points.length;
       }
     }
+    // Upsert first, prune after: stale points are removed without a window of an empty index.
+    await this.pruneOrphans(options.collection, options.projectId, repo, liveIds);
     return { files: index.files.length, chunks };
+  }
+
+  /** Delete points in this project+repo scope whose ids were not produced by the current run. */
+  private async pruneOrphans(
+    collection: string,
+    projectId: string,
+    repo: string,
+    liveIds: Set<string>,
+  ): Promise<void> {
+    const existing = await this.store.listPointIds(collection, {
+      filter: {
+        must: [
+          { key: 'projectId', match: { value: projectId } },
+          { key: 'repo', match: { value: repo } },
+        ],
+      },
+    });
+    const stale = existing.filter((id) => !liveIds.has(id));
+    if (stale.length > 0) await this.store.deletePoints(collection, stale);
   }
 
   /** Re-index only files whose content hash changed; drop vectors of changed/removed files. */
@@ -98,6 +134,11 @@ export class IngestionService {
     if (file.chunks.length === 0) return [];
     const roleByKey = new Map(file.symbols.map((s) => [`${s.name}:${s.startLine}`, s.nestRole]));
     const vectors = await this.embedder.embed(file.chunks.map((c) => c.text));
+    if (vectors.length !== file.chunks.length) {
+      throw new Error(
+        `embedder returned ${vectors.length} vectors for ${file.chunks.length} chunks (${file.path})`,
+      );
+    }
 
     const points: VectorPoint[] = [];
     for (let i = 0; i < file.chunks.length; i++) {
@@ -117,7 +158,7 @@ export class IngestionService {
         model: this.embedder.model,
         text: chunk.text.slice(0, 4000),
       };
-      points.push({ id: uuidFromHash(chunk.id), vector, payload });
+      points.push({ id: scopedPointId(projectId, repo, chunk.id), vector, payload });
     }
     return points;
   }
@@ -136,8 +177,9 @@ export class IngestionService {
           { key: 'path', match: { value: path } },
         ],
       });
-    } catch {
-      // collection may be empty / missing — nothing to delete
+    } catch (error) {
+      // A missing collection means nothing to delete; anything else is a real failure.
+      if (!isNotFoundError(error)) throw error;
     }
   }
 }

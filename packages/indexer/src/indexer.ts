@@ -53,12 +53,24 @@ export class RepositoryIndexer {
   /** Index a directory tree on disk. */
   index(rootDir: string, options: IndexOptions = {}): RepositoryIndex {
     const inputs: FileInput[] = [];
+    let skippedFiles = 0;
     for (const abs of walk(rootDir)) {
       const relPath = toPosix(relative(rootDir, abs));
       if (options.include && !options.include(relPath)) continue;
-      inputs.push({ path: relPath, content: readFileSync(abs, 'utf8') });
+      let content: string;
+      try {
+        content = readFileSync(abs, 'utf8');
+      } catch (error) {
+        // One unreadable file (EACCES, races with deletes, …) must not fail the whole index.
+        skippedFiles++;
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[indexer] skipping unreadable file ${relPath}: ${message}`);
+        continue;
+      }
+      inputs.push({ path: relPath, content });
     }
-    return this.indexFiles(rootDir, inputs, options);
+    const index = this.indexFiles(rootDir, inputs, options);
+    return { ...index, stats: { ...index.stats, skippedFiles } };
   }
 
   /** Index an explicit set of in-memory files (used in tests and by callers that already read files). */

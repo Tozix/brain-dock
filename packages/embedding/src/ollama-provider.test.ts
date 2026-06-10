@@ -44,6 +44,48 @@ describe('OllamaEmbeddingProvider', () => {
     await expect(provider.embed(['x'])).rejects.toThrow(/404/);
   });
 
+  it('throws when the response embedding count does not match the input count', async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ embeddings: [[0.1, 0.2]] }), {
+        status: 200,
+      })) as unknown as typeof fetch;
+    const provider = new OllamaEmbeddingProvider({
+      url: 'http://ollama',
+      model: 'm',
+      dimensions: 2,
+    });
+    await expect(provider.embed(['a', 'b'])).rejects.toThrow(/1 embeddings for 2 inputs/);
+  });
+
+  it('passes an abort signal and reports a descriptive error when the request times out', async () => {
+    let signal: AbortSignal | undefined;
+    globalThis.fetch = (async (_url: string, init: { signal?: AbortSignal }) => {
+      signal = init.signal;
+      throw new DOMException('The operation timed out.', 'TimeoutError');
+    }) as unknown as typeof fetch;
+
+    const provider = new OllamaEmbeddingProvider({
+      url: 'http://ollama',
+      model: 'm',
+      dimensions: 2,
+      timeoutMs: 1234,
+    });
+    await expect(provider.embed(['x'])).rejects.toThrow(/timed out after 1234ms/);
+    expect(signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('rethrows non-timeout fetch failures untouched', async () => {
+    globalThis.fetch = (async () => {
+      throw new Error('connect ECONNREFUSED');
+    }) as unknown as typeof fetch;
+    const provider = new OllamaEmbeddingProvider({
+      url: 'http://ollama',
+      model: 'm',
+      dimensions: 2,
+    });
+    await expect(provider.embed(['x'])).rejects.toThrow(/ECONNREFUSED/);
+  });
+
   it('truncates inputs longer than maxChars so a big chunk cannot exceed the model context', async () => {
     let sent: string[] = [];
     globalThis.fetch = (async (_url: string, init: { body: string }) => {

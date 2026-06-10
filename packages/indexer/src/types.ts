@@ -86,6 +86,8 @@ export interface IndexStats {
   symbols: number;
   chunks: number;
   relations: number;
+  /** Files that could not be read (e.g. EACCES) and were skipped instead of failing the index. */
+  skippedFiles?: number;
 }
 
 export interface RepositoryIndex {

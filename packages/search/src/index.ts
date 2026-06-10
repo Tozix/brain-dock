@@ -9,6 +9,7 @@ export {
   IngestionService,
   type IngestOptions,
   type IngestReport,
+  scopedPointId,
 } from './ingestion';
 export { detectIntent, type Intent, type IntentAnalysis } from './intent';
 export { type QueryOptions, SearchService } from './search';

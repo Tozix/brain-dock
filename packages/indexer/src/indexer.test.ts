@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'bun:test';
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { FileInput } from './indexer';
 import { RepositoryIndexer } from './indexer';
 
@@ -142,6 +145,38 @@ describe('RepositoryIndexer — extraction', () => {
     expect(index.stats.files).toBe(4);
     expect(index.stats.symbols).toBeGreaterThanOrEqual(7);
     expect(index.stats.chunks).toBe(index.stats.symbols);
+  });
+});
+
+describe('RepositoryIndexer — unreadable files', () => {
+  // chmod 000 has no effect when running as root — the file stays readable.
+  const isRoot = typeof process.getuid === 'function' && process.getuid() === 0;
+
+  it.skipIf(isRoot)('skips files that cannot be read and counts them in stats', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'bd-indexer-'));
+    try {
+      writeFileSync(join(dir, 'ok.ts'), 'export class Ok {}\n');
+      writeFileSync(join(dir, 'secret.ts'), 'export class Secret {}\n');
+      chmodSync(join(dir, 'secret.ts'), 0o000);
+
+      const index = new RepositoryIndexer().index(dir);
+
+      expect(index.files.map((f) => f.path)).toEqual(['ok.ts']);
+      expect(index.stats.files).toBe(1);
+      expect(index.stats.skippedFiles).toBe(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('reports zero skipped files for a fully readable tree', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'bd-indexer-'));
+    try {
+      writeFileSync(join(dir, 'ok.ts'), 'export class Ok {}\n');
+      expect(new RepositoryIndexer().index(dir).stats.skippedFiles).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

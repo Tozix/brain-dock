@@ -51,6 +51,15 @@ function snippet(text: string, max = 160): string {
   return text.replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
+/** Degrade a failing source to no results, but leave a trace in the logs. */
+function emptyOnFailure<T>(source: UnifiedSource, promise: Promise<T[]>): Promise<T[]> {
+  return promise.catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[unified-search] source ${source} failed:`, message);
+    return [];
+  });
+}
+
 /** A unified result before cross-source normalization (carries only its source's raw score). */
 type RawResult = Omit<UnifiedResult, 'score'>;
 
@@ -87,17 +96,18 @@ export class UnifiedSearchService {
     const limit = options.limit ?? 10;
 
     const [code, memory, knowledge, documents] = await Promise.all([
-      this.sources.code
-        .search(query, {
+      emptyOnFailure(
+        'code',
+        this.sources.code.search(query, {
           projectId,
           collection: options.codeCollection ?? 'code',
           repos: options.repos,
           limit,
-        })
-        .catch(() => []),
-      this.sources.memory.search(projectId, query, limit).catch(() => []),
-      this.sources.knowledge.search(projectId, query, limit).catch(() => []),
-      this.sources.documents.search(projectId, query, limit).catch(() => []),
+        }),
+      ),
+      emptyOnFailure('memory', this.sources.memory.search(projectId, query, limit)),
+      emptyOnFailure('knowledge', this.sources.knowledge.search(projectId, query, limit)),
+      emptyOnFailure('document', this.sources.documents.search(projectId, query, limit)),
     ]);
 
     const groups: RawResult[][] = [
