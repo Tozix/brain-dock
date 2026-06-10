@@ -11,13 +11,24 @@ const config = (maxTotalBytes: number) => ({
 
 type IngestCall = { index: RepositoryIndex; options: Record<string, unknown> };
 type PersistCall = { scope: { projectId: string; repo: string }; index: RepositoryIndex };
+type StatusCall = { where: { id: string }; data: Record<string, unknown> };
 
 /**
  * Builds the service with its (private) ingestion/symbols collaborators swapped for fakes —
  * the real ts-morph parsing still runs, only embedding/Qdrant/Postgres are stubbed out.
  */
-function makeService(maxTotalBytes = 1_000_000) {
-  const prisma = { client: {} };
+function makeService(maxTotalBytes = 1_000_000, ingestImpl?: () => Promise<never>) {
+  const statusCalls: StatusCall[] = [];
+  const prisma = {
+    client: {
+      repository: {
+        update: async (args: StatusCall) => {
+          statusCalls.push(args);
+          return {};
+        },
+      },
+    },
+  };
   // biome-ignore lint/suspicious/noExplicitAny: test doubles intentionally narrow the real types.
   const service = new IndexingService(config(maxTotalBytes) as any, prisma as any);
   const ingestCalls: IngestCall[] = [];
@@ -25,6 +36,7 @@ function makeService(maxTotalBytes = 1_000_000) {
   Object.assign(service as unknown as Record<string, unknown>, {
     ingestion: {
       ingestIndex: async (index: RepositoryIndex, options: Record<string, unknown>) => {
+        if (ingestImpl) return ingestImpl();
         ingestCalls.push({ index, options });
         return { files: index.files.length, chunks: 7 };
       },
@@ -36,7 +48,7 @@ function makeService(maxTotalBytes = 1_000_000) {
       },
     },
   });
-  return { service, ingestCalls, persistCalls };
+  return { service, ingestCalls, persistCalls, statusCalls };
 }
 
 describe('IndexingService.indexFiles', () => {
@@ -71,7 +83,7 @@ describe('IndexingService.indexFiles', () => {
   });
 
   it('rejects uploads whose total size exceeds INDEX_UPLOAD_MAX_TOTAL_BYTES', async () => {
-    const { service, ingestCalls } = makeService(10);
+    const { service, ingestCalls, statusCalls } = makeService(10);
     await expect(
       service.indexFiles('p1', 'api', 'r1', [
         { path: 'src/a.ts', content: 'x'.repeat(6) },
@@ -79,6 +91,38 @@ describe('IndexingService.indexFiles', () => {
       ]),
     ).rejects.toBeInstanceOf(PayloadTooLargeException);
     expect(ingestCalls).toHaveLength(0); // rejected before any work
+    expect(statusCalls).toHaveLength(0); // an oversized request is not a failed indexing run
+  });
+
+  it('stamps INDEXING then READY (with counts) on the repository row', async () => {
+    const { service, statusCalls } = makeService();
+    await service.indexFiles('p1', 'api', 'r1', [
+      { path: 'src/a.ts', content: 'export class Foo {}' },
+    ]);
+
+    expect(statusCalls.map((c) => c.where.id)).toEqual(['r1', 'r1']);
+    expect(statusCalls[0]?.data).toMatchObject({ indexStatus: 'INDEXING', indexError: null });
+    expect(statusCalls[1]?.data).toMatchObject({
+      indexStatus: 'READY',
+      indexError: null,
+      indexedFileCount: 1,
+      symbolCount: 3,
+    });
+    expect(statusCalls[1]?.data.lastIndexedAt).toBeInstanceOf(Date);
+  });
+
+  it('stamps FAILED with a truncated error and rethrows when ingestion fails', async () => {
+    const { service, statusCalls } = makeService(1_000_000, async () => {
+      throw new Error(`qdrant exploded ${'x'.repeat(2000)}`);
+    });
+    await expect(
+      service.indexFiles('p1', 'api', 'r1', [{ path: 'src/a.ts', content: 'export class A {}' }]),
+    ).rejects.toThrow('qdrant exploded');
+
+    expect(statusCalls.map((c) => c.data.indexStatus)).toEqual(['INDEXING', 'FAILED']);
+    const failed = statusCalls[1]?.data;
+    expect(String(failed?.indexError)).toStartWith('qdrant exploded');
+    expect(String(failed?.indexError).length).toBe(1000);
   });
 });
 

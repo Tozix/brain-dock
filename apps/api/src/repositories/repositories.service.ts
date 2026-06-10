@@ -1,4 +1,5 @@
 import type { IndexQueue } from '@brain-dock/core';
+import { IndexStatus } from '@brain-dock/db';
 import { CODE_COLLECTION } from '@brain-dock/search';
 import {
   ConflictException,
@@ -101,6 +102,19 @@ export class RepositoriesService {
     return { id, deleted: true };
   }
 
+  /** Indexing lifecycle of one repository (status/error/timestamps/counters). */
+  async status(user: AuthenticatedUser, projectId: string, id: string) {
+    const r = await this.get(user, projectId, id);
+    return {
+      indexStatus: r.indexStatus,
+      indexError: r.indexError,
+      lastIndexedAt: r.lastIndexedAt,
+      indexedFileCount: r.indexedFileCount,
+      symbolCount: r.symbolCount,
+      updatedAt: r.updatedAt,
+    };
+  }
+
   /** Enqueue an indexing job for the repository (consumed by the index worker). */
   async reindex(user: AuthenticatedUser, projectId: string, id: string) {
     // `root` is a server-side filesystem path; letting clients trigger reads of arbitrary
@@ -111,6 +125,12 @@ export class RepositoriesService {
       );
     }
     const repository = await this.get(user, projectId, id);
+    // Stamp QUEUED before enqueueing so status readers never see a stale READY/FAILED
+    // for an already-submitted job (the worker flips it to INDEXING → READY/FAILED).
+    await this.prisma.client.repository.update({
+      where: { id },
+      data: { indexStatus: IndexStatus.QUEUED, indexError: null },
+    });
     await this.queue.enqueue({
       projectId,
       rootDir: repository.root,

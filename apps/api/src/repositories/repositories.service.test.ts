@@ -15,6 +15,12 @@ type Repo = {
   root: string;
   defaultBranch: string | null;
   createdAt: Date;
+  indexStatus?: string | null;
+  indexError?: string | null;
+  lastIndexedAt?: Date | null;
+  indexedFileCount?: number | null;
+  symbolCount?: number | null;
+  updatedAt?: Date;
 };
 
 /** Minimal in-memory Prisma double for the `repository` model. */
@@ -156,6 +162,57 @@ describe('RepositoriesService', () => {
       collection: 'code',
       repo: 'api',
       repositoryId: 'r1',
+    });
+  });
+
+  it('stamps the repository QUEUED (and clears the error) on reindex', async () => {
+    const prisma = fakePrisma([
+      {
+        id: 'r1',
+        projectId: 'p1',
+        name: 'API',
+        alias: 'api',
+        root: './apps/api',
+        defaultBranch: null,
+        createdAt: new Date(0),
+        indexStatus: 'FAILED',
+        indexError: 'old boom',
+      },
+    ]);
+    const { service } = make(prisma);
+    await service.reindex(user, 'p1', 'r1');
+    expect(prisma.rows[0]?.indexStatus).toBe('QUEUED');
+    expect(prisma.rows[0]?.indexError).toBeNull();
+  });
+
+  it('status returns the indexing lifecycle fields', async () => {
+    const lastIndexedAt = new Date('2026-06-01T00:00:00Z');
+    const updatedAt = new Date('2026-06-02T00:00:00Z');
+    const prisma = fakePrisma([
+      {
+        id: 'r1',
+        projectId: 'p1',
+        name: 'API',
+        alias: 'api',
+        root: './apps/api',
+        defaultBranch: null,
+        createdAt: new Date(0),
+        indexStatus: 'READY',
+        indexError: null,
+        lastIndexedAt,
+        indexedFileCount: 42,
+        symbolCount: 1337,
+        updatedAt,
+      },
+    ]);
+    const { service } = make(prisma);
+    expect(await service.status(user, 'p1', 'r1')).toEqual({
+      indexStatus: 'READY',
+      indexError: null,
+      lastIndexedAt,
+      indexedFileCount: 42,
+      symbolCount: 1337,
+      updatedAt,
     });
   });
 });

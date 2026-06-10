@@ -27,13 +27,17 @@ const activeKey: FakeKey = {
 
 /** Minimal RemoteServices double: only what the request path (auth + list_projects) touches. */
 function fakeServices(opts: { key?: FakeKey | null; hangProjects?: boolean } = {}): RemoteServices {
+  // One known project (slug "demo", owned by u1) with a pinned profile — lets tests verify
+  // that the /mcp/{slug} URL segment actually selected it (via get_project_profile).
+  const demo = { id: 'p1', slug: 'demo', name: 'Demo', ownerId: 'u1', profile: 'PROFILE' };
   const prisma = {
     apiKey: {
       findUnique: async () => opts.key ?? null,
       update: async () => ({}),
     },
     project: {
-      findUnique: async () => null,
+      findUnique: async ({ where }: { where: { id?: string; slug?: string } }) =>
+        where.slug === demo.slug || where.id === demo.id ? demo : null,
       findMany: () =>
         opts.hangProjects
           ? new Promise(() => {}) // never settles — simulates a hung handler
@@ -58,8 +62,30 @@ const CALL_LIST_PROJECTS = JSON.stringify({
   params: { name: 'list_projects', arguments: {} },
 });
 
-function post(headers: Record<string, string> = {}, body: string = CALL_LIST_PROJECTS): Request {
-  return new Request(`${BASE}/mcp`, {
+const CALL_GET_PROFILE = JSON.stringify({
+  jsonrpc: '2.0',
+  id: 1,
+  method: 'tools/call',
+  params: { name: 'get_project_profile', arguments: {} },
+});
+
+const INITIALIZE = JSON.stringify({
+  jsonrpc: '2.0',
+  id: 1,
+  method: 'initialize',
+  params: {
+    protocolVersion: '2025-03-26',
+    capabilities: {},
+    clientInfo: { name: 'test', version: '0.0.0' },
+  },
+});
+
+function postTo(
+  path: string,
+  headers: Record<string, string> = {},
+  body: string = CALL_LIST_PROJECTS,
+): Request {
+  return new Request(`${BASE}${path}`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -68,6 +94,15 @@ function post(headers: Record<string, string> = {}, body: string = CALL_LIST_PRO
     },
     body,
   });
+}
+
+function post(headers: Record<string, string> = {}, body: string = CALL_LIST_PROJECTS): Request {
+  return postTo('/mcp', headers, body);
+}
+
+async function firstText(res: Response): Promise<string | undefined> {
+  const body = (await res.json()) as { result?: { content?: Array<{ text?: string }> } };
+  return body.result?.content?.[0]?.text;
 }
 
 const auth = { authorization: 'Bearer bd_test' };
@@ -137,6 +172,53 @@ describe('createRemoteMcpHandler', () => {
     const handle = handler(fakeServices({ key: activeKey }));
     const res = await handle(post({ ...auth, 'x-project': 'ghost' }));
     expect(res.status).toBe(403);
+  });
+
+  it('selects the project from the /mcp/{slug} URL segment', async () => {
+    const handle = handler(fakeServices({ key: activeKey }));
+    const res = await handle(postTo('/mcp/demo', auth, CALL_GET_PROFILE));
+    expect(res.status).toBe(200);
+    expect(await firstText(res)).toBe('PROFILE');
+  });
+
+  it('rejects an unknown URL slug with a clear 403', async () => {
+    const handle = handler(fakeServices({ key: activeKey }));
+    const res = await handle(postTo('/mcp/ghost', auth));
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { error: string }).error).toContain('ghost');
+  });
+
+  it('the URL segment takes precedence over the X-Project header', async () => {
+    const handle = handler(fakeServices({ key: activeKey }));
+    const res = await handle(
+      postTo('/mcp/demo', { ...auth, 'x-project': 'ghost' }, CALL_GET_PROFILE),
+    );
+    expect(res.status).toBe(200);
+    expect(await firstText(res)).toBe('PROFILE');
+  });
+
+  it('plain /mcp without a segment still works (no project selected)', async () => {
+    const handle = handler(fakeServices({ key: activeKey }));
+    const res = await handle(post(auth, CALL_GET_PROFILE));
+    expect(res.status).toBe(200);
+    expect(await firstText(res)).toContain('No project selected');
+  });
+
+  it('answers 405 for non-POST on /mcp/{slug} and 404 for deeper paths', async () => {
+    const handle = handler(fakeServices({ key: activeKey }));
+    const get = await handle(new Request(`${BASE}/mcp/demo`, { method: 'GET' }));
+    expect(get.status).toBe(405);
+    const deep = await handle(postTo('/mcp/demo/extra', auth));
+    expect(deep.status).toBe(404);
+  });
+
+  it('advertises server instructions in the initialize response', async () => {
+    const handle = handler(fakeServices({ key: activeKey }));
+    const res = await handle(post(auth, INITIALIZE));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { result?: { instructions?: string } };
+    expect(body.result?.instructions).toContain('list_projects');
+    expect(body.result?.instructions).toContain('/mcp/{slug}');
   });
 
   it('answers 504 when a tool handler hangs past the deadline', async () => {

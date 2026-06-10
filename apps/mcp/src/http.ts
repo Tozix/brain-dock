@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 // Hosted MCP over Streamable HTTP. Users connect their MCP client to this endpoint with their API
-// key (Authorization: Bearer bd_…) and select a project via the X-Project header — nothing runs on
-// the user's machine. Usage: DATABASE_URL=… QDRANT_URL=… [MCP_HTTP_PORT=8080] bun apps/mcp/src/http.ts
+// key (Authorization: Bearer bd_…) and select a project via the X-Project header or the
+// /mcp/{project-slug} URL — nothing runs on the user's machine.
+// Usage: DATABASE_URL=… QDRANT_URL=… [MCP_HTTP_PORT=8080] bun apps/mcp/src/http.ts
 import { initTracing, tracingOptionsFromEnv } from '@brain-dock/core';
 import { createRemoteMcpHandler } from './remote/server';
 import { buildRemoteServices, loadRemoteConfig } from './remote/services';

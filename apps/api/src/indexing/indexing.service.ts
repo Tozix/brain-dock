@@ -1,3 +1,4 @@
+import { IndexStatus, type Prisma } from '@brain-dock/db';
 import { createEmbedder, embedderConfigFromEnv } from '@brain-dock/embedding';
 import { type FileIndex, type FileInput, RepositoryIndexer } from '@brain-dock/indexer';
 import { SymbolIndexService } from '@brain-dock/knowledge';
@@ -13,6 +14,9 @@ const INDEXABLE = (p: string): boolean =>
 
 // Parse this many files between yields to the event loop (ts-morph parsing is synchronous).
 const PARSE_BATCH_SIZE = 25;
+
+// Truncate persisted index errors so a giant stack/driver message cannot bloat the row.
+const MAX_INDEX_ERROR_CHARS = 1000;
 
 export interface IndexUploadReport {
   files: number;
@@ -32,7 +36,10 @@ export class IndexingService {
   private readonly collection: string;
   private readonly maxTotalBytes: number;
 
-  constructor(config: ConfigService, prisma: PrismaService) {
+  constructor(
+    config: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     const embedder = createEmbedder(embedderConfigFromEnv());
     const store = new QdrantStore({ url: config.env.QDRANT_URL });
     this.ingestion = new IngestionService(embedder, store);
@@ -48,6 +55,8 @@ export class IndexingService {
     files: FileInput[],
   ): Promise<IndexUploadReport> {
     // Total upload budget — a request-level backstop on top of the per-file schema limits.
+    // Rejected before any status change: an oversized request is the client's error, not a
+    // failed indexing run.
     const totalBytes = files.reduce((sum, f) => sum + Buffer.byteLength(f.content, 'utf8'), 0);
     if (totalBytes > this.maxTotalBytes) {
       throw new PayloadTooLargeException(
@@ -55,18 +64,41 @@ export class IndexingService {
       );
     }
 
-    const index = await this.parseInBatches(
-      repo,
-      files.filter((f) => INDEXABLE(f.path)),
-    );
-    const report = await this.ingestion.ingestIndex(index, {
-      projectId,
-      collection: this.collection,
-      repo,
-      repositoryId,
-    });
-    const persisted = await this.symbols.persist({ projectId, repo }, index);
-    return { files: report.files, chunks: report.chunks, symbols: persisted.symbols };
+    // The upload path indexes synchronously — there is no QUEUED phase, only INDEXING→READY/FAILED.
+    await this.setStatus(repositoryId, { indexStatus: IndexStatus.INDEXING, indexError: null });
+    try {
+      const index = await this.parseInBatches(
+        repo,
+        files.filter((f) => INDEXABLE(f.path)),
+      );
+      const report = await this.ingestion.ingestIndex(index, {
+        projectId,
+        collection: this.collection,
+        repo,
+        repositoryId,
+      });
+      const persisted = await this.symbols.persist({ projectId, repo }, index);
+      await this.setStatus(repositoryId, {
+        indexStatus: IndexStatus.READY,
+        indexError: null,
+        lastIndexedAt: new Date(),
+        indexedFileCount: report.files,
+        symbolCount: persisted.symbols,
+      });
+      return { files: report.files, chunks: report.chunks, symbols: persisted.symbols };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // Best-effort: a failing status write must not mask the original indexing error.
+      await this.setStatus(repositoryId, {
+        indexStatus: IndexStatus.FAILED,
+        indexError: message.slice(0, MAX_INDEX_ERROR_CHARS),
+      }).catch((e) => console.error('[indexing] failed to persist FAILED status:', e));
+      throw error;
+    }
+  }
+
+  private async setStatus(repositoryId: string, data: Prisma.RepositoryUpdateInput): Promise<void> {
+    await this.prisma.client.repository.update({ where: { id: repositoryId }, data });
   }
 
   /**

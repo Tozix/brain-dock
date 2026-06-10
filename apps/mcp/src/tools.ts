@@ -1,8 +1,30 @@
 import type { RepositoryIndex } from '@brain-dock/indexer';
-import { DOC_FORMATS, KNOWLEDGE_TYPES, MEMORY_TYPES } from '@brain-dock/knowledge';
+import {
+  buildRepoMap,
+  DOC_FORMATS,
+  KNOWLEDGE_TYPES,
+  MEMORY_TYPES,
+  type RepoMapEdge,
+  type RepoMapSymbol,
+} from '@brain-dock/knowledge';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import type { McpContext } from './context';
+
+// Annotation presets (hints only). Read-only tools are marked so clients (Claude Code, VS Code)
+// can auto-approve them without a permission prompt.
+const READ_ONLY: ToolAnnotations = { readOnlyHint: true };
+/** Creates a new record per call: not read-only, not destructive, NOT idempotent. */
+const CREATES: ToolAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+};
+/** Overwrites existing state with the given values: repeatable, not destructive of other data. */
+const UPDATES: ToolAnnotations = { destructiveHint: false, idempotentHint: true };
+/** Irreversibly removes data; deleting twice is a no-op. */
+const DELETES: ToolAnnotations = { destructiveHint: true, idempotentHint: true };
 
 function text(body: string) {
   return { content: [{ type: 'text' as const, text: body }] };
@@ -45,6 +67,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     {
       title: 'List repositories',
       description: 'List the repositories configured for this project, with file/symbol counts.',
+      annotations: READ_ONLY,
     },
     async () =>
       text(
@@ -65,9 +88,11 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     {
       title: 'Reindex project',
       description:
-        'Index the project and upsert embeddings into the vector store. Run before search tools. ' +
+        'Index the project and upsert embeddings into the vector store. Run this before ' +
+        'search_code / generate_context / search_everywhere, and again after big code changes. ' +
         'Pass `repo` to reindex a single repository; omit to reindex all.',
       inputSchema: { repo: z.string().optional().describe('Repository alias (default: all)') },
+      annotations: UPDATES,
     },
     async ({ repo }) => {
       const targets = repo ? ctx.repos.filter((r) => r.alias === repo) : ctx.repos;
@@ -98,12 +123,15 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     'search_code',
     {
       title: 'Search code',
-      description: 'Hybrid (vector + keyword) search over indexed code symbols.',
+      description:
+        'Hybrid (vector + keyword) search over indexed code symbols. Best for code-only ' +
+        'queries; use search_everywhere for broader questions. Run reindex first.',
       inputSchema: {
         query: z.string().describe('Natural-language or keyword query'),
         limit: z.number().int().positive().max(50).optional(),
         repos: z.array(z.string()).optional().describe('Restrict to these repository aliases'),
       },
+      annotations: READ_ONLY,
     },
     async ({ query, limit, repos }) => {
       try {
@@ -129,13 +157,16 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     'generate_context',
     {
       title: 'Generate context',
-      description: 'Build a budget-bounded, intent-aware context block for a query (for an LLM).',
+      description:
+        'Build a budget-bounded, intent-aware context block for a query — ready to feed to an ' +
+        'LLM. Run reindex first.',
       inputSchema: {
         query: z.string(),
         limit: z.number().int().positive().max(20).optional(),
         maxChars: z.number().int().positive().max(20000).optional(),
         repos: z.array(z.string()).optional().describe('Restrict to these repository aliases'),
       },
+      annotations: READ_ONLY,
     },
     async ({ query, limit, maxChars, repos }) => {
       try {
@@ -165,11 +196,58 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
   // --- Structural tools (use the in-memory index; no Qdrant needed) ---
 
   server.registerTool(
+    'repo_map',
+    {
+      title: 'Repo map',
+      description:
+        'Token-budgeted map of the codebase: symbols ranked by dependency centrality ' +
+        '(PageRank), optionally biased toward a query. The best single call to orient yourself ' +
+        'in an unfamiliar project.',
+      inputSchema: {
+        query: z.string().optional().describe('Bias the ranking toward matching symbols/files'),
+        repos: z.array(z.string()).optional().describe('Restrict to these repository aliases'),
+        max_tokens: z.number().int().positive().max(8000).optional(),
+      },
+      annotations: READ_ONLY,
+    },
+    async ({ query, repos, max_tokens }) => {
+      const entries = repos?.length
+        ? ctx.indexes().filter((e) => repos.includes(e.repo))
+        : ctx.indexes();
+      if (entries.length === 0) {
+        return text(
+          `Unknown repos ${JSON.stringify(repos)}. Known: ${ctx.repoAliases().join(', ')}`,
+        );
+      }
+      const symbols: RepoMapSymbol[] = entries.flatMap(({ repo, index }) =>
+        index.files.flatMap((file) =>
+          file.symbols.map((s) => ({
+            repo,
+            name: s.name,
+            kind: s.kind,
+            role: s.nestRole,
+            file: file.path,
+            startLine: s.startLine,
+            routes: s.routes,
+          })),
+        ),
+      );
+      const edges: RepoMapEdge[] = entries.flatMap(({ index }) =>
+        index.files.flatMap((file) => file.relations.map((r) => ({ from: r.from, to: r.to }))),
+      );
+      return text(buildRepoMap({ symbols, edges, seedQuery: query, tokenBudget: max_tokens }));
+    },
+  );
+
+  server.registerTool(
     'find_symbol',
     {
       title: 'Find symbol',
-      description: 'Find symbols (any kind) whose name matches.',
+      description:
+        'Find symbols (any kind) whose name matches. Use it to locate a symbol, then pass the ' +
+        'exact name to impact / find_dependencies / find_dependents.',
       inputSchema: { name: z.string().describe('Symbol name or substring') },
+      annotations: READ_ONLY,
     },
     async ({ name }) => {
       const needle = name.toLowerCase();
@@ -196,6 +274,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
         title: label,
         description: `List ${label.toLowerCase()} (optionally filtered by name).`,
         inputSchema: { name: z.string().optional() },
+        annotations: READ_ONLY,
       },
       async ({ name }) =>
         text(listOrEmpty(findByRole(ctx.indexes(), role, displayPath, name), `No ${role} found.`)),
@@ -217,6 +296,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
       description:
         'List HTTP endpoints (controller routes), optionally filtered by path substring.',
       inputSchema: { path: z.string().optional().describe('Filter by route path substring') },
+      annotations: READ_ONLY,
     },
     async ({ path }) => {
       const needle = path?.toLowerCase();
@@ -243,7 +323,10 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     'summarize_project',
     {
       title: 'Summarize project',
-      description: 'High-level stats: file/symbol counts and role breakdown.',
+      description:
+        'High-level stats: file/symbol counts and role breakdown. For an actual code overview ' +
+        'prefer repo_map.',
+      annotations: READ_ONLY,
     },
     async () => {
       const entries = ctx.indexes();
@@ -288,7 +371,10 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     'get_architecture',
     {
       title: 'Get architecture',
-      description: 'Modules, controllers with routes, and dependency-injection edges.',
+      description:
+        'NestJS-style architecture view: modules, controllers with routes, and ' +
+        'dependency-injection edges.',
+      annotations: READ_ONLY,
     },
     async () => {
       const modules: string[] = [];
@@ -335,12 +421,15 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     'remember',
     {
       title: 'Remember',
-      description: 'Save a long-term project memory (decision/fact/note/todo).',
+      description:
+        'Save a long-term project memory (decision/fact/note/todo). Each call creates a new ' +
+        'item — recall later with search_memory.',
       inputSchema: {
         content: z.string().describe('What to remember'),
         type: z.enum(MEMORY_TYPES).optional(),
         tags: z.array(z.string()).optional(),
       },
+      annotations: CREATES,
     },
     async ({ content, type, tags }) => {
       if (!ctx.memory) return text(NO_DB);
@@ -353,8 +442,9 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     'search_memory',
     {
       title: 'Search memory',
-      description: 'Semantic search over saved project memory.',
+      description: 'Semantic search over memories saved with remember.',
       inputSchema: { query: z.string(), limit: z.number().int().positive().max(50).optional() },
+      annotations: READ_ONLY,
     },
     async ({ query, limit }) => {
       if (!ctx.memory) return text(NO_DB);
@@ -371,6 +461,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     {
       title: 'List memory',
       description: 'List recent project memories.',
+      annotations: READ_ONLY,
     },
     async () => {
       if (!ctx.memory) return text(NO_DB);
@@ -384,13 +475,16 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     'save_knowledge',
     {
       title: 'Save knowledge',
-      description: 'Save a knowledge-base entry (business rule/architecture/ADR/FAQ/…).',
+      description:
+        'Save a titled knowledge-base entry (business rule/architecture/ADR/FAQ/…). Each call ' +
+        'creates a new entry — find them later with search_knowledge.',
       inputSchema: {
         title: z.string(),
         content: z.string(),
         type: z.enum(KNOWLEDGE_TYPES).optional(),
         tags: z.array(z.string()).optional(),
       },
+      annotations: CREATES,
     },
     async ({ title, content, type, tags }) => {
       if (!ctx.knowledge) return text(NO_DB);
@@ -403,8 +497,9 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     'search_knowledge',
     {
       title: 'Search knowledge',
-      description: 'Semantic search over the knowledge base.',
+      description: 'Semantic search over the knowledge base (entries saved with save_knowledge).',
       inputSchema: { query: z.string(), limit: z.number().int().positive().max(50).optional() },
+      annotations: READ_ONLY,
     },
     async ({ query, limit }) => {
       if (!ctx.knowledge) return text(NO_DB);
@@ -422,13 +517,16 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     'save_document',
     {
       title: 'Save document',
-      description: 'Ingest a text document (md/txt/mdx/json/yaml): stored, chunked and embedded.',
+      description:
+        'Ingest a text document (md/txt/mdx/json/yaml): stored, chunked and embedded for ' +
+        'search_docs. Each call creates a new document.',
       inputSchema: {
         title: z.string(),
         content: z.string(),
         format: z.enum(DOC_FORMATS).optional(),
         source: z.string().optional(),
       },
+      annotations: CREATES,
     },
     async ({ title, content, format, source }) => {
       if (!ctx.documents) return text(NO_DB);
@@ -447,8 +545,9 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     'search_docs',
     {
       title: 'Search documents',
-      description: 'Semantic search over ingested documents.',
+      description: 'Semantic search over documents ingested with save_document.',
       inputSchema: { query: z.string(), limit: z.number().int().positive().max(50).optional() },
+      annotations: READ_ONLY,
     },
     async ({ query, limit }) => {
       if (!ctx.documents) return text(NO_DB);
@@ -467,6 +566,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     {
       title: 'List documents',
       description: 'List documents in the project.',
+      annotations: READ_ONLY,
     },
     async () => {
       if (!ctx.documents) return text(NO_DB);
@@ -482,12 +582,15 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
     'search_everywhere',
     {
       title: 'Search everywhere',
-      description: 'One query across code + memory + knowledge + documents, ranked together.',
+      description:
+        'One query across code + memory + knowledge + documents, ranked together. Use this ' +
+        'for broad questions; use search_code for code-only lookups.',
       inputSchema: {
         query: z.string(),
         limit: z.number().int().positive().max(50).optional(),
         repos: z.array(z.string()).optional().describe('Restrict the code source to these repos'),
       },
+      annotations: READ_ONLY,
     },
     async ({ query, limit, repos }) => {
       const results = await ctx.unified.search(query, {
@@ -520,6 +623,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
         type: z.enum(MEMORY_TYPES).optional(),
         tags: z.array(z.string()).optional(),
       },
+      annotations: UPDATES,
     },
     async ({ id, content, type, tags }) => {
       if (!ctx.memory) return text(NO_DB);
@@ -534,6 +638,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
       title: 'Delete memory',
       description: 'Delete a memory item by id.',
       inputSchema: { id: z.string() },
+      annotations: DELETES,
     },
     async ({ id }) => {
       if (!ctx.memory) return text(NO_DB);
@@ -555,6 +660,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
         type: z.enum(KNOWLEDGE_TYPES).optional(),
         tags: z.array(z.string()).optional(),
       },
+      annotations: UPDATES,
     },
     async ({ id, title, content, type, tags }) => {
       if (!ctx.knowledge) return text(NO_DB);
@@ -569,6 +675,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
       title: 'Delete knowledge',
       description: 'Delete a knowledge entry by id.',
       inputSchema: { id: z.string() },
+      annotations: DELETES,
     },
     async ({ id }) => {
       if (!ctx.knowledge) return text(NO_DB);
@@ -594,6 +701,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
         content: z.string().optional(),
         source: z.string().optional(),
       },
+      annotations: UPDATES,
     },
     async ({ id, title, format, content, source }) => {
       if (!ctx.documents) return text(NO_DB);
@@ -609,6 +717,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
       title: 'Delete document',
       description: 'Delete a document and its chunks by id.',
       inputSchema: { id: z.string() },
+      annotations: DELETES,
     },
     async ({ id }) => {
       if (!ctx.documents) return text(NO_DB);
@@ -639,6 +748,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
             .optional()
             .describe('Use the merged cross-repo graph (traverses repo boundaries)'),
         },
+        annotations: READ_ONLY,
       },
       async ({ name, repo, allRepos }) => {
         // Cross-repo: one merged graph. Otherwise the repo graph that contains the symbol.
@@ -683,6 +793,7 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
           .optional()
           .describe('Merge all repos into one cross-repo graph (overrides `repo`)'),
       },
+      annotations: READ_ONLY,
     },
     async ({ format, repo, allRepos }) => {
       try {
@@ -697,13 +808,20 @@ export function registerTools(server: McpServer, ctx: McpContext): void {
   graphTool(
     'find_dependencies',
     'Find dependencies',
-    'What a symbol depends on (direct).',
+    'What a symbol depends on (direct). Pass the exact name from find_symbol.',
     (g, n) => g.dependencies(n),
   );
-  graphTool('find_dependents', 'Find dependents', 'What depends on a symbol (direct).', (g, n) =>
-    g.dependents(n),
+  graphTool(
+    'find_dependents',
+    'Find dependents',
+    'What depends on a symbol (direct). Pass the exact name from find_symbol.',
+    (g, n) => g.dependents(n),
   );
-  graphTool('impact', 'Impact (blast radius)', 'Transitive dependents of a symbol.', (g, n) =>
-    g.impact(n),
+  graphTool(
+    'impact',
+    'Impact (blast radius)',
+    'Transitive dependents of a symbol — everything that may break if it changes. Use ' +
+      'find_symbol first, then pass its exact name here.',
+    (g, n) => g.impact(n),
   );
 }

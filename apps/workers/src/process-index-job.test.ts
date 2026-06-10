@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import type { RepositoryIndex } from '@brain-dock/indexer';
 import type { IngestReport } from '@brain-dock/search';
-import { processIndexJob } from './process-index-job';
+import {
+  processIndexJob,
+  type RepositoryStatusPatch,
+  type RepositoryStatusStore,
+} from './process-index-job';
 import type { IndexJob } from './queues';
 
 const job: IndexJob = {
@@ -81,6 +85,75 @@ describe('processIndexJob', () => {
       },
     };
     await expect(processIndexJob({ ingestion, indexer }, job)).rejects.toThrow('qdrant down');
+  });
+
+  it('stamps INDEXING then READY (with counts) on the repository', async () => {
+    const calls: Array<{ id: string; patch: RepositoryStatusPatch }> = [];
+    const repositories: RepositoryStatusStore = {
+      updateStatus: async (id, patch) => void calls.push({ id, patch }),
+    };
+    const ingestion = {
+      ingestIndex: async (): Promise<IngestReport> => ({ files: 1, chunks: 4 }),
+    };
+
+    await processIndexJob({ ingestion, indexer, repositories }, job);
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toEqual({ id: 'r1', patch: { indexStatus: 'INDEXING' } });
+    expect(calls[1]?.patch).toMatchObject({
+      indexStatus: 'READY',
+      indexError: null,
+      indexedFileCount: 1,
+      symbolCount: 1,
+    });
+    expect(calls[1]?.patch.lastIndexedAt).toBeInstanceOf(Date);
+  });
+
+  it('stamps FAILED with a truncated error and still rethrows', async () => {
+    const calls: RepositoryStatusPatch[] = [];
+    const repositories: RepositoryStatusStore = {
+      updateStatus: async (_id, patch) => void calls.push(patch),
+    };
+    const ingestion = {
+      ingestIndex: async (): Promise<IngestReport> => {
+        throw new Error(`qdrant down ${'x'.repeat(2000)}`);
+      },
+    };
+
+    await expect(processIndexJob({ ingestion, indexer, repositories }, job)).rejects.toThrow(
+      'qdrant down',
+    );
+    expect(calls.map((p) => p.indexStatus)).toEqual(['INDEXING', 'FAILED']);
+    expect(calls[1]?.indexError?.length).toBe(1000);
+    expect(calls[1]?.indexError).toStartWith('qdrant down');
+  });
+
+  it('skips status updates for legacy jobs without repositoryId', async () => {
+    const calls: RepositoryStatusPatch[] = [];
+    const repositories: RepositoryStatusStore = {
+      updateStatus: async (_id, patch) => void calls.push(patch),
+    };
+    const ingestion = {
+      ingestIndex: async (): Promise<IngestReport> => ({ files: 1, chunks: 1 }),
+    };
+    const legacy: IndexJob = { projectId: 'p1', rootDir: './apps/api', collection: 'code' };
+
+    const report = await processIndexJob({ ingestion, indexer, repositories }, legacy);
+    expect(report.files).toBe(1);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('a failing status store does not fail the job', async () => {
+    const repositories: RepositoryStatusStore = {
+      updateStatus: async () => {
+        throw new Error('repository row gone');
+      },
+    };
+    const ingestion = {
+      ingestIndex: async (): Promise<IngestReport> => ({ files: 1, chunks: 2 }),
+    };
+    const report = await processIndexJob({ ingestion, indexer, repositories }, job);
+    expect(report).toEqual({ files: 1, chunks: 2 });
   });
 
   it('rethrows symbol persist failures after vectors were written (job retries)', async () => {

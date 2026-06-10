@@ -7,6 +7,7 @@ import { createPrismaClient } from '@brain-dock/db';
 import { createEmbedder, embedderConfigFromEnv } from '@brain-dock/embedding';
 import { SymbolIndexService } from '@brain-dock/knowledge';
 import { createIndexWorker } from './index-worker';
+import type { RepositoryStatusStore } from './process-index-job';
 
 // Opt-in tracing (shared OTEL_* env; off by default). Init before the worker starts.
 if (initTracing(tracingOptionsFromEnv('brain-dock-workers'))) {
@@ -25,12 +26,28 @@ const prisma = databaseUrl ? createPrismaClient(databaseUrl) : undefined;
 const symbols = prisma ? new SymbolIndexService(prisma) : undefined;
 if (symbols) console.info('[workers] symbol index persistence enabled');
 
+// Stamp the indexing lifecycle (QUEUED→INDEXING→READY/FAILED) onto the Repository row.
+const repositories: RepositoryStatusStore | undefined = prisma
+  ? {
+      updateStatus: async (repositoryId, patch) => {
+        await prisma.repository.update({ where: { id: repositoryId }, data: patch });
+      },
+    }
+  : undefined;
+
 // Synchronous ts-morph parsing can block the event loop past BullMQ's default 30s lock;
 // INDEX_LOCK_DURATION_MS overrides the 10-minute default for very large repositories.
 const lockEnv = Number(process.env.INDEX_LOCK_DURATION_MS);
 const lockDuration = Number.isFinite(lockEnv) && lockEnv > 0 ? lockEnv : undefined;
 
-const worker = createIndexWorker({ redisUrl, qdrantUrl, embedder, symbols, lockDuration });
+const worker = createIndexWorker({
+  redisUrl,
+  qdrantUrl,
+  embedder,
+  symbols,
+  repositories,
+  lockDuration,
+});
 worker.on('completed', (job, result) => {
   console.info(`[index] job ${job.id} done:`, result);
 });

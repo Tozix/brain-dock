@@ -154,6 +154,41 @@ describe('SymbolIndexService.findSymbols', () => {
   });
 });
 
+describe('SymbolIndexService.repoMap', () => {
+  it('builds a ranked, budgeted map from stored symbols and edges', async () => {
+    const svc = new SymbolIndexService(
+      fakePrisma(
+        [
+          {
+            name: 'OrdersService',
+            kind: 'class',
+            role: 'service',
+            file: 'o.ts',
+            startLine: 3,
+            repo: 'api',
+            routes: null,
+          },
+          {
+            name: 'PaymentsClient',
+            kind: 'class',
+            role: 'service',
+            file: 'p.ts',
+            startLine: 1,
+            repo: 'api',
+            routes: null,
+          },
+        ],
+        [{ fromName: 'OrdersService', toName: 'PaymentsClient' }],
+      ),
+    );
+    const map = await svc.repoMap('p1');
+    expect(map).toContain('Repo map');
+    expect(map).toContain('o.ts:3 class OrdersService (service)');
+    // PaymentsClient is the dependency hub → ranked above OrdersService.
+    expect(map.indexOf('PaymentsClient')).toBeLessThan(map.indexOf('OrdersService'));
+  });
+});
+
 describe('SymbolIndexService.graph', () => {
   it('rebuilds a dependency graph from stored symbols + edges', async () => {
     const svc = new SymbolIndexService(

@@ -45,8 +45,38 @@ describe('brain-dock MCP server — structural tools (no Qdrant)', () => {
         'find_module',
         'summarize_project',
         'get_architecture',
+        'repo_map',
       ]),
     );
+  });
+
+  it('marks read-only tools with readOnlyHint (reindex stays unmarked)', async () => {
+    const { tools } = await client.listTools();
+    const byName = new Map(tools.map((t) => [t.name, t]));
+    for (const name of [
+      'list_repos',
+      'search_code',
+      'find_symbol',
+      'summarize_project',
+      'get_architecture',
+      'impact',
+      'export_graph',
+      'repo_map',
+    ]) {
+      expect(byName.get(name)?.annotations?.readOnlyHint).toBe(true);
+    }
+    expect(byName.get('reindex')?.annotations?.readOnlyHint).not.toBe(true);
+  });
+
+  it('repo_map returns a ranked, seedable map of the index', async () => {
+    const result = await client.callTool({
+      name: 'repo_map',
+      arguments: { query: 'auth service' },
+    });
+    const body = textOf(result);
+    expect(body).toContain('Repo map');
+    expect(body).toMatch(/\.ts:\d+ /);
+    expect(body).toContain('AuthService');
   });
 
   it('summarize_project reports counts and role breakdown', async () => {

@@ -51,6 +51,13 @@ enum DocFormat {
   DOCX
 }
 
+enum IndexStatus {
+  QUEUED
+  INDEXING
+  READY
+  FAILED
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique
@@ -73,6 +80,9 @@ model Project {
   name        String
   slug        String   @unique
   description String?
+  // Pinned "core memory" block (project conventions/facts, <=4KB) that generate_context
+  // prepends to every answer; maintained by the user or by the agent via MCP tools.
+  profile     String?
   ownerId     String   @map("owner_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -98,6 +108,12 @@ model Repository {
   // Path to the repository root, as seen by the indexing workers.
   root          String
   defaultBranch String?  @map("default_branch")
+  // Indexing lifecycle (written by the worker / upload path; null = never indexed).
+  indexStatus      IndexStatus? @map("index_status")
+  indexError       String?      @map("index_error")
+  lastIndexedAt    DateTime?    @map("last_indexed_at")
+  indexedFileCount Int?         @map("indexed_file_count")
+  symbolCount      Int?         @map("symbol_count")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

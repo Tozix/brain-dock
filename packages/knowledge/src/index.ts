@@ -5,6 +5,13 @@ export { type KnowledgeHit, KnowledgeService } from './knowledge.service';
 export { type MemoryHit, MemoryService } from './memory.service';
 export { type DocFormatValue, extractText, TEXT_FORMATS } from './parsers';
 export {
+  type BuildRepoMapOptions,
+  buildRepoMap,
+  DEFAULT_REPO_MAP_TOKENS,
+  type RepoMapEdge,
+  type RepoMapSymbol,
+} from './repo-map';
+export {
   DOC_FORMATS,
   KNOWLEDGE_TYPES,
   MEMORY_TYPES,
@@ -23,6 +30,7 @@ export {
 } from './schemas';
 export {
   type EndpointRow,
+  MAX_REPO_MAP_SYMBOLS,
   type ProjectSummary,
   SymbolIndexService,
   type SymbolRow,

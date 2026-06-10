@@ -52,6 +52,15 @@ export class RepositoriesController {
     return this.repositories.get(user, projectId, id);
   }
 
+  @Get(':id/status')
+  status(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.repositories.status(user, projectId, id);
+  }
+
   @Patch(':id')
   update(
     @CurrentUser() user: AuthenticatedUser,

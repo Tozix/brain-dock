@@ -8,7 +8,7 @@ import { issueApiKeySchema } from '../api-keys/api-keys.dto';
 import { credentialsSchema, refreshSchema } from '../auth/auth.dto';
 import { createDocumentSchema } from '../knowledge/documents.dto';
 import { createKnowledgeSchema, createMemorySchema } from '../knowledge/knowledge.dto';
-import { createProjectSchema } from '../projects/projects.dto';
+import { createProjectSchema, updateProjectProfileSchema } from '../projects/projects.dto';
 import { createRepositorySchema, updateRepositorySchema } from '../repositories/repositories.dto';
 
 /** Convert a Zod schema to JSON Schema (OpenAPI 3.1 = JSON Schema 2020-12); drop `$schema`. */
@@ -64,6 +64,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
         Refresh: js(refreshSchema),
         IssueApiKey: js(issueApiKeySchema),
         CreateProject: js(createProjectSchema),
+        UpdateProjectProfile: js(updateProjectProfileSchema),
         CreateMemory: js(createMemorySchema),
         CreateKnowledge: js(createKnowledgeSchema),
         CreateDocument: js(createDocumentSchema),
@@ -223,6 +224,30 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           responses: { '200': { description: 'Deleted' } },
         },
       },
+      '/api/v1/projects/{id}/profile': {
+        get: {
+          tags: ['projects'],
+          summary: 'Get the pinned project profile (core memory block)',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: {
+            '200': { description: 'Profile (null when unset)' },
+            '403': { description: 'Not owner' },
+            '404': { description: 'Not found' },
+          },
+        },
+        put: {
+          tags: ['projects'],
+          summary: 'Replace the project profile (≤4096 chars; empty string clears it)',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: body('UpdateProjectProfile'),
+          responses: {
+            '200': { description: 'Updated profile' },
+            '400': { description: 'Profile too long' },
+            '403': { description: 'Not owner' },
+            '404': { description: 'Not found' },
+          },
+        },
+      },
       '/api/v1/projects/{projectId}/repositories': {
         post: {
           tags: ['repositories'],
@@ -274,6 +299,20 @@ export function buildOpenApiDocument(): Record<string, unknown> {
             { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
           ],
           responses: { '200': { description: 'Deleted' }, '404': { description: 'Not found' } },
+        },
+      },
+      '/api/v1/projects/{projectId}/repositories/{id}/status': {
+        get: {
+          tags: ['repositories'],
+          summary: 'Indexing status (QUEUED/INDEXING/READY/FAILED, error, counters)',
+          parameters: [
+            { name: 'projectId', in: 'path', required: true, schema: { type: 'string' } },
+            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          responses: {
+            '200': { description: 'Indexing lifecycle of the repository' },
+            '404': { description: 'Not found' },
+          },
         },
       },
       '/api/v1/projects/{projectId}/repositories/{id}/reindex': {

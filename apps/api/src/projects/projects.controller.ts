@@ -1,9 +1,24 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import type { AuthenticatedUser } from '../common/auth-user';
 import { CurrentUser } from '../common/current-user.decorator';
 import { type PaginationDto, paginationSchema } from '../common/pagination';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
-import { type CreateProjectDto, createProjectSchema } from './projects.dto';
+import {
+  type CreateProjectDto,
+  createProjectSchema,
+  type UpdateProjectProfileDto,
+  updateProjectProfileSchema,
+} from './projects.dto';
 import { ProjectsService } from './projects.service';
 
 @Controller('projects')
@@ -29,6 +44,20 @@ export class ProjectsController {
   @Get(':id')
   get(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.projects.getOwned(user, id);
+  }
+
+  @Get(':id/profile')
+  getProfile(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.projects.getProfile(user, id);
+  }
+
+  @Put(':id/profile')
+  updateProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(updateProjectProfileSchema)) dto: UpdateProjectProfileDto,
+  ) {
+    return this.projects.updateProfile(user, id, dto.profile);
   }
 
   @Delete(':id')

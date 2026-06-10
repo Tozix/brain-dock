@@ -59,6 +59,29 @@ export class ProjectsService {
     return project;
   }
 
+  /** The pinned project profile (conventions/facts prepended to generated context). */
+  async getProfile(user: AuthenticatedUser, id: string) {
+    const project = await this.getOwned(user, id);
+    return { id: project.id, profile: project.profile ?? null };
+  }
+
+  /** Full-replacement profile update; an empty (or whitespace-only) string clears it. */
+  async updateProfile(user: AuthenticatedUser, id: string, profile: string) {
+    await this.getOwned(user, id);
+    const value = profile.trim() === '' ? null : profile;
+    const project = await this.prisma.client.project.update({
+      where: { id },
+      data: { profile: value },
+    });
+    await this.audit.log({
+      actorId: user.id,
+      action: 'project.profile.update',
+      targetType: 'Project',
+      targetId: id,
+    });
+    return { id: project.id, profile: project.profile ?? null };
+  }
+
   async remove(user: AuthenticatedUser, id: string) {
     await this.getOwned(user, id);
     // Postgres rows are removed by FK cascades; vectors need an explicit purge.

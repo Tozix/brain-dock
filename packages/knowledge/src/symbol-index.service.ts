@@ -1,6 +1,10 @@
 import type { Prisma, PrismaClient } from '@brain-dock/db';
 import { SymbolGraph } from '@brain-dock/graph';
 import type { RepositoryIndex, RouteInfo } from '@brain-dock/indexer';
+import { buildRepoMap } from './repo-map';
+
+/** Hard cap on symbols fed into the repo-map ranking — keeps memory/CPU bounded. */
+export const MAX_REPO_MAP_SYMBOLS = 50_000;
 
 export interface SymbolScope {
   projectId: string;
@@ -152,6 +156,33 @@ export class SymbolIndexService {
       repoSet.add(r.repo);
     }
     return { files: files.size, symbols: rows.length, edges, roles, repos: [...repoSet].sort() };
+  }
+
+  /**
+   * Token-budgeted, PageRank-ranked map of the project's indexed symbols (see buildRepoMap).
+   * `seedQuery` biases the ranking toward matching symbols; output ≈ `tokenBudget` tokens.
+   */
+  async repoMap(
+    projectId: string,
+    repos?: string[],
+    seedQuery?: string,
+    tokenBudget?: number,
+  ): Promise<string> {
+    const [symbols, edges] = await Promise.all([
+      this.findSymbols(projectId, { repos }),
+      this.prisma.codeEdge.findMany({
+        where: { projectId, repo: this.repoFilter(repos) },
+        select: { fromName: true, toName: true },
+      }),
+    ]);
+    const truncated = symbols.length > MAX_REPO_MAP_SYMBOLS;
+    return buildRepoMap({
+      symbols: truncated ? symbols.slice(0, MAX_REPO_MAP_SYMBOLS) : symbols,
+      edges: edges.map((e) => ({ from: e.fromName, to: e.toName })),
+      seedQuery,
+      tokenBudget,
+      truncated,
+    });
   }
 
   /** Build a dependency graph for the project from the stored symbols + edges. */

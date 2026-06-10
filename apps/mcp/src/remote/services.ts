@@ -1,3 +1,4 @@
+import type { IndexQueue } from '@brain-dock/core';
 import { createPrismaClient, type PrismaClient } from '@brain-dock/db';
 import { createEmbedder } from '@brain-dock/embedding';
 import {
@@ -22,6 +23,14 @@ export interface RemoteServices {
   symbols: SymbolIndexService;
   usage: UsageService;
   collection: string;
+  /**
+   * Optional index-job producer for the `trigger_reindex` tool. Not wired by
+   * {@link buildRemoteServices}: BullMQ pulls a native addon that crashes under Bun without
+   * `--no-addons`, and this process runs without that flag — hosted deployments index via the
+   * upload path instead. When absent, `trigger_reindex` explains that and points at the upload
+   * path; tests (or a future entrypoint) can inject an {@link IndexQueue} here.
+   */
+  queue?: IndexQueue;
 }
 
 export interface RemoteConfig {

@@ -3,7 +3,13 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { resolveProject, resolveUser } from './auth';
 import { FixedWindowLimiter } from './rate-limit';
 import type { RemoteServices } from './services';
-import { registerRemoteTools } from './tools';
+import { REMOTE_SERVER_INSTRUCTIONS, registerRemoteTools } from './tools';
+
+/**
+ * `/mcp` or `/mcp/{project-slug-or-id}` — the URL segment selects the project for clients that
+ * cannot send custom headers (it takes precedence over `X-Project`).
+ */
+const MCP_PATH_RE = /^\/mcp(?:\/([A-Za-z0-9._-]+))?$/;
 
 export interface RemoteMcpOptions {
   /** Per-API-key request cap per window when the key has no own `rateLimit` (default 600). */
@@ -65,7 +71,8 @@ export function createRemoteMcpHandler(services: RemoteServices, opts: RemoteMcp
   return async function handle(req: Request, socketIp?: string): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === '/health') return new Response('ok');
-    if (url.pathname !== '/mcp') return json(404, { error: 'not found' });
+    const pathMatch = MCP_PATH_RE.exec(url.pathname);
+    if (!pathMatch) return json(404, { error: 'not found' });
 
     // Stateless transport: only POST carries MCP traffic. Answer GET (SSE) / DELETE with 405 up
     // front — before any transport exists — so clients don't loop on open-then-closed streams.
@@ -93,7 +100,9 @@ export function createRemoteMcpHandler(services: RemoteServices, opts: RemoteMcp
     );
     if (!decision.allowed) return tooManyRequests(decision.resetAt);
 
-    const ref = req.headers.get('x-project');
+    // Project selection: the /mcp/{slug-or-id} URL segment wins over the X-Project header
+    // (some MCP clients cannot send custom headers — the URL is their only knob).
+    const ref = pathMatch[1] ?? req.headers.get('x-project');
     let projectId: string | null = null;
     if (ref) {
       const project = await resolveProject(services.prisma, principal.userId, ref);
@@ -102,7 +111,10 @@ export function createRemoteMcpHandler(services: RemoteServices, opts: RemoteMcp
     }
 
     // Stateless: a fresh server + transport per request.
-    const server = new McpServer({ name: 'brain-dock', version: '0.1.0' });
+    const server = new McpServer(
+      { name: 'brain-dock', version: '0.1.0' },
+      { instructions: REMOTE_SERVER_INSTRUCTIONS },
+    );
     registerRemoteTools(server, services, { principal, projectId });
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

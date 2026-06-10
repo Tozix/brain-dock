@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { Role } from '@brain-dock/shared';
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../common/auth-user';
+import { updateProjectProfileSchema } from './projects.dto';
 import { ProjectsService } from './projects.service';
 
 const owner: AuthenticatedUser = { id: 'u1', email: 'owner@x.io', role: Role.USER };
@@ -13,6 +14,7 @@ type Project = {
   name: string;
   slug: string;
   description: string | null;
+  profile?: string | null;
   ownerId: string;
   createdAt: Date;
 };
@@ -37,6 +39,11 @@ function fakePrisma(seed: Project[] = [], events: string[] = []) {
         findMany: async (args: { where: { ownerId: string }; take?: number; skip?: number }) => {
           findManyArgs.push({ take: args.take, skip: args.skip });
           return rows.filter((p) => p.ownerId === args.where.ownerId);
+        },
+        update: async ({ where, data }: { where: { id: string }; data: Partial<Project> }) => {
+          const row = rows.find((p) => p.id === where.id) as Project;
+          Object.assign(row, data);
+          return row;
         },
         delete: async ({ where }: { where: { id: string } }) => {
           events.push(`delete:${where.id}`);
@@ -109,6 +116,41 @@ describe('ProjectsService.create', () => {
   });
 });
 
+describe('ProjectsService profile', () => {
+  it('getProfile returns null when unset and the text when set', async () => {
+    const service = make(fakePrisma([project()]));
+    expect(await service.getProfile(owner, 'p1')).toEqual({ id: 'p1', profile: null });
+
+    const withProfile = make(fakePrisma([project({ profile: 'Use Bun, not Node.' })]));
+    expect(await withProfile.getProfile(owner, 'p1')).toEqual({
+      id: 'p1',
+      profile: 'Use Bun, not Node.',
+    });
+  });
+
+  it("forbids reading or writing someone else's profile", async () => {
+    const service = make(fakePrisma([project()]));
+    await expect(service.getProfile(stranger, 'p1')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.updateProfile(stranger, 'p1', 'x')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('updateProfile replaces the profile wholesale', async () => {
+    const prisma = fakePrisma([project({ profile: 'old' })]);
+    const res = await make(prisma).updateProfile(owner, 'p1', 'new profile');
+    expect(res).toEqual({ id: 'p1', profile: 'new profile' });
+    expect(prisma.rows[0]?.profile).toBe('new profile');
+  });
+
+  it('updateProfile clears the profile on an empty (or whitespace) string', async () => {
+    const prisma = fakePrisma([project({ profile: 'old' })]);
+    const res = await make(prisma).updateProfile(owner, 'p1', '   ');
+    expect(res).toEqual({ id: 'p1', profile: null });
+    expect(prisma.rows[0]?.profile).toBeNull();
+  });
+});
+
 describe('ProjectsService.remove', () => {
   it("forbids removing someone else's project (and purges nothing)", async () => {
     const events: string[] = [];
@@ -123,6 +165,14 @@ describe('ProjectsService.remove', () => {
     const res = await service.remove(owner, 'p1');
     expect(res).toEqual({ id: 'p1', deleted: true });
     expect(events).toEqual(['purge:p1', 'delete:p1']);
+  });
+});
+
+describe('updateProjectProfileSchema', () => {
+  it('caps the profile at 4096 characters', () => {
+    expect(updateProjectProfileSchema.safeParse({ profile: 'x'.repeat(4096) }).success).toBe(true);
+    expect(updateProjectProfileSchema.safeParse({ profile: 'x'.repeat(4097) }).success).toBe(false);
+    expect(updateProjectProfileSchema.safeParse({ profile: '' }).success).toBe(true);
   });
 });
 
