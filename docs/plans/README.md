@@ -72,3 +72,4 @@
 | [051](051-audit-closure.md) | Закрытие полного аудита (102 находки: целостность, безопасность, тесты) | Hardening | Done |
 | [052](052-search-quality.md) | Качество поиска: eval-harness, префиксы nomic, суб-чанкинг, hybrid BM25+RRF | Search | Done |
 | [053](053-mcp-ux.md) | MCP UX: instructions, annotations, /mcp/{slug}, профиль, статус индексации, repo_map | Hosted | Done |
+| [054](054-web-ui.md) | Веб-кабинет + админка (SPA) + host-nginx (brain-dock.ru) | Web | Done |

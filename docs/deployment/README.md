@@ -23,9 +23,13 @@ Docker / Docker Compose, окружения и инфраструктура. Loc
 | `api` | REST API на `:3100` |
 | `workers` | BullMQ index-worker |
 | `mcp` | удалённый MCP по **Streamable HTTP** на `:8080`, путь `/mcp` (или `/mcp/{slug}`) |
+| `web` | веб-кабинет + админка (SPA) на `:3300` |
 
 > Host-порты инфры намеренно нестандартные и **привязаны к `127.0.0.1`** (у инфра-сервисов нет
-> auth) — наружу торчат только `api`/`mcp`. URL в `.env` совпадают с этими портами.
+> auth). App-сервисы (`web`/`api`/`mcp`) тоже публикуются только на `127.0.0.1` — наружу смотрит
+> **nginx на хост-машине**: готовый конфиг [deploy/nginx/brain-dock.ru.conf](../../deploy/nginx/brain-dock.ru.conf)
+> (один домен: `/`→web, `/api/v1`→api, `/mcp`→mcp; TLS — certbot; см. GUIDE §3.3).
+> URL в `.env` совпадают с этими портами.
 > Креды Postgres задаются через `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` в `.env`.
 > У всех сервисов: healthchecks (postgres/redis — родные пробы, qdrant — TCP, ollama — `ollama list`,
 > api/mcp — `/health`) + `depends_on: service_healthy`, лог-ротация (json-file `10m × 3`),

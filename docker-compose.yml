@@ -133,7 +133,7 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_URL: http://ollama:11434
     ports:
-      - '3100:3100'
+      - '127.0.0.1:3100:3100'
     mem_limit: 1g
     logging: *default-logging
     healthcheck:
@@ -178,6 +178,31 @@ services:
       qdrant:
         condition: service_healthy
 
+  # Web UI (SPA) — static build served by a tiny Bun server; host nginx terminates TLS
+  # and proxies / → web, /api/v1 → api, /mcp → mcp (deploy/nginx/brain-dock.ru.conf).
+  web:
+    profiles: ['app']
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: brain-dock-web
+    restart: unless-stopped
+    environment:
+      WEB_PORT: '3300'
+    ports:
+      - '127.0.0.1:3300:3300'
+    logging: *default-logging
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "fetch('http://localhost:3300/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   # Hosted MCP over Streamable HTTP — clients connect with their API key + X-Project header.
   mcp:
     profiles: ['app']
@@ -195,7 +220,7 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_URL: http://ollama:11434
     ports:
-      - '8080:8080'
+      - '127.0.0.1:8080:8080'
     logging: *default-logging
     healthcheck:
       test:

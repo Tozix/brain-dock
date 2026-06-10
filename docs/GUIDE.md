@@ -104,17 +104,32 @@ bun run deploy        # docker compose --profile app up -d --build
 ```
 - Образы **собираются на сервере** (registry не используется).
 - Миграции применяются автоматически one-shot сервисом `migrate` **до** старта API.
-- Поднимаются: `api` (`:3100`), `mcp` (`:8080`), `workers`, инфра.
+- Поднимаются: `web` (`:3300`), `api` (`:3100`), `mcp` (`:8080`), `workers`, инфра.
+  Все app-порты публикуются **только на 127.0.0.1** — наружу смотрит host-nginx (§3.3).
 
-### 3.3. Reverse-proxy + TLS (рекомендуется)
+### 3.3. Host-nginx + TLS (один домен, рекомендуется)
 
-Спрячьте `:8080` (MCP) и `:3100` (API) за nginx/Caddy с HTTPS. Пример Caddy:
+nginx живёт **на хост-машине**, всё остальное — в контейнерах. Готовый конфиг:
+[deploy/nginx/brain-dock.ru.conf](../deploy/nginx/brain-dock.ru.conf) — один домен
+(`brain-dock.ru`), маршрутизация по путям:
 
+| Путь | Куда | Особенности |
+|---|---|---|
+| `/` | web `:3300` | SPA (веб-кабинет + админка) |
+| `/api/v1` | api `:3100` | `client_max_body_size 64m`, таймаут 300с (upload-индексация) |
+| `/mcp`, `/mcp/{slug}` | mcp `:8080` | `proxy_buffering off` (SSE), таймаут 600с |
+
+```bash
+sudo cp deploy/nginx/brain-dock.ru.conf /etc/nginx/sites-available/brain-dock.ru
+sudo ln -s /etc/nginx/sites-available/brain-dock.ru /etc/nginx/sites-enabled/
+sudo certbot --nginx -d brain-dock.ru -d www.brain-dock.ru
+sudo nginx -t && sudo systemctl reload nginx
 ```
-mcp.example.com   { reverse_proxy localhost:8080 }
-api.example.com   { reverse_proxy localhost:3100 }
-```
-Тогда клиенты подключаются к `https://mcp.example.com/mcp`. CORS не нужен (MCP-клиенты — не браузеры).
+
+Веб и API на одном origin — CORS не нужен. MCP-клиенты подключаются к
+`https://brain-dock.ru/mcp/<project-slug>`. `/metrics` наружу не проксируется.
+Вариант с поддоменами (Caddy) остаётся валидным для self-host без веба:
+`mcp.example.com { reverse_proxy localhost:8080 }`.
 
 ### 3.4. Откуда берётся индексируемый код (важно)
 

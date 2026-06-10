@@ -27,7 +27,7 @@ Bun · NestJS · Prisma 7 + PostgreSQL · Qdrant · Redis + BullMQ · Ollama · 
 `bun:test`. See [ADR-0001](docs/adr/0001-stack-selection.md).
 
 ```
-apps/      api (REST) · mcp (MCP server) · workers (BullMQ + watch) · vscode-extension (client)
+apps/      api (REST) · mcp (MCP server) · workers (BullMQ + watch) · web (веб-кабинет + админка) · vscode-extension (client)
 packages/  indexer · embedding · storage · search · knowledge · graph · core · shared · db
 ```
 
