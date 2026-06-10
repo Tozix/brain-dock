@@ -21,14 +21,39 @@ const embedder = createEmbedder(embedderConfigFromEnv());
 
 // With a database, also persist the structural index (symbols/edges) for the hosted MCP.
 const databaseUrl = process.env.DATABASE_URL;
-const symbols = databaseUrl ? new SymbolIndexService(createPrismaClient(databaseUrl)) : undefined;
+const prisma = databaseUrl ? createPrismaClient(databaseUrl) : undefined;
+const symbols = prisma ? new SymbolIndexService(prisma) : undefined;
 if (symbols) console.info('[workers] symbol index persistence enabled');
 
-const worker = createIndexWorker({ redisUrl, qdrantUrl, embedder, symbols });
+// Synchronous ts-morph parsing can block the event loop past BullMQ's default 30s lock;
+// INDEX_LOCK_DURATION_MS overrides the 10-minute default for very large repositories.
+const lockEnv = Number(process.env.INDEX_LOCK_DURATION_MS);
+const lockDuration = Number.isFinite(lockEnv) && lockEnv > 0 ? lockEnv : undefined;
+
+const worker = createIndexWorker({ redisUrl, qdrantUrl, embedder, symbols, lockDuration });
 worker.on('completed', (job, result) => {
   console.info(`[index] job ${job.id} done:`, result);
 });
 worker.on('failed', (job, err) => {
-  console.error(`[index] job ${job?.id} failed:`, err.message);
+  const attempts = job ? `${job.attemptsMade}/${job.opts.attempts ?? 1}` : '?';
+  console.error(`[index] job ${job?.id ?? '<unknown>'} failed (attempt ${attempts}):`, err);
 });
 console.info('[brain-dock:workers] index worker started');
+
+// Graceful shutdown: finish the active job, then release Redis and Postgres connections.
+let shuttingDown = false;
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.info(`[workers] ${signal} received — closing worker (waiting for active jobs)`);
+  try {
+    await worker.close(); // waits for the active job and closes BullMQ's Redis connections
+    await prisma?.$disconnect();
+  } catch (error) {
+    console.error('[workers] shutdown error:', error);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));

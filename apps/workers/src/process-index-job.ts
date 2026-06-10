@@ -39,8 +39,21 @@ export function processIndexJob(deps: IndexJobDeps, data: IndexJob): Promise<Ing
           repositoryId: data.repositoryId,
         });
         if (deps.symbols) {
-          const persisted = await deps.symbols.persist({ projectId: data.projectId, repo }, index);
-          span.setAttribute('brain_dock.symbols', persisted.symbols);
+          try {
+            const persisted = await deps.symbols.persist(
+              { projectId: data.projectId, repo },
+              index,
+            );
+            span.setAttribute('brain_dock.symbols', persisted.symbols);
+          } catch (error) {
+            // Vectors and symbols are written in separate stores with no shared transaction;
+            // surface the mixed state explicitly before letting the queue retry the job.
+            console.error(
+              '[index] vectors updated but symbol persist failed — job will retry; symbols stale until then',
+              error,
+            );
+            throw error;
+          }
         }
         span.setAttributes({
           'brain_dock.files': report.files,

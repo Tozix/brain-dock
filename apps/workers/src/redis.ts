@@ -1,5 +1,9 @@
-/** Parse a redis:// URL into BullMQ/ioredis connection options. */
-export function redisConnection(url: string): { host: string; port: number } {
-  const parsed = new URL(url);
-  return { host: parsed.hostname, port: Number(parsed.port) || 6379 };
+/**
+ * Build BullMQ connection options from a redis:// URL. The full URL is passed through (BullMQ
+ * hands it to `new IORedis(url, rest)` internally), so credentials, db index and TLS
+ * (rediss://) are preserved — unlike parsing out host/port only.
+ * `maxRetriesPerRequest: null` is what BullMQ requires for blocking worker connections.
+ */
+export function redisConnection(url: string): { url: string; maxRetriesPerRequest: null } {
+  return { url, maxRetriesPerRequest: null };
 }

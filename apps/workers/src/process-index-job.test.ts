@@ -82,4 +82,23 @@ describe('processIndexJob', () => {
     };
     await expect(processIndexJob({ ingestion, indexer }, job)).rejects.toThrow('qdrant down');
   });
+
+  it('rethrows symbol persist failures after vectors were written (job retries)', async () => {
+    let ingested = 0;
+    const ingestion = {
+      ingestIndex: async (): Promise<IngestReport> => {
+        ingested += 1;
+        return { files: 1, chunks: 2 };
+      },
+    };
+    const symbols = {
+      persist: async (): Promise<{ symbols: number; edges: number }> => {
+        throw new Error('postgres down');
+      },
+    };
+    await expect(processIndexJob({ ingestion, indexer, symbols }, job)).rejects.toThrow(
+      'postgres down',
+    );
+    expect(ingested).toBe(1); // vectors were already upserted before the persist failed
+  });
 });

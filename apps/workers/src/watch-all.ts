@@ -39,16 +39,21 @@ const prisma = createPrismaClient(databaseUrl);
 const active = new Map<string, { target: WatchTarget; handle: WatchHandle }>();
 
 function startTarget(target: WatchTarget): void {
-  const handle = startWatchReindexer({
-    ...target,
-    embedder,
-    qdrantUrl,
-    onReindex: (r) =>
-      console.error(
-        `[watch-all:${target.repo}] reindex: files=${r.files} changed=${r.changedFiles} removed=${r.removedFiles} chunks=${r.chunks}`,
-      ),
-  });
-  active.set(target.repositoryId, { target, handle });
+  // A repo with a bad root (missing dir, permissions) is skipped, not fatal for the others.
+  try {
+    const handle = startWatchReindexer({
+      ...target,
+      embedder,
+      qdrantUrl,
+      onReindex: (r) =>
+        console.error(
+          `[watch-all:${target.repo}] reindex: files=${r.files} changed=${r.changedFiles} removed=${r.removedFiles} chunks=${r.chunks}`,
+        ),
+    });
+    active.set(target.repositoryId, { target, handle });
+  } catch (error) {
+    console.error(`[watch-all:${target.repo}] skipped: ${(error as Error).message}`);
+  }
 }
 
 function apply(desired: WatchTarget[]): void {
@@ -94,11 +99,14 @@ const poll =
     : null;
 if (poll) console.error(`[watch-all] hot re-subscribe every ${pollMs}ms`);
 
-const shutdown = () => {
+let shuttingDown = false;
+const shutdown = async () => {
+  if (shuttingDown) return;
+  shuttingDown = true;
   if (poll) clearInterval(poll);
   for (const { handle } of active.values()) handle.stop();
-  void prisma.$disconnect();
+  await prisma.$disconnect().catch((e) => console.error('[watch-all] disconnect failed:', e));
   process.exit(0);
 };
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+process.on('SIGINT', () => void shutdown());
+process.on('SIGTERM', () => void shutdown());
