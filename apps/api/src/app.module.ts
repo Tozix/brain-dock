@@ -18,6 +18,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { RepositoriesModule } from './repositories/repositories.module';
 import { TracingInterceptor } from './tracing/tracing.interceptor';
 import { UsageModule } from './usage/usage.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { UsageModule } from './usage/usage.module';
     AuditModule,
     MetricsModule,
     AuthModule,
+    UsersModule,
     ApiKeysModule,
     ProjectsModule,
     RepositoriesModule,

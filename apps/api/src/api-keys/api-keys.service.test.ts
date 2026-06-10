@@ -2,10 +2,13 @@ import { describe, expect, it } from 'bun:test';
 import { createHash } from 'node:crypto';
 import { ApiKeyStatus } from '@brain-dock/db';
 import { Role } from '@brain-dock/shared';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../common/auth-user';
 import { ApiKeysService } from './api-keys.service';
 
 const actor: AuthenticatedUser = { id: 'u1', email: 'admin@x.io', role: Role.SUPER_ADMIN };
+const admin: AuthenticatedUser = { id: 'a1', email: 'staff@x.io', role: Role.ADMIN };
+const user: AuthenticatedUser = { id: 'u2', email: 'user@x.io', role: Role.USER };
 
 type KeyRow = {
   id: string;
@@ -22,6 +25,19 @@ type KeyRow = {
 };
 
 type UserRow = { id: string; email: string; role: Role; isActive: boolean };
+
+type Select = Record<string, unknown> | undefined;
+
+/** Apply a Prisma-style `select` projection, resolving the `user.email` relation. */
+function project(row: KeyRow, select: Select, users: UserRow[]) {
+  if (!select) return row;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(select)) {
+    if (key === 'user') out[key] = { email: users.find((u) => u.id === row.userId)?.email };
+    else out[key] = row[key as keyof KeyRow];
+  }
+  return out;
+}
 
 /** Minimal in-memory Prisma double for `apiKey` + `user`, recording update calls. */
 function fakePrisma(keys: KeyRow[] = [], users: UserRow[] = []) {
@@ -50,6 +66,16 @@ function fakePrisma(keys: KeyRow[] = [], users: UserRow[] = []) {
         },
         findUnique: async ({ where }: { where: { id?: string; keyHash?: string } }) =>
           rows.find((r) => (where.id ? r.id === where.id : r.keyHash === where.keyHash)) ?? null,
+        findMany: async (args: {
+          where?: { userId?: string };
+          take: number;
+          skip: number;
+          select?: Select;
+        }) =>
+          rows
+            .filter((r) => (args.where?.userId ? r.userId === args.where.userId : true))
+            .slice(args.skip, args.skip + args.take)
+            .map((r) => project(r, args.select, users)),
         update: async ({ where, data }: { where: { id: string }; data: Partial<KeyRow> }) => {
           updates.push({ id: where.id, data });
           const row = rows.find((r) => r.id === where.id) as KeyRow;
@@ -108,11 +134,113 @@ describe('ApiKeysService.issue', () => {
     expect(Object.values(stored ?? {})).not.toContain(issued.key);
   });
 
-  it('attributes the key to dto.userId when provided', async () => {
+  it('lets a plain USER issue a key for themselves', async () => {
+    const prisma = fakePrisma();
+    const issued = await make(prisma).issue(user, { name: 'mine' });
+    expect(issued.key.startsWith('bd_')).toBe(true);
+    expect(prisma.rows[0]?.userId).toBe(user.id);
+  });
+
+  it('accepts an explicit userId equal to the caller for a plain USER', async () => {
+    const prisma = fakePrisma();
+    await make(prisma).issue(user, { name: 'mine', userId: user.id });
+    expect(prisma.rows[0]?.userId).toBe(user.id);
+  });
+
+  it('forbids a plain USER from issuing a key for another user', async () => {
+    const prisma = fakePrisma();
+    await expect(make(prisma).issue(user, { name: 'evil', userId: 'u9' })).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(prisma.rows).toHaveLength(0);
+  });
+
+  it('forbids a plain USER from setting rateLimit (admin-only field)', async () => {
+    const prisma = fakePrisma();
+    await expect(make(prisma).issue(user, { name: 'fast', rateLimit: 999 })).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(prisma.rows).toHaveLength(0);
+  });
+
+  it('lets an ADMIN issue a key for another user with a rateLimit', async () => {
+    const prisma = fakePrisma();
+    await make(prisma).issue(admin, { name: 'for-bob', userId: 'u2', rateLimit: 50 });
+    expect(prisma.rows[0]?.userId).toBe('u2');
+    expect(prisma.rows[0]?.rateLimit).toBe(50);
+  });
+
+  it('attributes the key to dto.userId when provided by an admin', async () => {
     const prisma = fakePrisma();
     const service = make(prisma);
     await service.issue(actor, { name: 'for-bob', userId: 'u2' });
     expect(prisma.rows[0]?.userId).toBe('u2');
+  });
+});
+
+describe('ApiKeysService.list', () => {
+  const page = { take: 100, skip: 0 };
+
+  it('returns only the caller’s keys (without keyHash) by default', async () => {
+    const prisma = fakePrisma([
+      activeKey('bd_mine', { id: 'k1', userId: user.id }),
+      activeKey('bd_other', { id: 'k2', userId: 'u9' }),
+    ]);
+    const keys = await make(prisma).list(user, page);
+    expect(keys).toHaveLength(1);
+    expect(keys[0]?.id).toBe('k1');
+    expect(Object.keys(keys[0] ?? {})).not.toContain('keyHash');
+  });
+
+  it('forbids all=true for a plain USER', async () => {
+    const prisma = fakePrisma([activeKey('bd_mine', { userId: user.id })]);
+    await expect(make(prisma).list(user, page, true)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('returns every key with the owner email for an ADMIN with all=true', async () => {
+    const prisma = fakePrisma(
+      [
+        activeKey('bd_one', { id: 'k1', userId: 'u1' }),
+        activeKey('bd_two', { id: 'k2', userId: 'u2' }),
+      ],
+      [
+        { id: 'u1', email: 'admin@x.io', role: Role.SUPER_ADMIN, isActive: true },
+        { id: 'u2', email: 'user@x.io', role: Role.USER, isActive: true },
+      ],
+    );
+    const keys = (await make(prisma).list(admin, page, true)) as Array<{
+      user?: { email: string };
+    }>;
+    expect(keys).toHaveLength(2);
+    expect(keys.map((k) => k.user?.email ?? null)).toEqual(['admin@x.io', 'user@x.io']);
+    expect(Object.keys(keys[0] ?? {})).not.toContain('keyHash');
+  });
+});
+
+describe('ApiKeysService.revoke', () => {
+  it('lets the owner revoke their own key', async () => {
+    const prisma = fakePrisma([activeKey('bd_mine', { userId: user.id })]);
+    const res = await make(prisma).revoke(user, 'k1');
+    expect(res).toEqual({ id: 'k1', status: ApiKeyStatus.REVOKED });
+    expect(prisma.rows[0]?.status).toBe(ApiKeyStatus.REVOKED);
+  });
+
+  it("404s when a plain USER revokes someone else's key (existence not leaked)", async () => {
+    const prisma = fakePrisma([activeKey('bd_other', { userId: 'u9' })]);
+    await expect(make(prisma).revoke(user, 'k1')).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.rows[0]?.status).toBe(ApiKeyStatus.ACTIVE);
+  });
+
+  it("lets an ADMIN revoke another user's key", async () => {
+    const prisma = fakePrisma([activeKey('bd_other', { userId: 'u9' })]);
+    const res = await make(prisma).revoke(admin, 'k1');
+    expect(res.status).toBe(ApiKeyStatus.REVOKED);
+  });
+
+  it('404s on an unknown key id', async () => {
+    await expect(make(fakePrisma()).revoke(actor, 'missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
 

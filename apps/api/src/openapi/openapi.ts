@@ -10,6 +10,7 @@ import { createDocumentSchema } from '../knowledge/documents.dto';
 import { createKnowledgeSchema, createMemorySchema } from '../knowledge/knowledge.dto';
 import { createProjectSchema, updateProjectProfileSchema } from '../projects/projects.dto';
 import { createRepositorySchema, updateRepositorySchema } from '../repositories/repositories.dto';
+import { updateUserSchema } from '../users/users.dto';
 
 /** Convert a Zod schema to JSON Schema (OpenAPI 3.1 = JSON Schema 2020-12); drop `$schema`. */
 function js(schema: z.ZodType): Record<string, unknown> {
@@ -73,6 +74,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
         UpdateMemory: js(updateMemorySchema),
         UpdateKnowledge: js(updateKnowledgeSchema),
         UpdateDocument: js(updateDocumentSchema),
+        UpdateUser: js(updateUserSchema),
       },
     },
     paths: {
@@ -146,18 +148,121 @@ export function buildOpenApiDocument(): Record<string, unknown> {
       '/api/v1/api-keys': {
         post: {
           tags: ['api-keys'],
-          summary: 'Issue API key (SUPER_ADMIN)',
+          summary: 'Issue API key for yourself (userId/rateLimit are ADMIN-only)',
           requestBody: body('IssueApiKey'),
           responses: {
             '201': { description: 'Key (secret shown once)' },
-            '403': { description: 'Forbidden' },
+            '403': { description: 'userId/rateLimit used without ADMIN role' },
           },
         },
         get: {
           tags: ['api-keys'],
-          summary: 'List own keys',
-          parameters: [...PAGE_PARAMS],
-          responses: { '200': { description: 'Keys' } },
+          summary: 'List own keys (all=true: every key with owner email, ADMIN+)',
+          parameters: [
+            ...PAGE_PARAMS,
+            {
+              name: 'all',
+              in: 'query',
+              required: false,
+              schema: { type: 'boolean', default: false },
+            },
+          ],
+          responses: {
+            '200': { description: 'Keys' },
+            '403': { description: 'all=true without ADMIN role' },
+          },
+        },
+      },
+      '/api/v1/api-keys/{id}': {
+        delete: {
+          tags: ['api-keys'],
+          summary: 'Revoke own key (ADMIN+ may revoke anyone’s)',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+          responses: {
+            '200': { description: 'Revoked' },
+            '404': { description: 'Not found (incl. foreign keys for non-admins)' },
+          },
+        },
+      },
+      '/api/v1/users': {
+        get: {
+          tags: ['users'],
+          summary: 'List users with project/key counters (ADMIN/SUPER_ADMIN)',
+          parameters: [
+            ...PAGE_PARAMS,
+            {
+              name: 'q',
+              in: 'query',
+              required: false,
+              description: 'Case-insensitive email substring filter',
+              schema: { type: 'string' },
+            },
+          ],
+          responses: { '200': { description: 'Users' }, '403': { description: 'Forbidden' } },
+        },
+      },
+      '/api/v1/users/{id}': {
+        get: {
+          tags: ['users'],
+          summary: 'Get user (ADMIN/SUPER_ADMIN)',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+          responses: {
+            '200': { description: 'User' },
+            '403': { description: 'Forbidden' },
+            '404': { description: 'Not found' },
+          },
+        },
+        patch: {
+          tags: ['users'],
+          summary: 'Update user: isActive (ADMIN+, not self), role (SUPER_ADMIN, not self)',
+          parameters: [
+            { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+          requestBody: body('UpdateUser'),
+          responses: {
+            '200': { description: 'Updated user' },
+            '400': { description: 'Self-deactivation / self role change' },
+            '403': { description: 'Role change without SUPER_ADMIN' },
+            '404': { description: 'Not found' },
+          },
+        },
+      },
+      '/api/v1/usage': {
+        get: {
+          tags: ['usage'],
+          summary: 'Own MCP usage rollup (calls + tokens served)',
+          parameters: [
+            {
+              name: 'days',
+              in: 'query',
+              required: false,
+              schema: { type: 'integer', minimum: 1, maximum: 365, default: 30 },
+            },
+          ],
+          responses: { '200': { description: 'Usage summary' } },
+        },
+      },
+      '/api/v1/usage/admin': {
+        get: {
+          tags: ['usage'],
+          summary: 'Per-user usage rollup + summary, calls desc (ADMIN/SUPER_ADMIN)',
+          parameters: [
+            ...PAGE_PARAMS,
+            {
+              name: 'days',
+              in: 'query',
+              required: false,
+              schema: { type: 'integer', minimum: 1, maximum: 365, default: 30 },
+            },
+          ],
+          responses: {
+            '200': { description: 'Per-user rows + {totalCalls, totalTokens, activeUsers}' },
+            '403': { description: 'Forbidden' },
+          },
         },
       },
       '/api/v1/audit': {
