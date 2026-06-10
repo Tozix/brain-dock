@@ -7,9 +7,11 @@ COPY prisma ./prisma
 COPY packages ./packages
 COPY apps ./apps
 
-RUN bun install --omit=optional
+RUN bun install --frozen-lockfile --omit=optional
 RUN DATABASE_URL=postgresql://x:x@localhost:5432/x bun run db:generate
 
 ENV NODE_ENV=production
+# Drop root: the runtime only reads /app (oven/bun ships a non-root `bun` user).
+USER bun
 # MCP speaks JSON-RPC over stdio.
 CMD ["bun", "run", "apps/mcp/src/index.ts"]

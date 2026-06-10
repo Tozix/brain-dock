@@ -8,9 +8,11 @@ COPY prisma ./prisma
 COPY packages ./packages
 COPY apps ./apps
 
-RUN bun install --omit=optional
+RUN bun install --frozen-lockfile --omit=optional
 RUN DATABASE_URL=postgresql://x:x@localhost:5432/x bun run db:generate
 
 ENV NODE_ENV=production
 EXPOSE 3000
+# Drop root: the runtime only reads /app (oven/bun ships a non-root `bun` user).
+USER bun
 CMD ["bun", "run", "apps/api/src/main.ts"]

@@ -2,6 +2,16 @@
 # Local-first: Postgres, Qdrant, Redis, Ollama. Start infra with `bun run infra:up`.
 # App services (api, workers) live behind the `app` profile and are built on the host at deploy
 # time — no image registry: `bun run deploy` (= docker compose --profile app up -d --build).
+#
+# Infra ports are bound to 127.0.0.1 only — none of these services have auth enabled.
+# App services reach them over the internal Compose network, so they are unaffected.
+# Postgres credentials come from POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB (defaults below).
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
 
 services:
   postgres:
@@ -9,28 +19,36 @@ services:
     container_name: brain-dock-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: brain_dock
-      POSTGRES_PASSWORD: brain_dock
-      POSTGRES_DB: brain_dock
+      POSTGRES_USER: ${POSTGRES_USER:-brain_dock}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-brain_dock}
+      POSTGRES_DB: ${POSTGRES_DB:-brain_dock}
     ports:
-      - '15432:5432'
+      - '127.0.0.1:15432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    logging: *default-logging
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U brain_dock -d brain_dock']
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
       interval: 5s
       timeout: 5s
       retries: 10
 
   qdrant:
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:v1.18.2
     container_name: brain-dock-qdrant
     restart: unless-stopped
     ports:
-      - '16333:6333'
-      - '16334:6334'
+      - '127.0.0.1:16333:6333'
+      - '127.0.0.1:16334:6334'
     volumes:
       - qdrant-data:/qdrant/storage
+    logging: *default-logging
+    healthcheck:
+      # The qdrant image ships no curl/wget, but it does have bash — probe the HTTP port via /dev/tcp.
+      test: ['CMD', 'bash', '-c', ':> /dev/tcp/127.0.0.1/6333']
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
@@ -38,9 +56,10 @@ services:
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes']
     ports:
-      - '16379:6379'
+      - '127.0.0.1:16379:6379'
     volumes:
       - redis-data:/data
+    logging: *default-logging
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -48,13 +67,21 @@ services:
       retries: 10
 
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.30.7
     container_name: brain-dock-ollama
     restart: unless-stopped
     ports:
-      - '11434:11434'
+      - '127.0.0.1:11434:11434'
     volumes:
       - ollama-data:/root/.ollama
+    mem_limit: 4g
+    logging: *default-logging
+    healthcheck:
+      # `ollama list` talks to the local server — fails until the API is up.
+      test: ['CMD', 'ollama', 'list']
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   # --- App services (profile `app`) — built on the host, not pulled from a registry. ---
   # `environment` overrides .env with in-network service DNS (the .env URLs point at host ports).
@@ -69,9 +96,25 @@ services:
     restart: 'no'
     command: ['bun', 'run', 'db:deploy']
     environment:
-      DATABASE_URL: postgresql://brain_dock:brain_dock@postgres:5432/brain_dock?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-brain_dock}:${POSTGRES_PASSWORD:-brain_dock}@postgres:5432/${POSTGRES_DB:-brain_dock}?schema=public
+    logging: *default-logging
     depends_on:
       postgres:
+        condition: service_healthy
+
+  # One-shot: pre-pull the embedding model into the ollama server. Nothing depends on it, so an
+  # offline deploy still comes up — a failed pull only logs an error in this container.
+  ollama-pull:
+    profiles: ['app']
+    image: ollama/ollama:0.30.7
+    container_name: brain-dock-ollama-pull
+    restart: 'no'
+    entrypoint: ['sh', '-c', 'ollama pull ${EMBEDDING_MODEL:-nomic-embed-text}']
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    logging: *default-logging
+    depends_on:
+      ollama:
         condition: service_healthy
 
   api:
@@ -85,19 +128,32 @@ services:
     environment:
       NODE_ENV: production
       API_PORT: '3000'
-      DATABASE_URL: postgresql://brain_dock:brain_dock@postgres:5432/brain_dock?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-brain_dock}:${POSTGRES_PASSWORD:-brain_dock}@postgres:5432/${POSTGRES_DB:-brain_dock}?schema=public
       REDIS_URL: redis://redis:6379
       QDRANT_URL: http://qdrant:6333
       OLLAMA_URL: http://ollama:11434
     ports:
       - '3000:3000'
+    mem_limit: 1g
+    logging: *default-logging
+    healthcheck:
+      # oven/bun has no curl — probe the root-level /health endpoint with bun itself.
+      test:
+        - CMD
+        - bun
+        - -e
+        - "fetch('http://localhost:3000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     depends_on:
       migrate:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
       qdrant:
-        condition: service_started
+        condition: service_healthy
 
   workers:
     profiles: ['app']
@@ -109,15 +165,18 @@ services:
     env_file: .env
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://brain_dock:brain_dock@postgres:5432/brain_dock?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-brain_dock}:${POSTGRES_PASSWORD:-brain_dock}@postgres:5432/${POSTGRES_DB:-brain_dock}?schema=public
       REDIS_URL: redis://redis:6379
       QDRANT_URL: http://qdrant:6333
       OLLAMA_URL: http://ollama:11434
+    # 2g (not 1g): ts-morph holds whole source trees in memory while indexing large repositories.
+    mem_limit: 2g
+    logging: *default-logging
     depends_on:
       redis:
         condition: service_healthy
       qdrant:
-        condition: service_started
+        condition: service_healthy
 
   # Hosted MCP over Streamable HTTP — clients connect with their API key + X-Project header.
   mcp:
@@ -132,16 +191,27 @@ services:
     environment:
       NODE_ENV: production
       MCP_HTTP_PORT: '8080'
-      DATABASE_URL: postgresql://brain_dock:brain_dock@postgres:5432/brain_dock?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-brain_dock}:${POSTGRES_PASSWORD:-brain_dock}@postgres:5432/${POSTGRES_DB:-brain_dock}?schema=public
       QDRANT_URL: http://qdrant:6333
       OLLAMA_URL: http://ollama:11434
     ports:
       - '8080:8080'
+    logging: *default-logging
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "fetch('http://localhost:8080/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
     depends_on:
       migrate:
         condition: service_completed_successfully
       qdrant:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   postgres-data:
