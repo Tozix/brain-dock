@@ -58,14 +58,15 @@ echo "[backup] postgres: $(du -h "$dest/postgres-$POSTGRES_DB.sql.gz" | cut -f1)
 # --- Qdrant (best-effort: create snapshot → download to host → delete in-container) ---
 if [ "$BACKUP_QDRANT" = "1" ]; then
   if cols_json="$(curl -sf --max-time 10 "$QDRANT_URL/collections" 2>/dev/null)"; then
-    cols="$(BD_JSON="$cols_json" bun -e \
-      'const j=JSON.parse(process.env.BD_JSON);process.stdout.write((j.result?.collections??[]).map(c=>c.name).join(" "))')"
+    # Parse with grep/sed only (the host has docker + curl + coreutils, not necessarily bun/jq).
+    # Qdrant's JSON is flat enough: collection names are the only "name" fields in /collections,
+    # and a snapshot-create response carries exactly one "name" (the snapshot file).
+    cols="$(printf '%s' "$cols_json" | grep -oE '"name":"[^"]+"' | sed -E 's/.*:"([^"]+)"/\1/')"
     if [ -n "$cols" ]; then
       mkdir -p "$dest/qdrant"
       for c in $cols; do
         if resp="$(curl -sf --max-time 30 -X POST "$QDRANT_URL/collections/$c/snapshots" 2>/dev/null)"; then
-          snap="$(BD_JSON="$resp" bun -e \
-            'const j=JSON.parse(process.env.BD_JSON);process.stdout.write(j.result?.name??"")')"
+          snap="$(printf '%s' "$resp" | grep -oE '"name":"[^"]+"' | head -1 | sed -E 's/.*:"([^"]+)"/\1/')"
           if [ -n "$snap" ] && curl -sf --max-time 120 \
               "$QDRANT_URL/collections/$c/snapshots/$snap" -o "$dest/qdrant/$snap" 2>/dev/null; then
             echo "[backup] qdrant '$c': $(du -h "$dest/qdrant/$snap" | cut -f1)"

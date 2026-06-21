@@ -81,7 +81,7 @@ docker exec brain-dock-ollama ollama pull nomic-embed-text
 ```bash
 git pull
 cp .env.example .env          # один раз; ОБЯЗАТЕЛЬНО заполнить секреты (JWT_*) для прод
-bun run deploy                # = docker compose --profile app up -d --build
+docker compose --profile app up -d --build   # на сервере нужен только Docker (bun не требуется)
 ```
 Миграции применяет one-shot сервис `migrate` **автоматически** до старта `api`/`mcp` (`depends_on
 migrate: service_completed_successfully`); запускать `db:deploy` вручную не нужно. Модель
@@ -100,8 +100,9 @@ migrate: service_completed_successfully`); запускать `db:deploy` вру
 > — `pull` на все»). Сейчас не нужно.
 
 ## Бэкапы
-Автоматизированы: `bun run backup` (= `scripts/backup.sh`) — `pg_dump` Postgres (критично) +
-скачивание Qdrant-снапшотов на хост, с ротацией. Восстановление — `scripts/restore.sh <backup-dir>`.
+Автоматизированы: `bash scripts/backup.sh` (на сервере; `bun run backup` — локальный алиас) —
+`pg_dump` Postgres (критично) + скачивание Qdrant-снапшотов на хост, с ротацией; нужны только
+docker + curl + coreutils (без bun/jq). Восстановление — `scripts/restore.sh <backup-dir>`.
 Расписание (cron), переменные и восстановление — в [BACKUP.md](BACKUP.md). Критичен в первую
 очередь Postgres (пользователи/ключи/память/знания/символы); векторы Qdrant восстановимы реиндексом.
 План [056](../plans/056-automated-backups.md).

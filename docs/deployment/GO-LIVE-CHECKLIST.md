@@ -8,8 +8,13 @@
 > `.env.example`; nginx-маршруты совпадают с портами контейнеров (`/`→3300, `/api/v1`→3100,
 > `/mcp`→8080); `bun run ci` зелёный.
 
+> **На сервере нужен только Docker** (Compose v2). Bun/Node/Prisma ставить не нужно — образы
+> собираются внутри Docker, миграции применяет контейнер `migrate`, модель тянет `ollama-pull`.
+> Команды `bun run deploy`/`bun run backup` — лишь локальные алиасы; на сервере используйте прямые
+> `docker compose …` и `bash scripts/…`.
+
 ## 0. Сервер
-- [ ] Docker + Docker Compose установлены (`docker compose version`).
+- [ ] Docker + Docker Compose v2 установлены (`docker compose version`). Больше ничего не требуется.
 - [ ] **RAM ≥ 8 ГБ** (рекоменд. 12–16). Сумма mem-лимитов: ollama 4g + workers 2g + api 1g +
       Postgres/Qdrant/Redis. Меньше — риск OOM при индексации (ts-morph держит деревья в памяти).
 - [ ] Диск под данные: тома `postgres-data`/`qdrant-data`/`redis-data`/`ollama-data` (модель
@@ -28,7 +33,7 @@
 - [ ] `INDEX_SERVER_PATHS` оставить пустым → в проде по умолчанию `false` (hosted-юзеры грузят файлы).
 
 Проверка: если секреты дефолтные/короткие, контейнер `api` не стартует — это видно сразу после
-`bun run deploy`: `docker compose logs api | tail` покажет ошибку валидации по `JWT_*`.
+подъёма стека: `docker compose logs api | tail` покажет ошибку валидации по `JWT_*`.
 
 ## 2. DNS + TLS
 - [ ] A/AAAA-запись `brain-dock.ru` (и `www`) → IP сервера; распространилась (`dig +short brain-dock.ru`).
@@ -37,7 +42,10 @@
 - [ ] `sudo nginx -t && sudo systemctl reload nginx`.
 
 ## 3. Подъём стека
-- [ ] `bun run deploy` (= `docker compose --profile app up -d --build`).
+- [ ] `docker compose --profile app up -d --build` (собирает образы на сервере и поднимает стек).
+      Флаг `--profile app` включает app-сервисы (api/workers/mcp/web); без него поднимется только
+      инфра (для dev). Чтобы не писать флаг каждый раз — раскомментируйте `COMPOSE_PROFILES=app` в
+      `.env`, тогда хватит `docker compose up -d --build`.
 - [ ] `migrate` отработал успешно (миграции применились до api/mcp):
       `docker compose logs migrate | tail`.
 - [ ] `ollama-pull` скачал модель: `docker exec brain-dock-ollama ollama list` (есть `nomic-embed-text`).
@@ -64,7 +72,8 @@ curl -s https://brain-dock.ru/mcp -H "Authorization: Bearer bd_…" -H "X-Projec
       → вернётся список инструментов.
 
 ## 6. Эксплуатация (включить сразу)
-- [ ] **Бэкапы** настроены (см. [BACKUP.md](BACKUP.md) — `scripts/backup.sh` по cron). Критичен Postgres.
+- [ ] **Бэкапы** настроены: `bash scripts/backup.sh` по cron (см. [BACKUP.md](BACKUP.md); нужны
+      только docker + curl + coreutils, без bun). Критичен Postgres.
 - [ ] Логи смотрятся: `docker compose logs -f api mcp workers` (ротация настроена в compose).
 - [ ] (опц.) Скрейп метрик изнутри хоста: `127.0.0.1:3100/metrics` (наружу nginx не проксирует).
 - [ ] (опц.) Трейсинг: `OTEL_TRACES_EXPORTER=otlp` + `OTEL_EXPORTER_OTLP_ENDPOINT`.

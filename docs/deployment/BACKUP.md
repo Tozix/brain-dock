@@ -16,8 +16,11 @@
 3. **Ротация**: хранит последние `BACKUP_KEEP` снимков (по умолчанию 7), старые удаляет.
 
 ```bash
-bun run backup          # = bash scripts/backup.sh
+bash scripts/backup.sh          # на сервере; `bun run backup` — локальный алиас того же скрипта
 ```
+
+> На сервере нужны только **docker + curl + coreutils** (bun/jq **не** требуются — JSON Qdrant
+> парсится через `grep`/`sed`).
 
 ### Переменные окружения
 | Переменная | По умолчанию | Назначение |

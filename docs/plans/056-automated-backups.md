@@ -31,7 +31,8 @@
 - **Ротация** по числу снимков (`BACKUP_KEEP`, по умолчанию 7).
 - **Restore Postgres** — `gunzip | psql` с явным подтверждением (деструктивно); Qdrant-restore —
   документирован (reindex или upload snapshot).
-- JSON Qdrant парсим через `bun` (хард-пререквизит проекта) без зависимости от `jq`.
+- На сервере **bun не нужен** (всё в Docker): скрипт использует только docker + curl + coreutils;
+  JSON Qdrant парсится через `grep`/`sed`, без зависимости от `bun`/`jq`.
 
 ## Этапы
 - [x] `scripts/backup.sh`: `.env`-load, pg_dump→gzip, Qdrant per-collection snapshot→download→cleanup,
