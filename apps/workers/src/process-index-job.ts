@@ -1,3 +1,4 @@
+import { rm } from 'node:fs/promises';
 import { getTracer, runWithTraceContext } from '@brain-dock/core';
 import type { RepositoryIndexer } from '@brain-dock/indexer';
 import type { SymbolIndexService } from '@brain-dock/knowledge';
@@ -111,6 +112,13 @@ export function processIndexJob(deps: IndexJobDeps, data: IndexJob): Promise<Ing
         throw error;
       } finally {
         span.end();
+        // Upload jobs index a throwaway staging dir — remove it once done. Safe regardless of
+        // success/failure because upload jobs are enqueued with no retries (see BullIndexQueue).
+        if (data.kind === 'upload') {
+          await rm(data.rootDir, { recursive: true, force: true }).catch((error) =>
+            console.error(`[index] staging cleanup failed for ${data.rootDir}:`, error),
+          );
+        }
       }
     }),
   );

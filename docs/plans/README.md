@@ -73,3 +73,6 @@
 | [052](052-search-quality.md) | Качество поиска: eval-harness, префиксы nomic, суб-чанкинг, hybrid BM25+RRF | Search | Done |
 | [053](053-mcp-ux.md) | MCP UX: instructions, annotations, /mcp/{slug}, профиль, статус индексации, repo_map | Hosted | Done |
 | [054](054-web-ui.md) | Веб-кабинет + админка (SPA) + host-nginx (brain-dock.ru) | Web | Done |
+| [055](055-vscode-prod-defaults.md) | Прод-дефолты VSCode-расширения (brain-dock.ru) | Client | Done |
+| [056](056-automated-backups.md) | Автобэкапы: pg_dump + Qdrant snapshots + restore | Ops | Done |
+| [057](057-upload-index-queue.md) | Очередь для upload-индексации (202 QUEUED + staging-том) | Indexing | Done |

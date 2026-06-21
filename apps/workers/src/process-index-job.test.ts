@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'bun:test';
+import { mkdir, mkdtemp, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { RepositoryIndex } from '@brain-dock/indexer';
 import type { IngestReport } from '@brain-dock/search';
 import {
@@ -154,6 +157,33 @@ describe('processIndexJob', () => {
     };
     const report = await processIndexJob({ ingestion, indexer, repositories }, job);
     expect(report).toEqual({ files: 1, chunks: 2 });
+  });
+
+  it('deletes the staging directory after an upload job', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bd-upload-'));
+    await mkdir(join(dir, 'src'), { recursive: true });
+    await writeFile(join(dir, 'src', 'a.ts'), 'export class A {}', 'utf8');
+    const ingestion = {
+      ingestIndex: async (): Promise<IngestReport> => ({ files: 1, chunks: 1 }),
+    };
+
+    await processIndexJob({ ingestion, indexer }, { ...job, kind: 'upload', rootDir: dir });
+
+    // The throwaway staging dir is removed once the upload job finishes.
+    await expect(stat(dir)).rejects.toThrow();
+  });
+
+  it('deletes the staging directory even when an upload job fails', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bd-upload-fail-'));
+    const ingestion = {
+      ingestIndex: async (): Promise<IngestReport> => {
+        throw new Error('qdrant down');
+      },
+    };
+    await expect(
+      processIndexJob({ ingestion, indexer }, { ...job, kind: 'upload', rootDir: dir }),
+    ).rejects.toThrow('qdrant down');
+    await expect(stat(dir)).rejects.toThrow();
   });
 
   it('rethrows symbol persist failures after vectors were written (job retries)', async () => {

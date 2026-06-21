@@ -17,6 +17,7 @@ import { RepositoriesService } from './repositories.service';
       inject: [ConfigService],
     },
   ],
-  exports: [RepositoriesService],
+  // Export the queue port too: IndexingModule's upload path enqueues through the same instance.
+  exports: [RepositoriesService, INDEX_QUEUE_PORT],
 })
 export class RepositoriesModule {}

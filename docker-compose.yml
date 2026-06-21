@@ -132,9 +132,14 @@ services:
       REDIS_URL: redis://redis:6379
       QDRANT_URL: http://qdrant:6333
       OLLAMA_URL: http://ollama:11434
+      # Upload-and-index staging — written here, indexed + deleted by the workers container.
+      INDEX_STAGING_DIR: /var/lib/brain-dock/staging
     ports:
       - '127.0.0.1:3100:3100'
     mem_limit: 1g
+    volumes:
+      # Shared with `workers` so the worker can index (then delete) what the API staged.
+      - index-staging:/var/lib/brain-dock/staging
     logging: *default-logging
     healthcheck:
       # oven/bun has no curl — probe the root-level /health endpoint with bun itself.
@@ -171,6 +176,10 @@ services:
       OLLAMA_URL: http://ollama:11434
     # 2g (not 1g): ts-morph holds whole source trees in memory while indexing large repositories.
     mem_limit: 2g
+    volumes:
+      # Same staging volume the API writes uploaded files into (path matches INDEX_STAGING_DIR;
+      # upload jobs carry an absolute path under it).
+      - index-staging:/var/lib/brain-dock/staging
     logging: *default-logging
     depends_on:
       redis:
@@ -243,3 +252,5 @@ volumes:
   qdrant-data:
   redis-data:
   ollama-data:
+  # Upload-and-index staging, shared between `api` (writer) and `workers` (indexer + cleaner).
+  index-staging:

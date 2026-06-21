@@ -135,8 +135,10 @@ sudo nginx -t && sudo systemctl reload nginx
 
 Код **не обязан лежать на сервере**. Основной hosted-путь — **upload-индексация**: клиент
 выгружает файлы прямо в запросе `POST /api/v1/projects/:pid/repositories/:id/index` (пути +
-контент), сервер индексирует их на месте. VSCode-расширение (§6.4) делает это автоматически.
-Суммарный размер одной выгрузки ограничен `INDEX_UPLOAD_MAX_TOTAL_BYTES` (по умолчанию 50 МБ).
+контент); сервер кладёт их в staging-каталог (том, общий с воркером), ставит задачу и **сразу
+отвечает `202 QUEUED`** — индексирует фоновый воркер и затем удаляет staging. VSCode-расширение
+(§6.4) делает это автоматически и дожидается статуса. Суммарный размер одной выгрузки ограничен
+`INDEX_UPLOAD_MAX_TOTAL_BYTES` (по умолчанию 50 МБ); staging-каталог задаётся `INDEX_STAGING_DIR`.
 
 Альтернатива для self-host — индексация **пути на сервере** (`repository.root` + `POST
 …/reindex`): воркер читает код из файловой системы. В prod этот путь по умолчанию **отключён**
@@ -190,7 +192,9 @@ curl -s -X POST $API/projects/$PID/repositories -H "x-api-key: $T" -H 'content-t
   -d '{"name":"My App","alias":"my-app","root":"/repos/my-app"}'
 RID=<id-репозитория>
 
-# Вариант A (основной, hosted): выгрузить файлы на индексацию — код не нужен на сервере
+# Вариант A (основной, hosted): выгрузить файлы на индексацию — код не нужен на сервере.
+# Эндпоинт ставит задачу в очередь и сразу отвечает 202 {status:"QUEUED"} — индексирует фоновый
+# воркер; следите за прогрессом через .../status (QUEUED → INDEXING → READY/FAILED).
 curl -s -X POST $API/projects/$PID/repositories/$RID/index -H "x-api-key: $T" \
   -H 'content-type: application/json' \
   -d '{"files":[{"path":"src/main.ts","content":"…"}, …]}'

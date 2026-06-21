@@ -27,10 +27,14 @@ export interface FileContent {
   content: string;
 }
 
-export interface IndexUploadReport {
-  files: number;
-  chunks: number;
-  symbols: number;
+/** Indexing lifecycle of one repository (REST `GET .../repositories/:id/status`). */
+export interface RepoStatus {
+  indexStatus: 'QUEUED' | 'INDEXING' | 'READY' | 'FAILED' | null;
+  indexError: string | null;
+  indexedFileCount: number | null;
+  symbolCount: number | null;
+  lastIndexedAt: string | null;
+  updatedAt?: string;
 }
 
 export interface UsageSummary {

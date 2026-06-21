@@ -1,62 +1,50 @@
-import { IndexStatus, type Prisma } from '@brain-dock/db';
-import { createEmbedder, embedderConfigFromEnv } from '@brain-dock/embedding';
-import { type FileIndex, type FileInput, RepositoryIndexer } from '@brain-dock/indexer';
-import { SymbolIndexService } from '@brain-dock/knowledge';
-import { CODE_COLLECTION, IngestionService } from '@brain-dock/search';
-import { QdrantStore } from '@brain-dock/storage';
-import { Injectable, PayloadTooLargeException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve, sep } from 'node:path';
+import type { IndexQueue } from '@brain-dock/core';
+import { IndexStatus } from '@brain-dock/db';
+import type { FileInput } from '@brain-dock/indexer';
+import { CODE_COLLECTION } from '@brain-dock/search';
+import { Inject, Injectable, PayloadTooLargeException } from '@nestjs/common';
 import { ConfigService } from '../config/config.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { INDEX_QUEUE_PORT } from '../repositories/index-queue';
 
-// Match the on-disk indexer: TypeScript sources only, excluding declarations and tests.
-const INDEXABLE = (p: string): boolean =>
-  /\.tsx?$/.test(p) && !p.endsWith('.d.ts') && !p.includes('.test.') && !p.includes('.spec.');
-
-// Parse this many files between yields to the event loop (ts-morph parsing is synchronous).
-const PARSE_BATCH_SIZE = 25;
-
-// Truncate persisted index errors so a giant stack/driver message cannot bloat the row.
-const MAX_INDEX_ERROR_CHARS = 1000;
-
-export interface IndexUploadReport {
-  files: number;
-  chunks: number;
-  symbols: number;
+export interface IndexEnqueueResult {
+  repositoryId: string;
+  status: 'QUEUED';
 }
 
 /**
- * Index files uploaded by a client (no server-side path / git needed): parse in memory, embed to
- * Qdrant and persist the structural index to Postgres — the same outputs as the worker, on demand.
+ * Upload-and-index (no server-side path / git needed): the API writes the uploaded files into a
+ * throwaway staging directory shared with the workers container, marks the repository QUEUED and
+ * enqueues an index job. The worker parses + embeds + persists the symbol index from that directory
+ * and deletes it — so a slow/large upload no longer blocks the HTTP request (it returns 202).
  */
 @Injectable()
 export class IndexingService {
-  private readonly indexer = new RepositoryIndexer();
-  private readonly ingestion: IngestionService;
-  private readonly symbols: SymbolIndexService;
   private readonly collection: string;
   private readonly maxTotalBytes: number;
+  private readonly stagingBase: string;
 
   constructor(
     config: ConfigService,
     private readonly prisma: PrismaService,
+    @Inject(INDEX_QUEUE_PORT) private readonly queue: IndexQueue,
   ) {
-    const embedder = createEmbedder(embedderConfigFromEnv());
-    const store = new QdrantStore({ url: config.env.QDRANT_URL });
-    this.ingestion = new IngestionService(embedder, store);
-    this.symbols = new SymbolIndexService(prisma.client);
     this.collection = process.env.COLLECTION ?? CODE_COLLECTION;
     this.maxTotalBytes = config.env.INDEX_UPLOAD_MAX_TOTAL_BYTES;
+    this.stagingBase = config.env.INDEX_STAGING_DIR;
   }
 
-  async indexFiles(
+  async enqueueUpload(
     projectId: string,
     repo: string,
     repositoryId: string,
     files: FileInput[],
-  ): Promise<IndexUploadReport> {
+  ): Promise<IndexEnqueueResult> {
     // Total upload budget — a request-level backstop on top of the per-file schema limits.
-    // Rejected before any status change: an oversized request is the client's error, not a
-    // failed indexing run.
+    // Rejected before any staging/status change: an oversized request is the client's error.
     const totalBytes = files.reduce((sum, f) => sum + Buffer.byteLength(f.content, 'utf8'), 0);
     if (totalBytes > this.maxTotalBytes) {
       throw new PayloadTooLargeException(
@@ -64,65 +52,45 @@ export class IndexingService {
       );
     }
 
-    // The upload path indexes synchronously — there is no QUEUED phase, only INDEXING→READY/FAILED.
-    await this.setStatus(repositoryId, { indexStatus: IndexStatus.INDEXING, indexError: null });
+    const stagingDir = join(this.stagingBase, `${repositoryId}-${randomUUID()}`);
+    await this.writeStaging(stagingDir, files);
     try {
-      const index = await this.parseInBatches(
-        repo,
-        files.filter((f) => INDEXABLE(f.path)),
-      );
-      const report = await this.ingestion.ingestIndex(index, {
+      // Stamp QUEUED before enqueueing so status readers never see a stale READY/FAILED for an
+      // already-submitted job (the worker flips it INDEXING → READY/FAILED and deletes the dir).
+      await this.prisma.client.repository.update({
+        where: { id: repositoryId },
+        data: { indexStatus: IndexStatus.QUEUED, indexError: null },
+      });
+      await this.queue.enqueue({
+        kind: 'upload',
         projectId,
+        rootDir: stagingDir,
         collection: this.collection,
         repo,
         repositoryId,
       });
-      const persisted = await this.symbols.persist({ projectId, repo }, index);
-      await this.setStatus(repositoryId, {
-        indexStatus: IndexStatus.READY,
-        indexError: null,
-        lastIndexedAt: new Date(),
-        indexedFileCount: report.files,
-        symbolCount: persisted.symbols,
-      });
-      return { files: report.files, chunks: report.chunks, symbols: persisted.symbols };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      // Best-effort: a failing status write must not mask the original indexing error.
-      await this.setStatus(repositoryId, {
-        indexStatus: IndexStatus.FAILED,
-        indexError: message.slice(0, MAX_INDEX_ERROR_CHARS),
-      }).catch((e) => console.error('[indexing] failed to persist FAILED status:', e));
+      // The job never made it to the queue — drop the staging dir so it can't leak.
+      await rm(stagingDir, { recursive: true, force: true }).catch(() => {});
       throw error;
     }
+    return { repositoryId, status: 'QUEUED' };
   }
 
-  private async setStatus(repositoryId: string, data: Prisma.RepositoryUpdateInput): Promise<void> {
-    await this.prisma.client.repository.update({ where: { id: repositoryId }, data });
-  }
-
-  /**
-   * ts-morph parsing is synchronous and CPU-bound; parse in batches and yield to the event loop
-   * between them so one big upload cannot starve other requests for seconds.
-   */
-  private async parseInBatches(repo: string, inputs: FileInput[]) {
-    const files: FileIndex[] = [];
-    for (let i = 0; i < inputs.length; i += PARSE_BATCH_SIZE) {
-      const batch = inputs.slice(i, i + PARSE_BATCH_SIZE);
-      files.push(...this.indexer.indexFiles(repo, batch).files);
-      if (i + PARSE_BATCH_SIZE < inputs.length) {
-        await new Promise((resolve) => setImmediate(resolve));
+  /** Write uploaded files under `stagingDir`, ignoring any path that escapes it (`..`/absolute). */
+  private async writeStaging(stagingDir: string, files: FileInput[]): Promise<void> {
+    await mkdir(stagingDir, { recursive: true });
+    try {
+      const root = resolve(stagingDir);
+      for (const file of files) {
+        const target = resolve(root, file.path);
+        if (target !== root && !target.startsWith(root + sep)) continue; // path traversal — skip
+        await mkdir(dirname(target), { recursive: true });
+        await writeFile(target, file.content, 'utf8');
       }
+    } catch (error) {
+      await rm(stagingDir, { recursive: true, force: true }).catch(() => {});
+      throw error;
     }
-    return {
-      rootDir: repo,
-      files,
-      stats: {
-        files: files.length,
-        symbols: files.reduce((n, f) => n + f.symbols.length, 0),
-        chunks: files.reduce((n, f) => n + f.chunks.length, 0),
-        relations: files.reduce((n, f) => n + f.relations.length, 0),
-      },
-    };
   }
 }

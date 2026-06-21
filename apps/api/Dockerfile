@@ -13,6 +13,9 @@ RUN DATABASE_URL=postgresql://x:x@localhost:5432/x bun run db:generate
 
 ENV NODE_ENV=production
 EXPOSE 3100
+# Pre-create the upload-staging dir owned by `bun` so the (initially root-owned) named volume
+# inherits that ownership on first mount — the non-root runtime must be able to write into it.
+RUN mkdir -p /var/lib/brain-dock/staging && chown -R bun:bun /var/lib/brain-dock
 # Drop root: the runtime only reads /app (oven/bun ships a non-root `bun` user).
 USER bun
 CMD ["bun", "run", "apps/api/src/main.ts"]

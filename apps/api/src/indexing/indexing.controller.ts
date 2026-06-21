@@ -1,4 +1,4 @@
-import { Body, Controller, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import type { AuthenticatedUser } from '../common/auth-user';
 import { CurrentUser } from '../common/current-user.decorator';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -14,7 +14,10 @@ export class IndexingController {
     private readonly indexing: IndexingService,
   ) {}
 
+  // 202 Accepted: the upload is staged and an index job is enqueued; the worker indexes in the
+  // background. Clients poll `GET .../repositories/:id/status` for QUEUED → INDEXING → READY/FAILED.
   @Post()
+  @HttpCode(202)
   async index(
     @CurrentUser() user: AuthenticatedUser,
     @Param('projectId', ParseUUIDPipe) projectId: string,
@@ -22,6 +25,6 @@ export class IndexingController {
     @Body(new ZodValidationPipe(indexFilesSchema)) dto: IndexFilesDto,
   ) {
     const repo = await this.repositories.get(user, projectId, id);
-    return this.indexing.indexFiles(repo.projectId, repo.alias, repo.id, dto.files);
+    return this.indexing.enqueueUpload(repo.projectId, repo.alias, repo.id, dto.files);
   }
 }

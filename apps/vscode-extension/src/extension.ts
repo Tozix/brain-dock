@@ -220,9 +220,10 @@ export function activate(context: vscode.ExtensionContext): void {
             progress.report({ message: msg });
             provider.setBusy(msg);
             output.appendLine(`[index] uploading ${files.length} files…`);
-            const report = await client.indexFiles(proj.id, repo.id, files);
+            progress.report({ message: t(lang, 'progress.indexing') });
+            const status = await client.indexFiles(proj.id, repo.id, files);
             output.appendLine(
-              `[index] done: ${report.symbols} symbols / ${report.chunks} chunks / ${report.files} files`,
+              `[index] ${status.indexStatus}: ${status.symbolCount ?? 0} symbols / ${status.indexedFileCount ?? 0} files`,
             );
           }
         },

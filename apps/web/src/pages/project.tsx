@@ -248,19 +248,20 @@ function ReposTab({ projectId }: { projectId: string }) {
         total += f.size;
         files.push({ path: relPath(f), content: await f.text() });
       }
-      // Пока идёт синхронная индексация на сервере — показываем маяк INDEXING.
+      // Индексация теперь асинхронная: эндпоинт ставит задачу и сразу отвечает 202 QUEUED;
+      // прогресс и итоговые счётчики подтянет периодический опрос статуса ниже.
       setRepos(
         (prev) =>
-          prev?.map((r) => (r.id === repoId ? { ...r, indexStatus: 'INDEXING' as const } : r)) ??
+          prev?.map((r) => (r.id === repoId ? { ...r, indexStatus: 'QUEUED' as const } : r)) ??
           prev,
       );
-      const rep = await api<{ files: number; chunks: number; symbols: number }>(
+      await api<{ repositoryId: string; status: string }>(
         `/projects/${projectId}/repositories/${repoId}/index`,
         { method: 'POST', body: { files } },
       );
       setReport(
-        `Проиндексировано: файлов ${fmtInt(rep.files)}, чанков ${fmtInt(rep.chunks)}, ` +
-          `символов ${fmtInt(rep.symbols)}` +
+        `Загружено файлов: ${fmtInt(files.length)} — индексация запущена в фоне, ` +
+          `статус обновится автоматически` +
           (skipped > 0
             ? ` · внимание: ${fmtInt(skipped)} файл(ов) пропущено — превышен бюджет 40 МБ`
             : ''),

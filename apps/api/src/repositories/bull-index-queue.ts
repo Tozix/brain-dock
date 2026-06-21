@@ -28,7 +28,12 @@ export class BullIndexQueue implements IndexQueue {
   }
 
   async enqueue(job: IndexJob): Promise<void> {
+    // Upload jobs index a throwaway staging dir the API just wrote: don't retry (the bytes only
+    // existed for that request — a retry would re-run the same now-stale dir or, after the worker
+    // deletes it, find nothing), and drop the job on completion so large file trees don't linger
+    // in Redis. Server-path jobs keep the default retry/backoff (the path persists).
+    const options = job.kind === 'upload' ? { attempts: 1, removeOnComplete: true } : undefined;
     // Carry the active trace context so the worker's span links to this request.
-    await this.queue.add('index', { ...job, trace: injectTraceContext() });
+    await this.queue.add('index', { ...job, trace: injectTraceContext() }, options);
   }
 }

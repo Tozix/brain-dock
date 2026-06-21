@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { z } from 'zod';
 
 // The placeholder secrets shipped in .env.example — never acceptable in production.
@@ -46,6 +48,10 @@ export const envSchema = z
     CORS_ORIGINS: z.string().default(''),
     // Upload-and-index: total byte budget for file contents in one request (default 50 MB).
     INDEX_UPLOAD_MAX_TOTAL_BYTES: z.coerce.number().int().positive().default(52_428_800),
+    // Staging directory the API writes uploaded files into for the worker to index (then delete).
+    // In Docker this is a volume shared with the workers container; in dev both run on the same
+    // host so the OS temp dir works without any mount.
+    INDEX_STAGING_DIR: z.string().min(1).default(join(tmpdir(), 'brain-dock-index-staging')),
     // Gate for reindexing by server-side filesystem path; resolved to a boolean below
     // (defaults: enabled outside production, disabled in production).
     INDEX_SERVER_PATHS: z.enum(['true', 'false']).optional(),

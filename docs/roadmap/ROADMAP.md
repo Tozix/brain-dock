@@ -193,5 +193,6 @@
 - Структурное логирование (pino).
 - ✅ Бэкапы: pg_dump + Qdrant snapshots (автоматизация) — план [056](../plans/056-automated-backups.md)
   (`bun run backup` + `scripts/restore.sh`, [BACKUP.md](../deployment/BACKUP.md)).
-- Очередь для upload-индексации (сейчас — синхронно в запросе).
+- ✅ Очередь для upload-индексации — план [057](../plans/057-upload-index-queue.md) (202 QUEUED +
+  staging-том, общий с воркером; воркер индексирует и чистит).
 - Change-coupling (co-changed files) в контексте.

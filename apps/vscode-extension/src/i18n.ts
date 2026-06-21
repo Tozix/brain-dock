@@ -22,6 +22,7 @@ export type MessageKey =
   | 'msg.noWorkspace'
   | 'progress.provisioning'
   | 'progress.uploading'
+  | 'progress.indexing'
   | 'msg.workspaceReady'
   | 'msg.autoIndexAsk'
   | 'btn.autoIndexYes'
@@ -95,6 +96,7 @@ const en: Record<MessageKey, string> = {
   'msg.noWorkspace': 'Open a folder in VS Code first.',
   'progress.provisioning': 'brain-dock: setting up the project…',
   'progress.uploading': 'uploading {n} files…',
+  'progress.indexing': 'indexing on the server…',
   'msg.workspaceReady': 'Project {name} is indexing.',
   'msg.autoIndexAsk': 'Index this folder in Brain Dock?',
   'btn.autoIndexYes': 'Yes',
@@ -171,6 +173,7 @@ const ru: Record<MessageKey, string> = {
   'msg.noWorkspace': 'Сначала откройте папку в VS Code.',
   'progress.provisioning': 'brain-dock: настраиваю проект…',
   'progress.uploading': 'загружаю {n} файлов…',
+  'progress.indexing': 'индексация на сервере…',
   'msg.workspaceReady': 'Проект {name} индексируется.',
   'msg.autoIndexAsk': 'Проиндексировать эту папку в Brain Dock?',
   'btn.autoIndexYes': 'Да',

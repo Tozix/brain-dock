@@ -2,10 +2,10 @@
 import {
   type FileContent,
   type IndexStatus,
-  type IndexUploadReport,
   normalizeBase,
   type Project,
   parseSummary,
+  type RepoStatus,
   type Repository,
   toolText,
   type UsageSummary,
@@ -62,14 +62,32 @@ export class BrainDockClient {
     return this.rest('POST', `/projects/${projectId}/repositories/${repoId}/reindex`);
   }
 
-  /** Upload file contents to be indexed server-side (no git / server path needed). */
-  indexFiles(projectId: string, repoId: string, files: FileContent[]): Promise<IndexUploadReport> {
-    return this.rest<IndexUploadReport>(
-      'POST',
-      `/projects/${projectId}/repositories/${repoId}/index`,
-      { files },
-      INDEX_TIMEOUT_MS,
-    );
+  /**
+   * Upload file contents to be indexed server-side (no git / server path needed), then poll until
+   * the background index job reaches READY/FAILED. The POST returns 202 immediately (the API stamps
+   * QUEUED before responding, so there is no stale-READY race); we wait so the caller can report
+   * final counts. Throws on FAILED; returns the last-known status if it hasn't finished in time.
+   */
+  async indexFiles(projectId: string, repoId: string, files: FileContent[]): Promise<RepoStatus> {
+    await this.rest('POST', `/projects/${projectId}/repositories/${repoId}/index`, { files });
+    return this.waitForIndex(projectId, repoId);
+  }
+
+  getRepoStatus(projectId: string, repoId: string): Promise<RepoStatus> {
+    return this.rest<RepoStatus>('GET', `/projects/${projectId}/repositories/${repoId}/status`);
+  }
+
+  private async waitForIndex(projectId: string, repoId: string): Promise<RepoStatus> {
+    const deadline = Date.now() + INDEX_TIMEOUT_MS;
+    for (;;) {
+      const status = await this.getRepoStatus(projectId, repoId);
+      if (status.indexStatus === 'READY') return status;
+      if (status.indexStatus === 'FAILED') {
+        throw new Error(`indexing failed: ${status.indexError ?? 'unknown error'}`);
+      }
+      if (Date.now() > deadline) return status; // still QUEUED/INDEXING — stop blocking the UI
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
   }
 
   getUsage(days = 30): Promise<UsageSummary> {
