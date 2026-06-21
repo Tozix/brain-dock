@@ -34,8 +34,8 @@ See [plan 042](https://github.com/Tozix/brain-dock/blob/main/docs/plans/042-vsco
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `brainDock.serverUrl` | `http://localhost:3100` | REST API base (without `/api/v1`). |
-| `brainDock.mcpUrl` | `http://localhost:8080/mcp` | Remote MCP endpoint. |
+| `brainDock.serverUrl` | `https://brain-dock.ru` | REST API base (without `/api/v1`). Defaults to the hosted service; override for self-hosting (e.g. `http://localhost:3100`). |
+| `brainDock.mcpUrl` | `https://brain-dock.ru/mcp` | Remote MCP endpoint. Defaults to the hosted service; override for self-hosting (e.g. `http://localhost:8080/mcp`). |
 | `brainDock.project` | — | Active project (slug/id) → `X-Project`. Stored per-workspace when a folder is open, so different windows can use different projects. |
 
 The API key is stored in VS Code **SecretStorage**, never in settings.

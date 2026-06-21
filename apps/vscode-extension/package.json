@@ -107,13 +107,13 @@
       "properties": {
         "brainDock.serverUrl": {
           "type": "string",
-          "default": "http://localhost:3100",
-          "markdownDescription": "Base URL of the brain-dock REST API (without the `/api/v1` suffix)."
+          "default": "https://brain-dock.ru",
+          "markdownDescription": "Base URL of the brain-dock REST API (without the `/api/v1` suffix). Defaults to the hosted service; for self-hosting set your own origin (e.g. `http://localhost:3100`)."
         },
         "brainDock.mcpUrl": {
           "type": "string",
-          "default": "http://localhost:8080/mcp",
-          "markdownDescription": "URL of the brain-dock remote MCP endpoint (Streamable HTTP)."
+          "default": "https://brain-dock.ru/mcp",
+          "markdownDescription": "URL of the brain-dock remote MCP endpoint (Streamable HTTP). Defaults to the hosted service; for self-hosting set your own (e.g. `http://localhost:8080/mcp`)."
         },
         "brainDock.project": {
           "type": "string",
