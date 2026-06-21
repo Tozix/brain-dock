@@ -100,10 +100,11 @@ migrate: service_completed_successfully`); запускать `db:deploy` вру
 > — `pull` на все»). Сейчас не нужно.
 
 ## Бэкапы
-Автоматизация бэкапов **ещё не сделана** (пункт в [backlog](../roadmap/ROADMAP.md#дальше-backlog)).
-Пока вручную: Postgres — `docker exec brain-dock-postgres pg_dump -U $POSTGRES_USER $POSTGRES_DB > backup.sql`;
-Qdrant — snapshot API (`POST /collections/<name>/snapshots`). Векторы восстановимы реиндексацией,
-поэтому критичен в первую очередь Postgres (пользователи/ключи/память/знания/символы).
+Автоматизированы: `bun run backup` (= `scripts/backup.sh`) — `pg_dump` Postgres (критично) +
+скачивание Qdrant-снапшотов на хост, с ротацией. Восстановление — `scripts/restore.sh <backup-dir>`.
+Расписание (cron), переменные и восстановление — в [BACKUP.md](BACKUP.md). Критичен в первую
+очередь Postgres (пользователи/ключи/память/знания/символы); векторы Qdrant восстановимы реиндексом.
+План [056](../plans/056-automated-backups.md).
 
 ### Образы вручную (опц.)
 ```bash

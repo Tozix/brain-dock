@@ -1,3 +1,6 @@
+# Backups (scripts/backup.sh output — never commit dumps/snapshots)
+/backups/
+
 # Logs
 logs
 *.log

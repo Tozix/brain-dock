@@ -191,6 +191,7 @@
 - Redis-backed rate limit для MCP (общий между инстансами).
 - Ротация refresh-токенов.
 - Структурное логирование (pino).
-- Бэкапы: pg_dump + Qdrant snapshots (автоматизация).
+- ✅ Бэкапы: pg_dump + Qdrant snapshots (автоматизация) — план [056](../plans/056-automated-backups.md)
+  (`bun run backup` + `scripts/restore.sh`, [BACKUP.md](../deployment/BACKUP.md)).
 - Очередь для upload-индексации (сейчас — синхронно в запросе).
 - Change-coupling (co-changed files) в контексте.
