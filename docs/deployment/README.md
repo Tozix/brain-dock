@@ -3,6 +3,9 @@
 Docker / Docker Compose, окружения и инфраструктура. Local-first; конфигурация —
 через переменные окружения (валидируются Zod, см. [`.env.example`](../../.env.example)).
 
+> **Боевой подъём на сервере:** пройдите [GO-LIVE-CHECKLIST.md](GO-LIVE-CHECKLIST.md) по пунктам
+> (секреты, DNS/TLS, RAM, дымовые проверки, бэкапы). Walkthrough — в [GUIDE.md §3](../GUIDE.md).
+
 ## Сервисы (docker-compose.yml)
 
 Инфраструктура (всегда доступна):
