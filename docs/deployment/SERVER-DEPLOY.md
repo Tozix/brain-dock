@@ -35,31 +35,25 @@ git clone <repo-url> brain-dock && cd brain-dock
 cp .env.example .env
 ```
 
-## Шаг 2. Заполнить `.env` (обязательные прод-настройки)
-Открой `.env` и задай:
+## Шаг 2. Заполнить `.env`
+Шаблон `.env.example` уже **production-first** (in-network DNS, `NODE_ENV=production`,
+`EMBEDDER=ollama`, `TRUST_PROXY=true`). На сервере **обязательно** задать только:
 
 ```bash
-# 1) Сильные JWT-секреты (иначе api НЕ стартует под NODE_ENV=production):
-#    сгенерируй и вставь значения:
-openssl rand -base64 48     # → в JWT_ACCESS_SECRET
-openssl rand -base64 48     # → в JWT_REFRESH_SECRET
+# 1) Сильные JWT-секреты — иначе api НЕ стартует под NODE_ENV=production:
+openssl rand -base64 48     # → вставить в JWT_ACCESS_SECRET
+openssl rand -base64 48     # → вставить в JWT_REFRESH_SECRET
 
 # 2) Сменить пароль Postgres:
 POSTGRES_PASSWORD=<надёжный-пароль>
-
-# 3) Реальный семантический поиск:
-EMBEDDER=ollama
-
-# 4) За nginx — видеть реальный IP клиента в rate-limit:
-TRUST_PROXY=true
-
-# 5) Удобство: чтобы не писать --profile app каждый раз — раскомментируй:
-COMPOSE_PROFILES=app
 ```
 
-> `DATABASE_URL`/`REDIS_URL`/`QDRANT_URL`/`OLLAMA_URL` в `.env` указывают на `localhost:<host-port>` —
-> это для **локальной разработки**. В контейнерах эти значения **перекрываются** in-network DNS
-> (`postgres:5432` и т.д.) автоматически — на сервере их трогать не нужно.
+И по желанию — раскомментировать `COMPOSE_PROFILES=app`, чтобы поднимать стек просто
+`docker compose up -d --build` (без флага `--profile app`).
+
+> Остальное уже прод-корректно. URL'ы инфры (`postgres:5432` и т.д.) и `NODE_ENV` на сервере всё
+> равно задаёт docker-compose — трогать их не нужно. Менять под себя имеет смысл разве что
+> rate-limit'ы (`MCP_RATE_LIMIT_MAX`), `METRICS_TOKEN`, `INDEX_UPLOAD_MAX_TOTAL_BYTES`.
 
 ## Шаг 3. Поднять стек
 ```bash

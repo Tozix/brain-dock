@@ -22,15 +22,15 @@
 - [ ] Порты `80`/`443` свободны для host-nginx; app-порты (3100/3300/8080) наружу **не** открыты.
 
 ## 1. Секреты и .env (обязательно)
+`.env.example` уже production-first (`NODE_ENV=production`, in-network URL, `EMBEDDER=ollama`,
+`TRUST_PROXY=true`). На сервере обязательно задать только секреты и пароль:
 - [ ] `cp .env.example .env`.
 - [ ] `JWT_ACCESS_SECRET` и `JWT_REFRESH_SECRET` — сильные, ≥32 символов
       (`openssl rand -base64 48`). Иначе `api` **упадёт при старте** (`NODE_ENV=production`).
 - [ ] `POSTGRES_PASSWORD` сменён с дефолтного `brain_dock` (публичный сервер).
-- [ ] `EMBEDDER=ollama` (для реальной семантики; `deterministic` — только dev). Значение должно
-      быть **одинаковым** в api/workers/mcp — в compose это один `.env`, ок.
-- [ ] `TRUST_PROXY=true` (или число хопов) — за nginx, чтобы rate-limit видел реальный IP.
-- [ ] (опц.) `METRICS_TOKEN`, `CORS_ORIGINS` (для same-origin веба не нужен), `MCP_RATE_LIMIT_MAX`.
-- [ ] `INDEX_SERVER_PATHS` оставить пустым → в проде по умолчанию `false` (hosted-юзеры грузят файлы).
+- [ ] (опц.) раскомментировать `COMPOSE_PROFILES=app` (чтобы хватало `docker compose up -d --build`).
+- [ ] (уже дефолт, проверить) `EMBEDDER=ollama`, `TRUST_PROXY=true`; `INDEX_SERVER_PATHS` пуст →
+      в проде `false` (hosted-юзеры грузят файлы). Опц.: `METRICS_TOKEN`, `MCP_RATE_LIMIT_MAX`.
 
 Проверка: если секреты дефолтные/короткие, контейнер `api` не стартует — это видно сразу после
 подъёма стека: `docker compose logs api | tail` покажет ошибку валидации по `JWT_*`.

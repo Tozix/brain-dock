@@ -52,11 +52,14 @@ bun run infra:down
 docker compose --profile app up -d --build      # или COMPOSE_PROFILES=app + docker compose up -d --build
 ```
 
-## Первый запуск
+## Первый запуск (локальная разработка)
+`.env.example` ориентирован на прод — для dev в `.env` включите dev-значения: `NODE_ENV=development`,
+раскомментируйте `# dev:` строки URL (localhost host-порты), `EMBEDDER=deterministic`.
 ```bash
 cp .env.example .env
+# → правим .env под dev (NODE_ENV=development, dev-URL'ы, EMBEDDER=deterministic)
 bun install
-bun run infra:up
+bun run infra:up              # инфра + хост-порты (docker-compose.dev.yml)
 bun run db:migrate
 bun run --cwd apps/api dev    # API на http://localhost:3100
 ```
