@@ -1,0 +1,24 @@
+# brain-dock — DEV-ONLY override: re-publish infra ports on 127.0.0.1 so app services run from
+# source (via bun) on the host can reach Postgres/Qdrant/Redis/Ollama. NOT auto-loaded (custom
+# name) — use explicitly, e.g. `bun run infra:up` (= docker compose -f docker-compose.yml
+# -f docker-compose.dev.yml up -d). NEVER used on the server: production infra stays network-only.
+#
+# Ports are deliberately non-default to avoid clashing with locally-installed services and are
+# bound to 127.0.0.1 (loopback) only. They match the host URLs in .env.example.
+services:
+  postgres:
+    ports:
+      - '127.0.0.1:15432:5432'
+
+  qdrant:
+    ports:
+      - '127.0.0.1:16333:6333'
+      - '127.0.0.1:16334:6334'
+
+  redis:
+    ports:
+      - '127.0.0.1:16379:6379'
+
+  ollama:
+    ports:
+      - '127.0.0.1:11434:11434'

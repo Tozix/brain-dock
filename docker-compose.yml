@@ -1,10 +1,17 @@
-# brain-dock — local infrastructure + (optional) app services.
-# Local-first: Postgres, Qdrant, Redis, Ollama. Start infra with `bun run infra:up`.
-# App services (api, workers) live behind the `app` profile and are built on the host at deploy
-# time — no image registry: `bun run deploy` (= docker compose --profile app up -d --build).
+# brain-dock — infrastructure + app services (production-first).
 #
-# Infra ports are bound to 127.0.0.1 only — none of these services have auth enabled.
-# App services reach them over the internal Compose network, so they are unaffected.
+# Infra (Postgres, Qdrant, Redis, Ollama) publishes NO host ports here: it is reachable only over
+# the internal Compose network by the app containers. Only the app services that the host nginx
+# proxies — api (:3100), web (:3300), mcp (:8080) — bind a 127.0.0.1 host port. workers/migrate/
+# ollama-pull need no host port at all.
+#
+# App services sit behind the `app` profile and are built on the server at deploy time (no registry):
+#   docker compose --profile app up -d --build     (or set COMPOSE_PROFILES=app in .env)
+#
+# Local dev (app run from source via bun) needs infra reachable on the host — for that, and ONLY
+# that, add the dev override which re-publishes infra ports:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d     (= `bun run infra:up`)
+#
 # Postgres credentials come from POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB (defaults below).
 
 x-logging: &default-logging
@@ -22,8 +29,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-brain_dock}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-brain_dock}
       POSTGRES_DB: ${POSTGRES_DB:-brain_dock}
-    ports:
-      - '127.0.0.1:15432:5432'
+    # No host port — reachable only as `postgres:5432` inside the Compose network.
+    # (docker-compose.dev.yml re-publishes 127.0.0.1:15432 for local dev.)
     volumes:
       - postgres-data:/var/lib/postgresql/data
     logging: *default-logging
@@ -37,9 +44,8 @@ services:
     image: qdrant/qdrant:v1.18.2
     container_name: brain-dock-qdrant
     restart: unless-stopped
-    ports:
-      - '127.0.0.1:16333:6333'
-      - '127.0.0.1:16334:6334'
+    # No host port — reachable only as `qdrant:6333` inside the Compose network.
+    # (docker-compose.dev.yml re-publishes 127.0.0.1:16333/16334 for local dev.)
     volumes:
       - qdrant-data:/qdrant/storage
     logging: *default-logging
@@ -55,8 +61,8 @@ services:
     container_name: brain-dock-redis
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes']
-    ports:
-      - '127.0.0.1:16379:6379'
+    # No host port — reachable only as `redis:6379` inside the Compose network.
+    # (docker-compose.dev.yml re-publishes 127.0.0.1:16379 for local dev.)
     volumes:
       - redis-data:/data
     logging: *default-logging
@@ -70,8 +76,8 @@ services:
     image: ollama/ollama:0.30.7
     container_name: brain-dock-ollama
     restart: unless-stopped
-    ports:
-      - '127.0.0.1:11434:11434'
+    # No host port — reachable only as `ollama:11434` inside the Compose network.
+    # (docker-compose.dev.yml re-publishes 127.0.0.1:11434 for local dev.)
     volumes:
       - ollama-data:/root/.ollama
     mem_limit: 4g

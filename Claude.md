@@ -10,7 +10,7 @@
 > - Реестр планов: [docs/plans/README.md](docs/plans/README.md)
 
 **Статус:** продукт работает end-to-end в hosted-модели (удалённый MCP по HTTP поверх серверного
-индекса; клиенты — Claude Code/Cursor/VSCode-расширение). Все планы **000–057 — Done**
+индекса; клиенты — Claude Code/Cursor/VSCode-расширение). Все планы **000–058 — Done**
 (см. [docs/plans/README.md](docs/plans/README.md)); дальнейшее — в
 [backlog](docs/roadmap/ROADMAP.md#дальше-backlog).
 **Дата последнего обновления:** 2026-06-21.
@@ -423,6 +423,9 @@ Batch embeddings · Incremental indexing · Parallel workers · Streaming · Has
   `restore.sh`; `bun run backup`; docs/deployment/BACKUP.md.
 - ✅ **Очередь для upload-индексации (план 057):** `202 QUEUED` + staging-том, общий с воркером;
   воркер индексирует и чистит; клиенты опрашивают статус.
+- ✅ **Прод-чистый compose (план 058):** инфра без хост-портов (только in-network DNS), наружу на
+  `127.0.0.1` — лишь `api`/`mcp`/`web`; хост-порты инфры для dev вынесены в `docker-compose.dev.yml`;
+  `backup.sh` ходит в Qdrant по docker-сети. Полный гайд — `docs/deployment/SERVER-DEPLOY.md`.
 - ⬜ Backlog: git-подключение реп, биллинг/квоты, Redis rate-limit MCP, ротация refresh-токенов,
   pino, change-coupling, `find_prisma_model`/`find_env`/`find_config` —
   [ROADMAP](docs/roadmap/ROADMAP.md#дальше-backlog).

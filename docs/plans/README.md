@@ -76,3 +76,4 @@
 | [055](055-vscode-prod-defaults.md) | Прод-дефолты VSCode-расширения (brain-dock.ru) | Client | Done |
 | [056](056-automated-backups.md) | Автобэкапы: pg_dump + Qdrant snapshots + restore | Ops | Done |
 | [057](057-upload-index-queue.md) | Очередь для upload-индексации (202 QUEUED + staging-том) | Indexing | Done |
+| [058](058-compose-prod-network.md) | Прод-чистый compose: инфра без хост-портов + dev-override | Ops | Done |

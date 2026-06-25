@@ -3,19 +3,23 @@
 Docker / Docker Compose, окружения и инфраструктура. Local-first; конфигурация —
 через переменные окружения (валидируются Zod, см. [`.env.example`](../../.env.example)).
 
-> **Боевой подъём на сервере:** пройдите [GO-LIVE-CHECKLIST.md](GO-LIVE-CHECKLIST.md) по пунктам
-> (секреты, DNS/TLS, RAM, дымовые проверки, бэкапы). Walkthrough — в [GUIDE.md §3](../GUIDE.md).
+> **Боевой подъём на сервере:** полная пошаговая инструкция — [SERVER-DEPLOY.md](SERVER-DEPLOY.md);
+> краткий чек-лист — [GO-LIVE-CHECKLIST.md](GO-LIVE-CHECKLIST.md).
 
 ## Сервисы (docker-compose.yml)
 
-Инфраструктура (всегда доступна):
+Инфраструктура (всегда доступна) — **без хост-портов**, доступна только по in-network DNS:
 
-| Сервис | Образ (запинен) | Host-порт → контейнер |
-|---|---|---|
-| postgres | `postgres:17-alpine` | `127.0.0.1:15432 → 5432` |
-| qdrant | `qdrant/qdrant:v1.18.2` | `127.0.0.1:16333 → 6333`, `127.0.0.1:16334 → 6334` |
-| redis | `redis:7-alpine` | `127.0.0.1:16379 → 6379` |
-| ollama | `ollama/ollama:0.30.7` | `127.0.0.1:11434 → 11434` |
+| Сервис | Образ (запинен) | In-network адрес | Host-порт |
+|---|---|---|---|
+| postgres | `postgres:17-alpine` | `postgres:5432` | — (dev: `127.0.0.1:15432`) |
+| qdrant | `qdrant/qdrant:v1.18.2` | `qdrant:6333`/`:6334` | — (dev: `127.0.0.1:16333/16334`) |
+| redis | `redis:7-alpine` | `redis:6379` | — (dev: `127.0.0.1:16379`) |
+| ollama | `ollama/ollama:0.30.7` | `ollama:11434` | — (dev: `127.0.0.1:11434`) |
+
+> Хост-порты инфры публикуются **только для локальной разработки** через
+> [`docker-compose.dev.yml`](../../docker-compose.dev.yml) (не авто-загружается; включён в
+> `bun run infra:up`). На сервере инфра остаётся **сетево-изолированной** — наружу её нет.
 
 Приложение (за compose-профилем `app`, образы собираются на хосте):
 
@@ -28,11 +32,10 @@ Docker / Docker Compose, окружения и инфраструктура. Loc
 | `mcp` | удалённый MCP по **Streamable HTTP** на `:8080`, путь `/mcp` (или `/mcp/{slug}`) |
 | `web` | веб-кабинет + админка (SPA) на `:3300` |
 
-> Host-порты инфры намеренно нестандартные и **привязаны к `127.0.0.1`** (у инфра-сервисов нет
-> auth). App-сервисы (`web`/`api`/`mcp`) тоже публикуются только на `127.0.0.1` — наружу смотрит
+> Из app-сервисов наружу (на `127.0.0.1`) публикуются только `api`/`mcp`/`web` — перед ними
 > **nginx на хост-машине**: готовый конфиг [deploy/nginx/brain-dock.ru.conf](../../deploy/nginx/brain-dock.ru.conf)
 > (один домен: `/`→web, `/api/v1`→api, `/mcp`→mcp; TLS — certbot; см. GUIDE §3.3).
-> URL в `.env` совпадают с этими портами.
+> `workers`/`migrate`/`ollama-pull` хост-портов не имеют.
 > Креды Postgres задаются через `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` в `.env`.
 > У всех сервисов: healthchecks (postgres/redis — родные пробы, qdrant — TCP, ollama — `ollama list`,
 > api/mcp — `/health`) + `depends_on: service_healthy`, лог-ротация (json-file `10m × 3`),
@@ -41,9 +44,12 @@ Docker / Docker Compose, окружения и инфраструктура. Loc
 
 ## Команды
 ```bash
-bun run infra:up      # docker compose up -d           (инфра: postgres/qdrant/redis/ollama)
-bun run infra:down    # docker compose down
-bun run deploy        # docker compose --profile app up -d --build  (инфра + migrate + api/workers/mcp, сборка на месте)
+# Локальная разработка (инфра на хост-портах через dev-override):
+bun run infra:up      # docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+bun run infra:down
+
+# Прод-деплой на сервере (только Docker, инфра БЕЗ хост-портов):
+docker compose --profile app up -d --build      # или COMPOSE_PROFILES=app + docker compose up -d --build
 ```
 
 ## Первый запуск
